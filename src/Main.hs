@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Main (main) where
 
+import           Control.Applicative             ((<$>))
 import qualified Data.List                       as List
 import           Language.C
 import           Language.C.Analysis.AstAnalysis
