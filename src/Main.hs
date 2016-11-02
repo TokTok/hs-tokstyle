@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Main (main) where
 
-import System.Environment(getArgs)
+import qualified Data.List                       as List
 import           Language.C
 import           Language.C.Analysis.AstAnalysis
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
 import           Language.C.System.GCC
 import           Language.C.System.Preprocess
-import qualified Data.List as List
+import           System.Environment              (getArgs)
 
 import qualified Checks.Naming
 import           Result
@@ -18,7 +18,7 @@ sources :: [String]
 sources =
     [ "../c-toxcore/toxav/audio.c"
     , "../c-toxcore/toxav/bwcontroller.c"
-    , "../c-toxcore/toxav/group.c"
+    , "../c-toxcore/toxav/groupav.c"
     , "../c-toxcore/toxav/msi.c"
     , "../c-toxcore/toxav/rtp.c"
     , "../c-toxcore/toxav/toxav.c"
@@ -51,8 +51,7 @@ sources =
 
 phaseCpp :: FilePath -> IO (FilePath, InputStream)
 phaseCpp file = do
-    cppArgs <- getArgs
-    --let cppArgs = ["-U__BLOCKS__", "-D_VA_LIST"]
+    cppArgs <- (["-std=c99", "-U__BLOCKS__", "-D_VA_LIST", "-D_Nonnull=", "-D_Nullable=", "-D__attribute__(x)="] ++) <$> getArgs
     result <- runPreprocessor (newGCC "gcc") $ rawCppArgs cppArgs file
     case result of
         Left err -> fail $ show err
@@ -69,7 +68,7 @@ phaseParse file preprocessed = do
 phaseAnalyse :: CTranslUnit -> Result (CTranslUnit, GlobalDecls, [CError])
 phaseAnalyse tu = do
     case runTrav_ (analyseAST tu) of
-        Left errs -> fail $ concatMap show errs
+        Left errs           -> fail $ concatMap show errs
         Right (decls, cerr) -> return (tu, decls, cerr)
 
 

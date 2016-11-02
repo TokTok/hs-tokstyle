@@ -1,15 +1,17 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE Safe          #-}
 module Result where
 
-import Control.DeepSeq(NFData)
-import Control.Applicative(Applicative(..))
+import           Control.Applicative (Applicative (..))
+import           Control.DeepSeq     (NFData)
+import           GHC.Generics        (Generic)
 
 
 data Result a
   = Success a
   | Failure String
-  deriving (Read, Show, Eq, Functor)
+  deriving (Read, Show, Eq, Functor, Generic)
 
 instance NFData a => NFData (Result a)
 
