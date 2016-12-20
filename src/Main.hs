@@ -17,36 +17,36 @@ import           Result
 
 sources :: [String]
 sources =
-    [ "../c-toxcore/toxav/audio.c"
-    , "../c-toxcore/toxav/bwcontroller.c"
-    , "../c-toxcore/toxav/groupav.c"
-    , "../c-toxcore/toxav/msi.c"
-    , "../c-toxcore/toxav/rtp.c"
-    , "../c-toxcore/toxav/toxav.c"
-    , "../c-toxcore/toxav/toxav_old.c"
-    , "../c-toxcore/toxav/video.c"
-    , "../c-toxcore/toxcore/DHT.c"
-    , "../c-toxcore/toxcore/LAN_discovery.c"
-    , "../c-toxcore/toxcore/Messenger.c"
-    , "../c-toxcore/toxcore/TCP_client.c"
-    , "../c-toxcore/toxcore/TCP_connection.c"
-    , "../c-toxcore/toxcore/TCP_server.c"
-    , "../c-toxcore/toxcore/assoc.c"
-    , "../c-toxcore/toxcore/crypto_core.c"
-    , "../c-toxcore/toxcore/friend_connection.c"
-    , "../c-toxcore/toxcore/friend_requests.c"
-    , "../c-toxcore/toxcore/group.c"
-    , "../c-toxcore/toxcore/list.c"
-    , "../c-toxcore/toxcore/logger.c"
-    , "../c-toxcore/toxcore/net_crypto.c"
-    , "../c-toxcore/toxcore/network.c"
-    , "../c-toxcore/toxcore/onion.c"
-    , "../c-toxcore/toxcore/onion_announce.c"
-    , "../c-toxcore/toxcore/onion_client.c"
-    , "../c-toxcore/toxcore/ping.c"
-    , "../c-toxcore/toxcore/ping_array.c"
-    , "../c-toxcore/toxcore/tox.c"
-    , "../c-toxcore/toxcore/util.c"
+    [ "c-toxcore/toxav/audio.c"
+    , "c-toxcore/toxav/bwcontroller.c"
+    , "c-toxcore/toxav/groupav.c"
+    , "c-toxcore/toxav/msi.c"
+    , "c-toxcore/toxav/rtp.c"
+    , "c-toxcore/toxav/toxav.c"
+    , "c-toxcore/toxav/toxav_old.c"
+    , "c-toxcore/toxav/video.c"
+    , "c-toxcore/toxcore/DHT.c"
+    , "c-toxcore/toxcore/LAN_discovery.c"
+    , "c-toxcore/toxcore/Messenger.c"
+    , "c-toxcore/toxcore/TCP_client.c"
+    , "c-toxcore/toxcore/TCP_connection.c"
+    , "c-toxcore/toxcore/TCP_server.c"
+    , "c-toxcore/toxcore/assoc.c"
+    , "c-toxcore/toxcore/crypto_core.c"
+    , "c-toxcore/toxcore/friend_connection.c"
+    , "c-toxcore/toxcore/friend_requests.c"
+    , "c-toxcore/toxcore/group.c"
+    , "c-toxcore/toxcore/list.c"
+    , "c-toxcore/toxcore/logger.c"
+    , "c-toxcore/toxcore/net_crypto.c"
+    , "c-toxcore/toxcore/network.c"
+    , "c-toxcore/toxcore/onion.c"
+    , "c-toxcore/toxcore/onion_announce.c"
+    , "c-toxcore/toxcore/onion_client.c"
+    , "c-toxcore/toxcore/ping.c"
+    , "c-toxcore/toxcore/ping_array.c"
+    , "c-toxcore/toxcore/tox.c"
+    , "c-toxcore/toxcore/util.c"
     ]
 
 
@@ -74,7 +74,7 @@ phaseAnalyse tu = do
 
 
 phaseCheck :: (CTranslUnit, GlobalDecls, [CError]) -> [CError]
-phaseCheck (tu, decls, cerr) =
+phaseCheck (tu, decls, _cerr) =
     --cerr ++
     Checks.Naming.check tu decls
 

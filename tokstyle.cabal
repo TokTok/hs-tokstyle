@@ -12,6 +12,9 @@ cabal-version:       >=1.10
 
 executable tokstyle
   main-is:             Main.hs
+  other-modules:
+      Checks.Naming
+    , Result
   ghc-options:
       -Wall
   build-depends:
