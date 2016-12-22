@@ -1,6 +1,7 @@
 name:                tokstyle
-version:             0.1.0
-synopsis:            TokTok style checker
+version:             0.0.1
+synopsis:            TokTok C code style checker
+description:         TokTok C code style checker
 homepage:            https://toktok.github.io/tokstyle
 license:             AGPL-3
 license-file:        LICENSE
@@ -9,6 +10,10 @@ maintainer:          iphydf@users.noreply.github.com
 category:            Development
 build-type:          Simple
 cabal-version:       >=1.10
+
+source-repository head
+  type: git
+  location: https://github.com/TokTok/tokstyle
 
 executable tokstyle
   main-is:             Main.hs
