@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFunctor #-}
 module Main (main) where
 
 import           Control.Applicative             ((<$>))
@@ -60,14 +59,14 @@ phaseCpp file = do
 
 
 phaseParse :: FilePath -> InputStream -> Result CTranslUnit
-phaseParse file preprocessed = do
+phaseParse file preprocessed =
     case parseC preprocessed (initPos file) of
         Left err -> fail $ show err
         Right tu -> return tu
 
 
 phaseAnalyse :: CTranslUnit -> Result (CTranslUnit, GlobalDecls, [CError])
-phaseAnalyse tu = do
+phaseAnalyse tu =
     case runTrav_ (analyseAST tu) of
         Left errs           -> fail $ concatMap show errs
         Right (decls, cerr) -> return (tu, decls, cerr)
