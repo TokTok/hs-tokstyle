@@ -4,7 +4,7 @@ synopsis:            TokTok C code style checker
 description:         TokTok C code style checker
 homepage:            https://toktok.github.io/tokstyle
 license:             AGPL-3
-license-file:        LICENSE
+license-file:        LICENSE.md
 author:              iphydf
 maintainer:          iphydf@users.noreply.github.com
 category:            Development
