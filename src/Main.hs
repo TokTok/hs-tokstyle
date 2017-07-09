@@ -30,7 +30,6 @@ sources =
     , "c-toxcore/toxcore/TCP_client.c"
     , "c-toxcore/toxcore/TCP_connection.c"
     , "c-toxcore/toxcore/TCP_server.c"
-    , "c-toxcore/toxcore/assoc.c"
     , "c-toxcore/toxcore/crypto_core.c"
     , "c-toxcore/toxcore/friend_connection.c"
     , "c-toxcore/toxcore/friend_requests.c"

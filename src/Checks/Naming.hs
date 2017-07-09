@@ -1,8 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 module Checks.Naming where
 
-import qualified Data.Char as Char
-import qualified Data.List as List
+import qualified Data.Char                  as Char
+import qualified Data.List                  as List
 import           Language.C
 import           Language.C.Analysis.SemRep
 import           Language.C.Data.Ident
@@ -29,6 +29,7 @@ check (CTranslUnit edecls ni) _ =
             "bwcontroller" -> "bwc"
             "list" -> "bs_list"
             "messenger" -> "m"
+            "network" -> "net"
             "onion_announce" -> "onion"
             "onion_client" -> "onion"
             "ring_buffer" -> "rb"
