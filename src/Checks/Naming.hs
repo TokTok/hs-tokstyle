@@ -25,16 +25,16 @@ check (CTranslUnit edecls ni) _ =
     srcFile = getSrcFile ni
     namespace =
         case toLower . takeFileName . dropExtension $ srcFile of
-            "audio" -> "ac"
-            "bwcontroller" -> "bwc"
-            "list" -> "bs_list"
-            "messenger" -> "m"
-            "network" -> "net"
+            "audio"          -> "ac"
+            "bwcontroller"   -> "bwc"
+            "list"           -> "bs_list"
+            "messenger"      -> "m"
+            "network"        -> "net"
             "onion_announce" -> "onion"
-            "onion_client" -> "onion"
-            "ring_buffer" -> "rb"
-            "video" -> "vc"
-            ns -> ns
+            "onion_client"   -> "onion"
+            "ring_buffer"    -> "rb"
+            "video"          -> "vc"
+            ns               -> ns
 
     mkNamingError (Ident name _ nameNi) =
         mkErrorInfo LevelWarn name nameNi
@@ -54,6 +54,7 @@ check (CTranslUnit edecls ni) _ =
         if isGlobal declspec
             then foldl globalNamesCDL names dcls
             else names
+    globalNamesCDE names _ = names
 
     globalNamesCDL names (Just cdr, _, _) =
         globalNamesCDR names cdr
