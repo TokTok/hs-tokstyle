@@ -1,3 +1,19 @@
+load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_binary")
 load("//tools:project.bzl", "project")
 
 project("tokstyle")
+
+haskell_binary(
+    name = "tokstyle",
+    srcs = glob(["src/**/*.*hs"]),
+    prebuilt_dependencies = [
+        "base",
+        "deepseq",
+        "filepath",
+    ],
+    src_strip_prefix = "src",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@haskell_language_c//:language-c",
+    ],
+)

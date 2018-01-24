@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module Checks.Naming where
+module Tokstyle.C.Naming where
 
 import qualified Data.Char                  as Char
 import qualified Data.List                  as List
