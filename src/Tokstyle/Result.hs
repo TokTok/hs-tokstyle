@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE Safe          #-}
-module Result where
+module Tokstyle.Result where
 
 import           Control.Applicative (Applicative (..))
 import           Control.DeepSeq     (NFData)
