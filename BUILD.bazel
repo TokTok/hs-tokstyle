@@ -1,19 +1,40 @@
-load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_binary")
+load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_library")
 load("//tools:project.bzl", "project")
 
 project("tokstyle")
 
-haskell_binary(
+genrule(
+    name = "Lexer",
+    srcs = ["src/Tokstyle/Cimple/Lexer.x"],
+    outs = ["src/Tokstyle/Cimple/Lexer.hs"],
+    cmd = "alex -o $@ $<",
+)
+
+genrule(
+    name = "Parser",
+    srcs = ["src/Tokstyle/Cimple/Parser.y"],
+    outs = ["src/Tokstyle/Cimple/Parser.hs"],
+    cmd = "happy -agc -o $@ $<",
+)
+
+haskell_library(
     name = "tokstyle",
-    srcs = glob(["src/**/*.*hs"]),
-    prebuilt_dependencies = [
-        "base",
-        "deepseq",
-        "filepath",
+    srcs = glob(["src/**/*.*hs"]) + [
+        "src/Tokstyle/Cimple/Lexer.hs",
+        "src/Tokstyle/Cimple/Parser.hs",
+    ],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-imports",
     ],
     src_strip_prefix = "src",
     visibility = ["//visibility:public"],
     deps = [
+        "//third_party/haskell:array",
+        "//third_party/haskell:base",
+        "//third_party/haskell:deepseq",
+        "//third_party/haskell:filepath",
         "@haskell_language_c//:language-c",
     ],
 )

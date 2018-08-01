@@ -1,6 +1,6 @@
 module Tokstyle.Cimple (main) where
 
-import           Text.Groom             (groom)
+--import           Text.Groom             (groom)
 import           Tokstyle.Cimple.Lexer  (alexScanTokens, runAlex)
 import           Tokstyle.Cimple.Parser (parseCimple)
 
@@ -16,5 +16,6 @@ main sources = do
     -}
     putStrLn "[=] parsing..."
     let ast = map (`runAlex` parseCimple) contents
-    mapM_ (putStrLn . groom) ast
+    -- mapM_ (putStrLn . groom) ast
+    mapM_ print ast
     return ()

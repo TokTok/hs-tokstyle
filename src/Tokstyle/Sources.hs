@@ -1,8 +1,4 @@
-module Main (main) where
-
-import qualified Tokstyle.C
-import qualified Tokstyle.Cimple
-
+module Tokstyle.Sources (sources) where
 
 sources :: [String]
 sources = map ("../c-toxcore/" ++)
@@ -60,9 +56,3 @@ sources = map ("../c-toxcore/" ++)
     , "toxcore/util.c"
     , "toxcore/util.h"
     ]
-
-
-main :: IO ()
-main = do
-    Tokstyle.C.main sources
-    Tokstyle.Cimple.main sources

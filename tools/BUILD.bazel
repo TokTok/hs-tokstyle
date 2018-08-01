@@ -1,0 +1,30 @@
+load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_binary")
+
+haskell_binary(
+    name = "check-c",
+    srcs = ["check-c.hs"],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+    ],
+    main_file = "check-c.hs",
+    deps = [
+        "//third_party/haskell:base",
+        "//tokstyle",
+    ],
+)
+
+haskell_binary(
+    name = "check-cimple",
+    srcs = ["check-cimple.hs"],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+    ],
+    main_file = "check-cimple.hs",
+    prebuilt_dependencies = ["base"],
+    deps = [
+        "//third_party/haskell:base",
+        "//tokstyle",
+    ],
+)
