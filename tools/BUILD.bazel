@@ -7,7 +7,6 @@ haskell_binary(
         "-Wall",
         "-Werror",
     ],
-    main_file = "check-c.hs",
     deps = [
         "//third_party/haskell:base",
         "//tokstyle",
@@ -21,8 +20,6 @@ haskell_binary(
         "-Wall",
         "-Werror",
     ],
-    main_file = "check-cimple.hs",
-    prebuilt_dependencies = ["base"],
     deps = [
         "//third_party/haskell:base",
         "//tokstyle",

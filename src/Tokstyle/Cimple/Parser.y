@@ -253,16 +253,13 @@ ForStmt
 ForInit :: { () }
 ForInit
 :	';'								{ () }
-|	ForNext ';'							{ () }
-|	VarDecl								{ () }
+|	AssignExpr ';'							{ () }
+|	SingleVarDecl							{ () }
 
 ForNext :: { () }
 ForNext
 :	ExprStmt							{ () }
 |	AssignExpr							{ () }
--- TODO(iphydf): We don't want to allow this (it seems to not be truly useful
--- in toxcore);
-|	ForNext ',' ForNext						{ () }
 
 Opt(x)
 :									{ () }
@@ -286,6 +283,10 @@ DeclStmt :: { () }
 DeclStmt
 :	VarDecl								{ () }
 |	VLA '(' Type ',' ID_VAR ',' Expr ')' ';'			{ () }
+
+SingleVarDecl :: { () }
+SingleVarDecl
+:	QualType Declarator ';'						{ () }
 
 VarDecl :: { () }
 VarDecl
