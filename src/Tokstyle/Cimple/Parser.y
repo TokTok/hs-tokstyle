@@ -459,6 +459,7 @@ MemberDecls
 MemberDecl :: { () }
 MemberDecl
 :	QualType DeclSpec(ConstExpr) ';'				{ () }
+|	QualType DeclSpec(ConstExpr) ':' LIT_INTEGER ';'		{ () }
 |	PreprocIfdef(MemberDecls)					{ () }
 
 TypedefDecl :: { () }

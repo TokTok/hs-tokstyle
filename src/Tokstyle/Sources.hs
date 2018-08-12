@@ -3,15 +3,19 @@ module Tokstyle.Sources (sources) where
 sources :: [String]
 sources = map ("../c-toxcore/" ++)
     [ "toxav/audio.c"
-    {-, "toxav/audio.h"-}
-    {-, "toxav/bwcontroller.c"-}
-    {-, "toxav/bwcontroller.h"-}
-    {-, "toxav/groupav.c"-}
-    {-, "toxav/msi.c"-}
-    {-, "toxav/rtp.c"-}
-    {-, "toxav/toxav.c"-}
-    {-, "toxav/toxav_old.c"-}
-    {-, "toxav/video.c"-}
+    , "toxav/audio.h"
+    , "toxav/bwcontroller.c"
+    , "toxav/bwcontroller.h"
+    , "toxav/groupav.c"
+    , "toxav/groupav.h"
+    , "toxav/msi.c"
+    , "toxav/msi.h"
+    , "toxav/rtp.c"
+    , "toxav/rtp.h"
+    , "toxav/toxav.c"
+    , "toxav/toxav_old.c"
+    , "toxav/video.c"
+    , "toxav/video.h"
     , "toxcore/DHT.c"
     , "toxcore/DHT.h"
     , "toxcore/LAN_discovery.c"
@@ -39,6 +43,7 @@ sources = map ("../c-toxcore/" ++)
     , "toxcore/mono_time.c"
     , "toxcore/mono_time.h"
     , "toxcore/net_crypto.c"
+    , "toxcore/net_crypto.h"
     , "toxcore/network.c"
     , "toxcore/network.h"
     , "toxcore/onion.c"
