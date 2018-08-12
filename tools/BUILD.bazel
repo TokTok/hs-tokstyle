@@ -8,8 +8,8 @@ haskell_binary(
         "-Werror",
     ],
     deps = [
+        "//hs-tokstyle",
         "//third_party/haskell:base",
-        "//tokstyle",
     ],
 )
 
@@ -21,7 +21,7 @@ haskell_binary(
         "-Werror",
     ],
     deps = [
+        "//hs-tokstyle",
         "//third_party/haskell:base",
-        "//tokstyle",
     ],
 )

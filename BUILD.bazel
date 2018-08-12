@@ -1,7 +1,7 @@
-load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_library")
+load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_library", "haskell_test")
 load("//tools:project.bzl", "project")
 
-project("tokstyle")
+project("hs-tokstyle")
 
 genrule(
     name = "Lexer",
@@ -18,7 +18,7 @@ genrule(
 )
 
 haskell_library(
-    name = "tokstyle",
+    name = "hs-tokstyle",
     srcs = glob(["src/**/*.*hs"]) + [
         "src/Tokstyle/Cimple/Lexer.hs",
         "src/Tokstyle/Cimple/Parser.hs",
@@ -37,5 +37,21 @@ haskell_library(
         "//third_party/haskell:deepseq",
         "//third_party/haskell:filepath",
         "@haskell_language_c//:language-c",
+    ],
+)
+
+haskell_test(
+    name = "test",
+    srcs = glob(["test/**/*.*hs"]),
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+    ],
+    src_strip_prefix = "test",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":hs-tokstyle",
+        "//third_party/haskell:base",
+        "@haskell_hspec//:hspec",
     ],
 )

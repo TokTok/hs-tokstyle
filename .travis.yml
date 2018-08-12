@@ -13,4 +13,4 @@ script:
 - stylish-haskell-lhs -i .
 - git diff --exit-code
 - stack --no-terminal test --coverage
-#- shc tokstyle testsuite
+- shc tokstyle testsuite
