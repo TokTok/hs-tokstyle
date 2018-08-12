@@ -36,6 +36,7 @@ haskell_library(
         "//third_party/haskell:base",
         "//third_party/haskell:deepseq",
         "//third_party/haskell:filepath",
+        "@haskell_groom//:groom",
         "@haskell_language_c//:language-c",
     ],
 )

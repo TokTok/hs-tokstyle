@@ -16,3 +16,7 @@ spec =
     it "should parse a type declaration" $ do
       let ast = runAlex "typedef struct Foo { int x; } Foo;" parseCimple
       ast `shouldBe` Right [()]
+
+    it "should parse a struct with bit fields" $ do
+      let ast = runAlex "typedef struct Foo { int x : 123; } Foo;" parseCimple
+      ast `shouldBe` Right [()]
