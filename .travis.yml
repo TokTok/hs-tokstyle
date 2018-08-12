@@ -1,5 +1,7 @@
 language: generic
 
+env: PACKAGE=tokstyle TARGET=x86_64-linux
+
 cache:
   directories:
   - $HOME/.stack
@@ -13,4 +15,16 @@ script:
 - stylish-haskell-lhs -i .
 - git diff --exit-code
 - stack --no-terminal test --coverage
-- shc tokstyle testsuite
+- shc $PACKAGE testsuite
+- stack install
+- tar zcf $PACKAGE-$TARGET-$TRAVIS_TAG.tar.gz -C $HOME/.local $(grep executable $PACKAGE.cabal | awk '{print "bin/"$2}')
+
+deploy:
+  provider: releases
+  api_key:
+    secure: n1kpXjJDqNRo5d2j2YyPuAEej3rL9G1W3JdfArG5QdHGUjKNaObAhuHZ6qo7d9LILt0IMssdZ4qz9qTySiu1BUd2lfAdrh7uoXhPzwYuswgcoVfFomEkkbejpyZK8FR4ZRdeQaU6xXWq1E+Q4Y7bkGJIK4/lSxjA6tfkv+KreHyCZqvuyCsdmJbKRMAq8QrCR9Ak/8+laJj+jp0Qs/uiDVH6PWoD414tLzuOKFNUG6pqfAPWaFCIplDjkzmcN8vt43yCYc2O5TUUPb2VLZm9lBr4JsT4UKsfpcON2U13Fe0Q5zD+U1yCwM7BYuS6WPXnk8ylJLjjANoWoXdVzYJZ38v3PH9GySmY54Hyc5vh71UEBjjbNSd0kBBUnhIuQ0z1nXFduJ5bNnxxLHT7w+HVD5nKO6W4m/00Q3h2ULHD8u4yf0vE2mFqaFQsjkjb5/23b0MKBPrq2Cl+VsdZseKjAXfBV9R2kRApq+ljGdLgNbGyYzZJrJTQY9cxkAn+xvoJJoTBBdN0dxSFY/N08t3mMow1bDr4nLsJWgH0h5A5PgODU1v5f/gSClp1kUpKpC/olryzancG5NfEvdrP6s/jBUx72KQPlBMar7g79Kk8PjQXGs1pvqnWMYhIGExVCRJ8nFNpyl0MhmZhySB3QsqNCNcuQRHstBqI0ugbJuuD+n8=
+  file: $PACKAGE-$TARGET-$TRAVIS_TAG.tar.gz
+  skip_cleanup: true
+  on:
+    repo: TokTok/hs-tokstyle
+    tags: true
