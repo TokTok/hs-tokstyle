@@ -33,6 +33,7 @@ library
     , array
     , deepseq
     , filepath
+    , groom
     , language-c
   hs-source-dirs:      src
 

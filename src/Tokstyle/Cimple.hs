@@ -1,21 +1,16 @@
 module Tokstyle.Cimple (main) where
 
---import           Text.Groom             (groom)
-import           Tokstyle.Cimple.Lexer  (alexScanTokens, runAlex)
+import           Text.Groom             (groom)
+import           Tokstyle.Cimple.Lexer  (runAlex)
 import           Tokstyle.Cimple.Parser (parseCimple)
 
 
+parseFile :: FilePath -> IO ()
+parseFile source = do
+    putStrLn $ "Processing " ++ source
+    contents <- readFile source
+    putStrLn . groom $ runAlex contents parseCimple
+
+
 main :: [String] -> IO ()
-main sources = do
-    putStrLn "[=] reading..."
-    contents <- mapM readFile sources
-    {-
-    putStrLn "[=] lexing..."
-    let tokens = map alexScanTokens contents
-    mapM_ (putStrLn . groom) tokens
-    -}
-    putStrLn "[=] parsing..."
-    let ast = map (`runAlex` parseCimple) contents
-    -- mapM_ (putStrLn . groom) ast
-    mapM_ print ast
-    return ()
+main = mapM_ parseFile

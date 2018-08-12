@@ -71,6 +71,7 @@ tokens :-
 
 -- Standard C (ish).
 <ppSC>		defined					{ mkL PpDefined }
+<ppSC>		\"[^\"]*\"				{ mkL LitString }
 <ppSC>		\n					{ mkL PpNewline `andBegin` 0 }
 <ppSC>		\\\n					;
 <ppSC>		$white					;
@@ -129,6 +130,7 @@ tokens :-
 <0,ppSC>	"bool"					{ mkL IdStdType }
 <0,ppSC>	"char"					{ mkL IdStdType }
 <0,ppSC>	"double"				{ mkL IdStdType }
+<0,ppSC>	"float"					{ mkL IdStdType }
 <0,ppSC>	"int"					{ mkL IdStdType }
 <0,ppSC>	"long int"				{ mkL IdStdType }
 <0,ppSC>	"long signed int"			{ mkL IdStdType }
@@ -154,7 +156,7 @@ tokens :-
 <0,ppSC>	[a-z][a-z0-9_]*_cb			{ mkL IdFuncType }
 <0,ppSC>	[a-z][A-Za-z0-9_]*			{ mkL IdVar }
 <0,ppSC>	[0-9]+[LU]*				{ mkL LitInteger }
-<0,ppSC>	[0-9]+"."[0-9]+				{ mkL LitInteger }
+<0,ppSC>	[0-9]+"."[0-9]+f?			{ mkL LitInteger }
 <0,ppSC>	0x[0-9a-fA-F]+[LU]*			{ mkL LitInteger }
 <0,ppSC>	"="					{ mkL PctEq }
 <0,ppSC>	"=="					{ mkL PctEqEq }
