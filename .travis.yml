@@ -1,23 +1,24 @@
+---
 language: generic
 
 env: PACKAGE=tokstyle TARGET=x86_64-linux
 
 cache:
   directories:
-  - $HOME/.stack
+    - $HOME/.stack
 
 before_install:
-- export PATH=$HOME/.local/bin:$PATH
-- travis_retry curl -L https://github.com/TokTok/hs-tools/releases/download/v0.1/hs-tools-v0.1.tar.gz | tar xz -C $HOME
+  - export PATH=$HOME/.local/bin:$PATH
+  - travis_retry curl -L https://github.com/TokTok/hs-tools/releases/download/v0.1/hs-tools-v0.1.tar.gz | tar xz -C $HOME
 
 script:
-- hlint .
-- stylish-haskell-lhs -i .
-- git diff --exit-code
-- stack --no-terminal test --coverage
-- shc $PACKAGE testsuite
-- stack install
-- tar zcf $PACKAGE-$TARGET-$TRAVIS_TAG.tar.gz -C $HOME/.local $(grep executable $PACKAGE.cabal | awk '{print "bin/"$2}')
+  - hlint .
+  - stylish-haskell-lhs -i .
+  - git diff --exit-code
+  - stack --no-terminal test --coverage
+  - shc $PACKAGE testsuite
+  - stack install
+  - tar zcf $PACKAGE-$TARGET-$TRAVIS_TAG.tar.gz -C $HOME/.local $(grep executable $PACKAGE.cabal | awk '{print "bin/"$2}')
 
 deploy:
   provider: releases
