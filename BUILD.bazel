@@ -29,7 +29,7 @@ haskell_library(
         "-Wno-unused-imports",
     ],
     src_strip_prefix = "src",
-    version = "0.0.1",
+    version = "0.0.2",
     visibility = ["//visibility:public"],
     deps = [
         "//third_party/haskell:array",
