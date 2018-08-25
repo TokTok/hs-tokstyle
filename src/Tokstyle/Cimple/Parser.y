@@ -487,8 +487,12 @@ LeafType
 
 FunctionDecl :: { () }
 FunctionDecl
-:	FunctionPrototype(ID_VAR) FunctionBody				{ () }
-|	static FunctionPrototype(ID_VAR) FunctionBody			{ () }
+:	FunctionDeclarator						{ () }
+|	static FunctionDeclarator					{ () }
+
+FunctionDeclarator
+:	QualType ID_VAR ';'						{ () }
+|	FunctionPrototype(ID_VAR) FunctionBody				{ () }
 
 FunctionPrototype(id)
 :	QualType id FunctionParamList					{ () }
