@@ -1,3 +1,4 @@
+load("@ai_formation_hazel//:hazel.bzl", "hazel_library")
 load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_library", "haskell_test")
 load("//tools/project:build_defs.bzl", "project")
 
@@ -32,12 +33,12 @@ haskell_library(
     version = "0.0.2",
     visibility = ["//visibility:public"],
     deps = [
-        "//third_party/haskell:array",
-        "//third_party/haskell:base",
-        "//third_party/haskell:deepseq",
-        "//third_party/haskell:filepath",
-        "@haskell_groom//:groom",
-        "@haskell_language_c//:language-c",
+        hazel_library("array"),
+        hazel_library("base"),
+        hazel_library("deepseq"),
+        hazel_library("filepath"),
+        hazel_library("groom"),
+        hazel_library("language-c"),
     ],
 )
 
@@ -52,7 +53,7 @@ haskell_test(
     visibility = ["//visibility:public"],
     deps = [
         ":hs-tokstyle",
-        "//third_party/haskell:base",
-        "@haskell_hspec//:hspec",
+        hazel_library("base"),
+        hazel_library("hspec"),
     ],
 )

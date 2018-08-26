@@ -1,3 +1,4 @@
+load("@ai_formation_hazel//:hazel.bzl", "hazel_library")
 load("@io_tweag_rules_haskell//haskell:haskell.bzl", "haskell_binary")
 
 haskell_binary(
@@ -9,7 +10,7 @@ haskell_binary(
     ],
     deps = [
         "//hs-tokstyle",
-        "//third_party/haskell:base",
+        hazel_library("base"),
     ],
 )
 
@@ -22,6 +23,6 @@ haskell_binary(
     ],
     deps = [
         "//hs-tokstyle",
-        "//third_party/haskell:base",
+        hazel_library("base"),
     ],
 )
