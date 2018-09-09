@@ -66,6 +66,7 @@ tokens :-
 <0,ppSC>	"crypto_box_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
 <0,ppSC>	"crypto_hash_sha256_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
 <0,ppSC>	"crypto_hash_sha512_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
+<0,ppSC>	"crypto_sign_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
 <0,ppSC>	"MAX"					{ mkL IdConst }
 <0,ppSC>	"MIN"					{ mkL IdConst }
 
