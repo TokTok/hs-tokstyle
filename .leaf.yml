@@ -1,5 +1,0 @@
-inherits: haskell
-
-package:
-  name: tokstyle
-  version: 0.0.1
