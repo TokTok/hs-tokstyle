@@ -42,10 +42,10 @@ sources = map ("../c-toxcore/" ++)
     , "toxcore/logger.h"
     , "toxcore/mono_time.c"
     , "toxcore/mono_time.h"
-    , "toxcore/net_crypto.c"
-    , "toxcore/net_crypto.h"
     , "toxcore/network.c"
     , "toxcore/network.h"
+    , "toxcore/net_crypto.c"
+    , "toxcore/net_crypto.h"
     , "toxcore/onion.c"
     , "toxcore/onion.h"
     , "toxcore/onion_announce.c"
@@ -56,6 +56,8 @@ sources = map ("../c-toxcore/" ++)
     , "toxcore/ping.h"
     , "toxcore/ping_array.c"
     {-, "toxcore/ping_array.h"-}
+    , "toxcore/state.c"
+    , "toxcore/state.h"
     , "toxcore/tox.c"
     {-, "toxcore/tox.h"-}
     , "toxcore/util.c"
