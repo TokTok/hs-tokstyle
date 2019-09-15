@@ -63,6 +63,7 @@ tokens :-
 <0,ppSC>	"timeval"				{ mkL IdSueType }
 
 -- Sodium constants.
+<0,ppSC>	"crypto_auth_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
 <0,ppSC>	"crypto_box_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
 <0,ppSC>	"crypto_hash_sha256_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
 <0,ppSC>	"crypto_hash_sha512_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
