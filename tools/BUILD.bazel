@@ -8,6 +8,7 @@ haskell_binary(
         "-Wall",
         "-Werror",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle",
         hazel_library("base"),
@@ -21,6 +22,7 @@ haskell_binary(
         "-Wall",
         "-Werror",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle",
         hazel_library("base"),

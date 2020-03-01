@@ -34,10 +34,12 @@ haskell_library(
     deps = [
         hazel_library("array"),
         hazel_library("base"),
+        hazel_library("bytestring"),
         hazel_library("deepseq"),
         hazel_library("filepath"),
         hazel_library("groom"),
         hazel_library("language-c"),
+        hazel_library("text"),
     ],
 )
 
