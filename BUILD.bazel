@@ -15,6 +15,7 @@ alex_lexer(
 happy_parser(
     name = "Parser",
     src = "src/Tokstyle/Cimple/Parser.y",
+    preproc = "expand_yacc.pl",
 )
 
 haskell_library(
