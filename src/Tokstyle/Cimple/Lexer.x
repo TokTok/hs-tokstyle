@@ -13,6 +13,16 @@ module Tokstyle.Cimple.Lexer
 
 tokens :-
 
+-- SPDX comments.
+<0>		"/* SPDX-License-Identifier: "		{ mkL SpdxLicense `andBegin` spdxValueSC }
+
+<spdxSC>	" * Copyright © "			{ mkL SpdxCopyright `andBegin` spdxValueSC }
+<spdxSC>	" */"\n					{ start 0 }
+
+<spdxValueSC>	[0-9]{4}("-"[0-9]{4})?			;
+<spdxValueSC>	[^\n]					;
+<spdxValueSC>	\n					{ mkL PpNewline `andBegin` spdxSC }
+
 -- Ignore attributes.
 <0,ppSC>	"GNU_PRINTF("[^\)]+")"			;
 <0,ppSC>	"VLA"					{ mkL KwVla }
@@ -201,7 +211,8 @@ tokens :-
 <0,ppSC>	"*="					{ mkL PctAsteriskEq }
 <0,ppSC>	"^"					{ mkL PctCaret }
 <0,ppSC>	"^="					{ mkL PctCaretEq }
-<0,ppSC>	.					{ mkL Error }
+
+<0,ppSC,spdxSC>	.					{ mkL Error }
 
 {
 data LexemeClass
@@ -295,6 +306,8 @@ data LexemeClass
     | PpInclude
     | PpNewline
     | PpUndef
+    | SpdxCopyright
+    | SpdxLicense
 
     | Error
     | Eof

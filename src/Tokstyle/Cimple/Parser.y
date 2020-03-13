@@ -103,6 +103,8 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
     '#include'			{ L _ PpInclude			_ }
     '#undef'			{ L _ PpUndef			_ }
     '\n'			{ L _ PpNewline			_ }
+    'SPDX-FileCopyrightText'	{ L _ SpdxCopyright		_ }
+    'SPDX-License-Identifier'	{ L _ SpdxLicense		_ }
 
 %left ','
 %right '=' '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '^=' '|='
@@ -124,7 +126,25 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
 
 TranslationUnit :: { [()] }
 TranslationUnit
-:	ToplevelDecls							{ $1 }
+:	SpdxHeader ToplevelDecls					{ $2 }
+
+SpdxHeader :: { [()] }
+SpdxHeader
+:									{ [] }
+|	License Copyrights						{ $2 }
+
+Copyrights :: { [()] }
+Copyrights
+:	Copyright							{ [$1] }
+|	Copyrights Copyright						{ $2 : $1 }
+
+Copyright :: { () }
+Copyright
+:	'SPDX-FileCopyrightText' '\n'					{ () }
+
+License :: { () }
+License
+:	'SPDX-License-Identifier' '\n'					{ () }
 
 ToplevelDecls :: { [()] }
 ToplevelDecls
