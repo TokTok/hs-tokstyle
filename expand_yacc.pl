@@ -221,6 +221,12 @@ sub instantiate_prod_defn {
    \@instantiated
 }
 
+sub type {
+   my ($funcname) = @_;
+   return "Maybe Node" if $funcname eq "Opt";
+   'Node'
+}
+
 sub instantiate_func {
    my ($grammar, $funcname, $arg) = @_;
    my $mangled_name = "${funcname}_${arg}_";
@@ -230,7 +236,7 @@ sub instantiate_func {
 
    my $func = $grammar->{funcs}{$funcname};
 
-   my %nonterm = (type => '()');
+   my %nonterm = (type => type $funcname);
    for my $prod (@{ $func->{productions} }) {
       push @{ $nonterm{productions} }, {
          defn => instantiate_prod_defn ($prod->{defn}, $func->{param}, $arg),

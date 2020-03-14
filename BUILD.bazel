@@ -14,7 +14,10 @@ alex_lexer(
 
 haskell_library(
     name = "cimple-lexer",
-    srcs = ["src/Tokstyle/Cimple/Lexer.hs"],
+    srcs = [
+        "src/Tokstyle/Cimple/Lexer.hs",
+        "src/Tokstyle/Cimple/Tokens.hs",
+    ],
     compiler_flags = [
         "-Wall",
         "-Werror",
@@ -25,6 +28,7 @@ haskell_library(
     deps = [
         hazel_library("array"),
         hazel_library("base"),
+        hazel_library("text"),
     ],
 )
 
@@ -36,7 +40,10 @@ happy_parser(
 
 haskell_library(
     name = "cimple-parser",
-    srcs = ["src/Tokstyle/Cimple/Parser.hs"],
+    srcs = [
+        "src/Tokstyle/Cimple/AST.hs",
+        "src/Tokstyle/Cimple/Parser.hs",
+    ],
     compiler_flags = [
         "-Wall",
         "-Werror",
@@ -54,7 +61,13 @@ haskell_library(
 
 haskell_library(
     name = "hs-tokstyle",
-    srcs = glob(["src/**/*.*hs"]),
+    srcs = glob(
+        ["src/**/*.*hs"],
+        exclude = [
+            "src/Tokstyle/Cimple/AST.hs",
+            "src/Tokstyle/Cimple/Tokens.hs",
+        ],
+    ),
     compiler_flags = [
         "-Wall",
         "-Werror",

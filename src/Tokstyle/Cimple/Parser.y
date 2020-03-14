@@ -1,8 +1,12 @@
 {
 module Tokstyle.Cimple.Parser where
 
-import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
-                                        alexMonadScan)
+import           Tokstyle.Cimple.AST    (AssignOp (..), BinaryOp (..),
+                                         LiteralType (..), Node (..),
+                                         Scope (..), UnaryOp (..))
+import           Tokstyle.Cimple.Lexer  (Alex, AlexPosn, Lexeme (..),
+                                         alexMonadScan)
+import           Tokstyle.Cimple.Tokens (LexemeClass (..))
 }
 
 -- Conflict between (static) FunctionDecl and (static) ConstDecl.
@@ -10,7 +14,7 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
 
 %name parseCimple
 %error {parseError}
-%lexer {lexwrap} {L undefined Eof ""}
+%lexer {lexwrap} {L _ Eof _}
 %monad {Alex}
 %tokentype {Lexeme}
 %token
@@ -42,6 +46,8 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
     void			{ L _ KwVoid			_ }
     while			{ L _ KwWhile			_ }
     LIT_CHAR			{ L _ LitChar			_ }
+    LIT_FALSE			{ L _ LitFalse			_ }
+    LIT_TRUE			{ L _ LitTrue			_ }
     LIT_INTEGER			{ L _ LitInteger		_ }
     LIT_STRING			{ L _ LitString			_ }
     LIT_SYS_INCLUDE		{ L _ LitSysInclude		_ }
@@ -129,16 +135,16 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
 
 %%
 
-TranslationUnit :: { [()] }
+TranslationUnit :: { [Node] }
 TranslationUnit
-:	ToplevelDecls							{ $1 }
+:	ToplevelDecls							{ reverse $1 }
 
-ToplevelDecls :: { [()] }
+ToplevelDecls :: { [Node] }
 ToplevelDecls
 :	ToplevelDecl							{ [$1] }
 |	ToplevelDecls ToplevelDecl					{ $2 : $1 }
 
-ToplevelDecl :: { () }
+ToplevelDecl :: { Node }
 ToplevelDecl
 :	PreprocIfdef(ToplevelDecls)					{ $1 }
 |	PreprocIf(ToplevelDecls)					{ $1 }
@@ -154,98 +160,98 @@ ToplevelDecl
 |	ConstDecl							{ $1 }
 |	Comment								{ $1 }
 
-Comment :: { () }
+Comment :: { Node }
 Comment
-:	'/*' CommentBody '*/'						{ () }
-|	'/**/'								{ () }
+:	'/*' CommentBody '*/'						{ Comment (reverse $2) }
+|	'/**/'								{ CommentBlock $1 }
 
-CommentBody :: { [()] }
+CommentBody :: { [Node] }
 CommentBody
 :	CommentWord							{ [$1] }
 |	CommentBody CommentWord						{ $2 : $1 }
 
-CommentWord :: { () }
+CommentWord :: { Node }
 CommentWord
-:	COMMENT_WORD							{ () }
-|	COMMENT_CODE							{ () }
-|	LIT_INTEGER							{ () }
-|	LIT_STRING							{ () }
-|	'Copyright'							{ () }
-|	'License'							{ () }
-|	'.'								{ () }
-|	'?'								{ () }
-|	'!'								{ () }
-|	','								{ () }
-|	';'								{ () }
-|	':'								{ () }
-|	'('								{ () }
-|	')'								{ () }
-|	'<'								{ () }
-|	'>'								{ () }
-|	'/'								{ () }
-|	'+'								{ () }
-|	'-'								{ () }
-|	'='								{ () }
-|	'\n'								{ () }
+:	COMMENT_WORD							{ CommentWord $1 }
+|	COMMENT_CODE							{ CommentWord $1 }
+|	LIT_INTEGER							{ CommentWord $1 }
+|	LIT_STRING							{ CommentWord $1 }
+|	'Copyright'							{ CommentWord $1 }
+|	'License'							{ CommentWord $1 }
+|	'.'								{ CommentWord $1 }
+|	'?'								{ CommentWord $1 }
+|	'!'								{ CommentWord $1 }
+|	','								{ CommentWord $1 }
+|	';'								{ CommentWord $1 }
+|	':'								{ CommentWord $1 }
+|	'('								{ CommentWord $1 }
+|	')'								{ CommentWord $1 }
+|	'<'								{ CommentWord $1 }
+|	'>'								{ CommentWord $1 }
+|	'/'								{ CommentWord $1 }
+|	'+'								{ CommentWord $1 }
+|	'-'								{ CommentWord $1 }
+|	'='								{ CommentWord $1 }
+|	'\n'								{ CommentWord $1 }
 
 PreprocIfdef(decls)
-:	'#ifdef' ID_CONST decls PreprocElse(decls) '#endif'		{ () }
-|	'#ifndef' ID_CONST decls PreprocElse(decls) '#endif'		{ () }
+:	'#ifdef' ID_CONST decls PreprocElse(decls) '#endif'		{ PreprocIfdef $2 $3 $4 }
+|	'#ifndef' ID_CONST decls PreprocElse(decls) '#endif'		{ PreprocIfndef $2 $3 $4 }
 
 PreprocIf(decls)
-:	'#if' ConstExpr '\n' decls PreprocElse(decls) '#endif'		{ () }
+:	'#if' ConstExpr '\n' decls PreprocElse(decls) '#endif'		{ PreprocIf $2 $4 $5 }
 
 PreprocElse(decls)
-:									{ () }
-|	'#else' decls							{ () }
-|	'#elif' ConstExpr '\n' decls PreprocElse(decls)			{ () }
+:									{ PreprocElse [] }
+|	'#else' decls							{ PreprocElse $2 }
+|	'#elif' ConstExpr '\n' decls PreprocElse(decls)			{ PreprocElif $2 $4 $5 }
 
-PreprocError :: { () }
+PreprocError :: { Node }
 PreprocError
-:	'#error' LIT_STRING						{ () }
+:	'#error' LIT_STRING						{ PreprocError $2 }
 
-PreprocInclude :: { () }
+PreprocInclude :: { Node }
 PreprocInclude
-:	'#include' LIT_STRING						{ () }
-|	'#include' LIT_SYS_INCLUDE					{ () }
+:	'#include' LIT_STRING						{ PreprocInclude $2 }
+|	'#include' LIT_SYS_INCLUDE					{ PreprocInclude $2 }
 
-PreprocDefine :: { () }
+PreprocDefine :: { Node }
 PreprocDefine
-:	'#define' ID_CONST ConstExpr '\n'				{ () }
-|	'#define' ID_CONST '\n'						{ () }
-|	'#define' ID_CONST MacroParamList MacroBody '\n'		{ () }
+:	'#define' ID_CONST '\n'						{ PreprocDefine $2 }
+|	'#define' ID_CONST ConstExpr '\n'				{ PreprocDefineConst $2 $3 }
+|	'#define' ID_CONST MacroParamList MacroBody '\n'		{ PreprocDefineMacro $2 $3 $4 }
 
-PreprocUndef :: { () }
+PreprocUndef :: { Node }
 PreprocUndef
-:	'#undef' ID_CONST						{ () }
+:	'#undef' ID_CONST						{ PreprocUndef $2 }
 
-ConstExpr :: { () }
+ConstExpr :: { Node }
 ConstExpr
-:	LiteralExpr							{ () }
-|	'defined' '(' ID_CONST ')'					{ () }
-|	PureExpr(ConstExpr)						{ () }
+:	LiteralExpr							{ $1 }
+|	'defined' '(' ID_CONST ')'					{ PreprocDefined $3 }
+|	PureExpr(ConstExpr)						{ $1 }
 
-MacroParamList :: { () }
+MacroParamList :: { [Node] }
 MacroParamList
-:	'(' ')'								{ () }
-|	'(' MacroParams ')'						{ () }
-|	'(' MacroParams ',' '...' ')'					{ () }
+:	'(' ')'								{ [] }
+|	'(' MacroParams ')'						{ reverse $2 }
+|	'(' MacroParams ',' '...' ')'					{ reverse $ Ellipsis : $2 }
 
-MacroParams :: { [()] }
+MacroParams :: { [Node] }
 MacroParams
 :	MacroParam							{ [$1] }
 |	MacroParams ',' MacroParam					{ $3 : $1 }
 
-MacroParam :: { () }
+MacroParam :: { Node }
 MacroParam
-:	ID_VAR								{ () }
+:	ID_VAR								{ MacroParam $1 }
 
-MacroBody :: { () }
+MacroBody :: { Node }
 MacroBody
-:	do CompoundStmt while '(' LIT_INTEGER ')'			{ () }
-|	FunctionCall							{ () }
+:	do CompoundStmt while '(' LIT_INTEGER ')'			{ MacroBodyStmt $2 $5 }
+|	FunctionCall							{ MacroBodyFunCall $1 }
 
-ExternC :: { () }
+ExternC :: { Node }
 ExternC
 :	'#ifdef' ID_CONST
 	extern LIT_STRING '{'
@@ -253,323 +259,321 @@ ExternC
 	ToplevelDecls
 	'#ifdef' ID_CONST
 	'}'
-	'#endif'							{ () }
+	'#endif'							{ ExternC $2 $4 $7 $9 }
 
-Stmts :: { [()] }
+Stmts :: { [Node] }
 Stmts
 :	Stmt								{ [$1] }
 |	Stmts Stmt							{ $2 : $1 }
 
-Stmt :: { () }
+Stmt :: { Node }
 Stmt
-:	PreprocIfdef(Stmts)						{ () }
-|	PreprocIf(Stmts)						{ () }
-|	PreprocDefine Stmts PreprocUndef				{ () }
-|	LabelStmt							{ () }
-|	DeclStmt							{ () }
-|	CompoundStmt							{ () }
-|	IfStmt								{ () }
-|	ForStmt								{ () }
-|	WhileStmt							{ () }
-|	DoWhileStmt							{ () }
-|	AssignExpr ';'							{ () }
-|	ExprStmt ';'							{ () }
-|	FunctionCall ';'						{ () }
-|	break ';'							{ () }
-|	goto ID_CONST ';'						{ () }
-|	continue ';'							{ () }
-|	return ';'							{ () }
-|	return Expr ';'							{ () }
-|	switch '(' Expr ')' CompoundStmt				{ () }
-|	Comment								{ () }
+:	PreprocIfdef(Stmts)						{ $1 }
+|	PreprocIf(Stmts)						{ $1 }
+|	PreprocDefine Stmts PreprocUndef				{ PreprocScopedDefine $1 $2 $3 }
+|	LabelStmt							{ $1 }
+|	DeclStmt							{ $1 }
+|	CompoundStmt							{ CompoundStmt $1 }
+|	IfStmt								{ $1 }
+|	ForStmt								{ $1 }
+|	WhileStmt							{ $1 }
+|	DoWhileStmt							{ $1 }
+|	AssignExpr ';'							{ $1 }
+|	ExprStmt ';'							{ $1 }
+|	FunctionCall ';'						{ $1 }
+|	break ';'							{ Break }
+|	goto ID_CONST ';'						{ Goto $2 }
+|	continue ';'							{ Continue }
+|	return ';'							{ Return Nothing }
+|	return Expr ';'							{ Return (Just $2) }
+|	switch '(' Expr ')' CompoundStmt				{ Switch $3 $5 }
+|	Comment								{ $1 }
 
-IfStmt :: { () }
+IfStmt :: { Node }
 IfStmt
-:	if '(' Expr ')' CompoundStmt					{ () }
-|	if '(' Expr ')' CompoundStmt else IfStmt			{ () }
-|	if '(' Expr ')' CompoundStmt else CompoundStmt			{ () }
+:	if '(' Expr ')' CompoundStmt					{ IfStmt $3 $5 Nothing }
+|	if '(' Expr ')' CompoundStmt else IfStmt			{ IfStmt $3 $5 (Just $7) }
+|	if '(' Expr ')' CompoundStmt else CompoundStmt			{ IfStmt $3 $5 (Just (CompoundStmt $7)) }
 
-ForStmt :: { () }
+ForStmt :: { Node }
 ForStmt
-:	for '(' ForInit Opt(Expr) ';' Opt(ForNext) ')' CompoundStmt	{ () }
+:	for '(' ForInit Opt(Expr) ';' Opt(ForNext) ')' CompoundStmt	{ ForStmt $3 $4 $6 $8 }
 
-ForInit :: { () }
+ForInit :: { Maybe Node }
 ForInit
-:	';'								{ () }
-|	AssignExpr ';'							{ () }
-|	SingleVarDecl							{ () }
+:	';'								{ Nothing }
+|	AssignExpr ';'							{ Just $1 }
+|	SingleVarDecl							{ Just $1 }
 
-ForNext :: { () }
+ForNext :: { Node }
 ForNext
-:	ExprStmt							{ () }
-|	AssignExpr							{ () }
+:	ExprStmt							{ $1 }
+|	AssignExpr							{ $1 }
 
 Opt(x)
-:									{ () }
-|	x								{ () }
+:									{ Nothing }
+|	x								{ Just $1 }
 
-WhileStmt :: { () }
+WhileStmt :: { Node }
 WhileStmt
-:	while '(' Expr ')' CompoundStmt					{ () }
+:	while '(' Expr ')' CompoundStmt					{ WhileStmt $3 $5 }
 
-DoWhileStmt :: { () }
+DoWhileStmt :: { Node }
 DoWhileStmt
-:	do CompoundStmt while '(' Expr ')' ';'				{ () }
+:	do CompoundStmt while '(' Expr ')' ';'				{ DoWhileStmt $2 $5 }
 
-LabelStmt :: { () }
+LabelStmt :: { Node }
 LabelStmt
-:	case Expr ':' Stmt						{ () }
-|	default ':' Stmt						{ () }
-|	ID_CONST ':' Stmt						{ () }
+:	case Expr ':' Stmt						{ Case $2 $4 }
+|	default ':' Stmt						{ Default $3 }
+|	ID_CONST ':' Stmt						{ Label $1 $3 }
 
-DeclStmt :: { () }
+DeclStmt :: { Node }
 DeclStmt
-:	VarDecl								{ () }
-|	VLA '(' Type ',' ID_VAR ',' Expr ')' ';'			{ () }
+:	VarDecl								{ $1 }
+|	VLA '(' Type ',' ID_VAR ',' Expr ')' ';'			{ VLA $3 $5 $7 }
 
-SingleVarDecl :: { () }
+SingleVarDecl :: { Node }
 SingleVarDecl
-:	QualType Declarator ';'						{ () }
+:	QualType Declarator ';'						{ VarDecl $1 [$2] }
 
-VarDecl :: { () }
+VarDecl :: { Node }
 VarDecl
-:	QualType Declarators ';'					{ () }
+:	QualType Declarators ';'					{ VarDecl $1 (reverse $2) }
 
-Declarators :: { [()] }
+Declarators :: { [Node] }
 Declarators
 :	Declarator							{ [$1] }
 |	Declarators ',' Declarator					{ $3 : $1 }
 
-Declarator :: { () }
+Declarator :: { Node }
 Declarator
-:	DeclSpec(Expr) '=' InitialiserExpr				{ () }
-|	DeclSpec(Expr)							{ () }
+:	DeclSpec(Expr) '=' InitialiserExpr				{ Declarator $1 (Just $3) }
+|	DeclSpec(Expr)							{ Declarator $1 Nothing }
 
-InitialiserExpr :: { () }
+InitialiserExpr :: { Node }
 InitialiserExpr
-:	InitialiserList							{ () }
-|	Expr								{ () }
+:	InitialiserList							{ InitialiserList $1 }
+|	Expr								{ $1 }
 
 DeclSpec(expr)
-:	ID_VAR								{ () }
-|	DeclSpec(expr) '[' ']'						{ () }
-|	DeclSpec(expr) '[' expr ']'					{ () }
+:	ID_VAR								{ DeclSpecVar $1 }
+|	DeclSpec(expr) '[' ']'						{ DeclSpecArray $1 Nothing }
+|	DeclSpec(expr) '[' expr ']'					{ DeclSpecArray $1 (Just $3) }
 
-InitialiserList :: { () }
+InitialiserList :: { [Node] }
 InitialiserList
-:	'{' Initialisers '}'						{ () }
-|	'{' Initialisers ',' '}'					{ () }
+:	'{' Initialisers '}'						{ reverse $2 }
+|	'{' Initialisers ',' '}'					{ reverse $2 }
 
-Initialisers :: { [()] }
+Initialisers :: { [Node] }
 Initialisers
 :	Initialiser							{ [$1] }
 |	Initialisers ',' Initialiser					{ $3 : $1 }
 
-Initialiser :: { () }
+Initialiser :: { Node }
 Initialiser
-:	Expr								{ () }
-|	InitialiserList							{ () }
+:	Expr								{ $1 }
+|	InitialiserList							{ InitialiserList $1 }
 
-CompoundStmt :: { () }
+CompoundStmt :: { [Node] }
 CompoundStmt
-:	'{' Stmts '}'							{ () }
+:	'{' Stmts '}'							{ $2 }
 
 PureExpr(x)
-:	x '!=' x							{ () }
-|	x '==' x							{ () }
-|	x '||' x							{ () }
-|	x '^' x								{ () }
-|	x '|' x								{ () }
-|	x '&&' x							{ () }
-|	x '&' x								{ () }
-|	x '/' x								{ () }
-|	x '*' x								{ () }
-|	x '%' x								{ () }
-|	x '+' x								{ () }
-|	x '-' x								{ () }
-|	x '<' x								{ () }
-|	x '<=' x							{ () }
-|	x '<<' x							{ () }
-|	x '>' x								{ () }
-|	x '>=' x							{ () }
-|	x '>>' x							{ () }
-|	x '?' x ':' x							{ () }
-|	'(' x ')'							{ () }
-|	'!' x								{ () }
-|	'~' x								{ () }
-|	'-' x %prec NEG							{ () }
-|	'&' x %prec ADDRESS						{ () }
-|	'(' QualType ')' x %prec CAST					{ () }
-|	sizeof '(' x ')'						{ () }
-|	sizeof '(' Type ')'						{ () }
+:	x '!=' x							{ BinaryExpr $1 BopNe $3 }
+|	x '==' x							{ BinaryExpr $1 BopEq $3 }
+|	x '||' x							{ BinaryExpr $1 BopOr $3 }
+|	x '^' x								{ BinaryExpr $1 BopBitXor $3 }
+|	x '|' x								{ BinaryExpr $1 BopBitOr $3 }
+|	x '&&' x							{ BinaryExpr $1 BopAnd $3 }
+|	x '&' x								{ BinaryExpr $1 BopBitAnd $3 }
+|	x '/' x								{ BinaryExpr $1 BopDiv $3 }
+|	x '*' x								{ BinaryExpr $1 BopMul $3 }
+|	x '%' x								{ BinaryExpr $1 BopMod $3 }
+|	x '+' x								{ BinaryExpr $1 BopPlus $3 }
+|	x '-' x								{ BinaryExpr $1 BopMinus $3 }
+|	x '<' x								{ BinaryExpr $1 BopLt $3 }
+|	x '<=' x							{ BinaryExpr $1 BopLe $3 }
+|	x '<<' x							{ BinaryExpr $1 BopLsh $3 }
+|	x '>' x								{ BinaryExpr $1 BopGt $3 }
+|	x '>=' x							{ BinaryExpr $1 BopGe $3 }
+|	x '>>' x							{ BinaryExpr $1 BopRsh $3 }
+|	x '?' x ':' x							{ TernaryExpr $1 $3 $5 }
+|	'(' x ')'							{ ParenExpr $2 }
+|	'!' x								{ UnaryExpr UopNot $2 }
+|	'~' x								{ UnaryExpr UopNeg $2 }
+|	'-' x %prec NEG							{ UnaryExpr UopMinus $2 }
+|	'&' x %prec ADDRESS						{ UnaryExpr UopAddress $2 }
+|	'(' QualType ')' x %prec CAST					{ CastExpr $2 $4 }
+|	sizeof '(' x ')'						{ SizeofExpr $3 }
+|	sizeof '(' Type ')'						{ SizeofExpr $3 }
 
-LiteralExpr :: { () }
+LiteralExpr :: { Node }
 LiteralExpr
-:	LIT_CHAR							{ () }
-|	LIT_INTEGER							{ () }
-|	LIT_STRING							{ () }
-|	ID_CONST							{ () }
+:	LIT_CHAR							{ LiteralExpr Char $1 }
+|	LIT_INTEGER							{ LiteralExpr Int $1 }
+|	LIT_FALSE							{ LiteralExpr Bool $1 }
+|	LIT_TRUE							{ LiteralExpr Bool $1 }
+|	LIT_STRING							{ LiteralExpr String $1 }
+|	ID_CONST							{ LiteralExpr ConstId $1 }
 
-Expr :: { () }
+Expr :: { Node }
 Expr
-:	LhsExpr								{ () }
-|	ExprStmt							{ () }
-|	LiteralExpr							{ () }
-|	FunctionCall							{ () }
-|	PureExpr(Expr)							{ () }
+:	LhsExpr								{ $1 }
+|	ExprStmt							{ $1 }
+|	LiteralExpr							{ $1 }
+|	FunctionCall							{ $1 }
+|	PureExpr(Expr)							{ $1 }
 
-AssignExpr :: { () }
+AssignExpr :: { Node }
 AssignExpr
-:	LhsExpr AssignOperator Expr					{ () }
+:	LhsExpr AssignOperator Expr					{ AssignExpr $1 $2 $3 }
 
-AssignOperator :: { () }
+AssignOperator :: { AssignOp }
 AssignOperator
-:	'='								{ () }
-|	'*='								{ () }
-|	'/='								{ () }
-|	'+='								{ () }
-|	'-='								{ () }
-|	'&='								{ () }
-|	'|='								{ () }
-|	'^='								{ () }
-|	'%='								{ () }
-|	'<<='								{ () }
-|	'>>='								{ () }
+:	'='								{ AopEq      }
+|	'*='								{ AopMul     }
+|	'/='								{ AopDiv     }
+|	'+='								{ AopPlus    }
+|	'-='								{ AopMinus   }
+|	'&='								{ AopBitAnd  }
+|	'|='								{ AopBitOr   }
+|	'^='								{ AopBitXor  }
+|	'%='								{ AopMod     }
+|	'<<='								{ AopLsh     }
+|	'>>='								{ AopRsh     }
 
-ExprStmt :: { () }
+ExprStmt :: { Node }
 ExprStmt
-:	'++' Expr							{ () }
-|	'--' Expr							{ () }
+:	'++' Expr							{ UnaryExpr UopIncr $2 }
+|	'--' Expr							{ UnaryExpr UopDecr $2 }
 
-LhsExpr :: { () }
+LhsExpr :: { Node }
 LhsExpr
-:	ID_VAR								{ () }
-|	'*' LhsExpr %prec DEREF						{ () }
-|	LhsExpr '.' ID_VAR						{ () }
-|	LhsExpr '->' ID_VAR						{ () }
-|	LhsExpr '[' Expr ']'						{ () }
+:	ID_VAR								{ VarExpr $1 }
+|	'*' LhsExpr %prec DEREF						{ UnaryExpr UopDeref $2 }
+|	LhsExpr '.' ID_VAR						{ MemberAccess $1 $3 }
+|	LhsExpr '->' ID_VAR						{ PointerAccess $1 $3 }
+|	LhsExpr '[' Expr ']'						{ ArrayAccess $1 $3 }
 
-FunctionCall :: { () }
+FunctionCall :: { Node }
 FunctionCall
-:	Expr ArgList							{ () }
+:	Expr ArgList							{ FunctionCall $1 $2 }
 
-ArgList :: { () }
+ArgList :: { [Node] }
 ArgList
-:	'(' ')'								{ () }
-|	'(' Args ')'							{ () }
+:	'(' ')'								{ [] }
+|	'(' Args ')'							{ reverse $2 }
 
-Args :: { [()] }
+Args :: { [Node] }
 Args
 :	Arg								{ [$1] }
 |	Args ',' Arg							{ $3 : $1 }
 
-Arg :: { () }
+Arg :: { Node }
 Arg
 :	Expr								{ $1 }
-|	Comment Expr							{ $2 }
+|	Comment Expr							{ CommentExpr $1 $2 }
 
-EnumDecl :: { () }
+EnumDecl :: { Node }
 EnumDecl
-:	typedef enum ID_SUE_TYPE EnumeratorList ID_SUE_TYPE ';'		{ () }
+:	typedef enum ID_SUE_TYPE EnumeratorList ID_SUE_TYPE ';'		{ EnumDecl $3 $4 $5 }
 
-EnumeratorList :: { () }
+EnumeratorList :: { [Node] }
 EnumeratorList
-:	'{' Enumerators '}'						{ () }
+:	'{' Enumerators '}'						{ $2 }
 
-Enumerators :: { [()] }
+Enumerators :: { [Node] }
 Enumerators
 :	Enumerator							{ [$1] }
 |	Enumerators Enumerator						{ $2 : $1 }
 
-Enumerator :: { () }
+Enumerator :: { Node }
 Enumerator
-:	ID_CONST ','							{ () }
-|	ID_CONST '=' ConstExpr ','					{ () }
-|	Comment								{ () }
+:	ID_CONST ','							{ Enumerator $1 Nothing }
+|	ID_CONST '=' ConstExpr ','					{ Enumerator $1 (Just $3) }
+|	Comment								{ $1 }
 
-AggregateDecl :: { () }
+AggregateDecl :: { Node }
 AggregateDecl
-:	AggregateType ';'						{ () }
-|	typedef AggregateType ID_SUE_TYPE ';'				{ () }
+:	AggregateType ';'						{ $1 }
+|	typedef AggregateType ID_SUE_TYPE ';'				{ Typedef $2 $3 }
 
-AggregateType :: { () }
+AggregateType :: { Node }
 AggregateType
-:	struct ID_SUE_TYPE '{' MemberDecls '}'				{ () }
-|	union ID_SUE_TYPE '{' MemberDecls '}'				{ () }
+:	struct ID_SUE_TYPE '{' MemberDecls '}'				{ Struct $2 $4 }
+|	union ID_SUE_TYPE '{' MemberDecls '}'				{ Union $2 $4 }
 
-MemberDecls :: { [()] }
+MemberDecls :: { [Node] }
 MemberDecls
 :	MemberDecl							{ [$1] }
 |	MemberDecls MemberDecl						{ $2 : $1 }
 
-MemberDecl :: { () }
+MemberDecl :: { Node }
 MemberDecl
-:	QualType DeclSpec(ConstExpr) ';'				{ () }
-|	QualType DeclSpec(ConstExpr) ':' LIT_INTEGER ';'		{ () }
-|	PreprocIfdef(MemberDecls)					{ () }
-|	Comment								{ () }
+:	QualType DeclSpec(ConstExpr) ';'				{ MemberDecl $1 $2 Nothing }
+|	QualType DeclSpec(ConstExpr) ':' LIT_INTEGER ';'		{ MemberDecl $1 $2 (Just $4) }
+|	PreprocIfdef(MemberDecls)					{ $1 }
+|	Comment								{ $1 }
 
-TypedefDecl :: { () }
+TypedefDecl :: { Node }
 TypedefDecl
-:	typedef QualType ID_SUE_TYPE ';'				{ () }
-|	typedef FunctionPrototype(ID_FUNC_TYPE) ';'			{ () }
+:	typedef QualType ID_SUE_TYPE ';'				{ Typedef $2 $3 }
+|	typedef FunctionPrototype(ID_FUNC_TYPE) ';'			{ TypedefFunction $2 }
 
-QualType :: { () }
+QualType :: { Node }
 QualType
-:	Type								{ () }
-|	const Type							{ () }
+:	Type								{ $1 }
+|	const Type							{ TyConst $2 }
 
-Type :: { () }
+Type :: { Node }
 Type
-:	LeafType							{ () }
-|	Type '*'							{ () }
-|	Type const							{ () }
+:	LeafType							{ $1 }
+|	Type '*'							{ TyPointer $1 }
+|	Type const							{ TyConst $1 }
 
-LeafType :: { () }
+LeafType :: { Node }
 LeafType
-:	struct ID_SUE_TYPE						{ () }
-|	void								{ () }
-|	ID_FUNC_TYPE							{ () }
-|	ID_STD_TYPE							{ () }
-|	ID_SUE_TYPE							{ () }
+:	struct ID_SUE_TYPE						{ TyStruct $2 }
+|	void								{ TyStd $1 }
+|	ID_FUNC_TYPE							{ TyFunc $1 }
+|	ID_STD_TYPE							{ TyStd $1 }
+|	ID_SUE_TYPE							{ TyUserDefined $1 }
 
-FunctionDecl :: { () }
+FunctionDecl :: { Node }
 FunctionDecl
-:	FunctionDeclarator						{ () }
-|	static FunctionDeclarator					{ () }
+:	FunctionDeclarator						{ $1 Global }
+|	static FunctionDeclarator					{ $2 Static }
 
+FunctionDeclarator :: { Scope -> Node }
 FunctionDeclarator
-:	QualType ID_VAR ';'						{ () }
-|	FunctionPrototype(ID_VAR) FunctionBody				{ () }
+:	FunctionPrototype(ID_VAR) ';'					{ \s -> FunctionDecl s $1 }
+|	FunctionPrototype(ID_VAR) CompoundStmt				{ \s -> FunctionDefn s $1 $2 }
 
 FunctionPrototype(id)
-:	QualType id FunctionParamList					{ () }
+:	QualType id FunctionParamList					{ FunctionPrototype $1 $2 $3 }
 
-FunctionBody :: { () }
-FunctionBody
-:	';'								{ () }
-|	CompoundStmt							{ () }
-
-FunctionParamList :: { () }
+FunctionParamList :: { [Node] }
 FunctionParamList
-:	'(' void ')'							{ () }
-|	'(' FunctionParams ')'						{ () }
-|	'(' FunctionParams ',' '...' ')'				{ () }
+:	'(' void ')'							{ [] }
+|	'(' FunctionParams ')'						{ reverse $2 }
+|	'(' FunctionParams ',' '...' ')'				{ reverse $ Ellipsis : $2 }
 
-FunctionParams :: { [()] }
+FunctionParams :: { [Node] }
 FunctionParams
 :	FunctionParam							{ [$1] }
 |	FunctionParams ',' FunctionParam				{ $3 : $1 }
 
-FunctionParam :: { () }
+FunctionParam :: { Node }
 FunctionParam
-:	QualType DeclSpec(ConstExpr)					{ () }
+:	QualType DeclSpec(ConstExpr)					{ FunctionParam $1 $2 }
 
-ConstDecl :: { () }
+ConstDecl :: { Node }
 ConstDecl
-:	extern const LeafType ID_VAR ';'				{ () }
-|	const LeafType ID_VAR '=' InitialiserExpr ';'			{ () }
-|	static const LeafType ID_VAR '=' InitialiserExpr ';'		{ () }
+:	extern const LeafType ID_VAR ';'				{ ConstDecl $3 $4 }
+|	const LeafType ID_VAR '=' InitialiserExpr ';'			{ ConstDefn Global $2 $3 $5 }
+|	static const LeafType ID_VAR '=' InitialiserExpr ';'		{ ConstDefn Static $3 $4 $6 }
 
 {
 parseError :: Lexeme -> Alex a

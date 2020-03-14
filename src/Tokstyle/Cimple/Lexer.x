@@ -1,12 +1,20 @@
 {
 module Tokstyle.Cimple.Lexer
     ( Alex
-    , Lexeme (..)
-    , LexemeClass (..)
+    , AlexPosn (..)
     , alexScanTokens
     , alexMonadScan
+    , Lexeme (..)
+    , lexemeClass
+    , lexemePosn
+    , lexemeText
+    , mkL
     , runAlex
     ) where
+
+import           Data.Text              (Text)
+import qualified Data.Text              as Text
+import           Tokstyle.Cimple.Tokens (LexemeClass (..))
 }
 
 %wrapper "monad"
@@ -134,10 +142,10 @@ tokens :-
 <0,ppSC>	"unsigned long"				{ mkL IdStdType }
 <0,ppSC>	"unsigned"				{ mkL IdStdType }
 <0,ppSC>	"va_list"				{ mkL IdStdType }
+<0,ppSC>	"false"					{ mkL LitFalse }
+<0,ppSC>	"true"					{ mkL LitTrue }
 <0,ppSC>	"__func__"				{ mkL IdVar }
 <0,ppSC>	"__"[a-zA-Z]+"__"?			{ mkL IdConst }
-<0,ppSC>	"true"					{ mkL LitInteger }
-<0,ppSC>	"false"					{ mkL LitInteger }
 <0,ppSC>	[A-Z][A-Z0-9_]{1,2}			{ mkL IdSueType }
 <0,ppSC>	_*[A-Z][A-Z0-9_]*			{ mkL IdConst }
 <0,ppSC>	[A-Z][A-Za-z0-9_]*[a-z][A-Za-z0-9_]*	{ mkL IdSueType }
@@ -221,114 +229,20 @@ tokens :-
 <0,ppSC,cmtSC,codeSC>	.				{ mkL Error }
 
 {
-data LexemeClass
-    = Comment
-    | IdConst
-    | IdFuncType
-    | IdStdType
-    | IdSueType
-    | IdVar
-    | KwBreak
-    | KwCase
-    | KwConst
-    | KwContinue
-    | KwDefault
-    | KwDo
-    | KwFor
-    | KwGoto
-    | KwIf
-    | KwElse
-    | KwEnum
-    | KwExtern
-    | KwReturn
-    | KwSizeof
-    | KwStatic
-    | KwStruct
-    | KwSwitch
-    | KwTypedef
-    | KwUnion
-    | KwVla
-    | KwVoid
-    | KwWhile
-    | LitChar
-    | LitInteger
-    | LitString
-    | LitSysInclude
-    | PctAmpersand
-    | PctAmpersandAmpersand
-    | PctAmpersandEq
-    | PctArrow
-    | PctAsterisk
-    | PctAsteriskEq
-    | PctCaret
-    | PctCaretEq
-    | PctColon
-    | PctComma
-    | PctEllipsis
-    | PctEMark
-    | PctEMarkEq
-    | PctEq
-    | PctEqEq
-    | PctGreater
-    | PctGreaterEq
-    | PctGreaterGreater
-    | PctGreaterGreaterEq
-    | PctLBrace
-    | PctLBrack
-    | PctLess
-    | PctLessEq
-    | PctLessLess
-    | PctLessLessEq
-    | PctLParen
-    | PctMinus
-    | PctMinusEq
-    | PctMinusMinus
-    | PctPeriod
-    | PctPercent
-    | PctPercentEq
-    | PctPipe
-    | PctPipeEq
-    | PctPipePipe
-    | PctPlus
-    | PctPlusEq
-    | PctPlusPlus
-    | PctQMark
-    | PctRBrace
-    | PctRBrack
-    | PctRParen
-    | PctSemicolon
-    | PctSlash
-    | PctSlashEq
-    | PctTilde
-    | PpDefine
-    | PpDefined
-    | PpElif
-    | PpElse
-    | PpEndif
-    | PpError
-    | PpIf
-    | PpIfdef
-    | PpIfndef
-    | PpInclude
-    | PpNewline
-    | PpUndef
-    | CmtBlock
-    | CmtStart
-    | CmtSpdxCopyright
-    | CmtSpdxLicense
-    | CmtCode
-    | CmtWord
-    | CmtEnd
-
-    | Error
-    | Eof
-    deriving (Show, Eq, Ord)
-
-data Lexeme = L AlexPosn LexemeClass String
+data Lexeme = L AlexPosn LexemeClass Text
     deriving (Show, Eq)
 
-mkL :: LexemeClass -> AlexInput -> Int -> Alex Lexeme
-mkL c (p, _, _, str) len = return (L p c (take len str))
+mkL :: Applicative m => LexemeClass -> AlexInput -> Int -> m Lexeme
+mkL c (p, _, _, str) len = pure $ L p c (Text.pack $ take len str)
+
+lexemePosn :: Lexeme -> AlexPosn
+lexemePosn (L p _ _) = p
+
+lexemeClass :: Lexeme -> LexemeClass
+lexemeClass (L _ c _) = c
+
+lexemeText :: Lexeme -> Text
+lexemeText (L _ _ s) = s
 
 start :: Int -> AlexInput -> Int -> Alex Lexeme
 start code _ _ = do
@@ -336,7 +250,7 @@ start code _ _ = do
     alexMonadScan
 
 alexEOF :: Alex Lexeme
-alexEOF = return (L (AlexPn 0 0 0) Eof "")
+alexEOF = return (L (AlexPn 0 0 0) Eof Text.empty)
 
 alexScanTokens :: String -> Either String [Lexeme]
 alexScanTokens str =
@@ -347,5 +261,4 @@ alexScanTokens str =
         if cl == Eof
             then return $ reverse toks
             else loop $! (tok:toks)
-
 }

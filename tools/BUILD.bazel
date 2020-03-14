@@ -25,7 +25,13 @@ haskell_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle",
+        "//hs-tokstyle:cimple-lexer",
+        "//hs-tokstyle:cimple-parser",
         hazel_library("base"),
+        hazel_library("bytestring"),
+        hazel_library("ghc-compact"),
+        hazel_library("groom"),
+        hazel_library("text"),
     ],
 )
 
