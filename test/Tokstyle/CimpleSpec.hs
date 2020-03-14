@@ -20,3 +20,7 @@ spec =
     it "should parse a struct with bit fields" $ do
       let ast = runAlex "typedef struct Foo { int x : 123; } Foo;" parseCimple
       ast `shouldBe` Right [()]
+
+    it "should parse a comment" $ do
+      let ast = runAlex "/* hello */" parseCimple
+      ast `shouldBe` Right [()]

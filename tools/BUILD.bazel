@@ -28,3 +28,20 @@ haskell_binary(
         hazel_library("base"),
     ],
 )
+
+haskell_binary(
+    name = "dump-tokens",
+    srcs = ["dump-tokens.hs"],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//hs-tokstyle:cimple-lexer",
+        hazel_library("base"),
+        hazel_library("bytestring"),
+        hazel_library("groom"),
+        hazel_library("text"),
+    ],
+)

@@ -103,6 +103,13 @@ import           Tokstyle.Cimple.Lexer (Alex, Lexeme (..), LexemeClass (..),
     '#include'			{ L _ PpInclude			_ }
     '#undef'			{ L _ PpUndef			_ }
     '\n'			{ L _ PpNewline			_ }
+    '/**/'			{ L _ CmtBlock			_ }
+    '/*'			{ L _ CmtStart			_ }
+    '*/'			{ L _ CmtEnd			_ }
+    'Copyright'			{ L _ CmtSpdxCopyright		_ }
+    'License'			{ L _ CmtSpdxLicense		_ }
+    COMMENT_CODE		{ L _ CmtCode			_ }
+    COMMENT_WORD		{ L _ CmtWord			_ }
 
 %left ','
 %right '=' '+=' '-=' '*=' '/=' '%=' '<<=' '>>=' '&=' '^=' '|='
@@ -145,6 +152,41 @@ ToplevelDecl
 |	EnumDecl							{ $1 }
 |	FunctionDecl							{ $1 }
 |	ConstDecl							{ $1 }
+|	Comment								{ $1 }
+
+Comment :: { () }
+Comment
+:	'/*' CommentBody '*/'						{ () }
+|	'/**/'								{ () }
+
+CommentBody :: { [()] }
+CommentBody
+:	CommentWord							{ [$1] }
+|	CommentBody CommentWord						{ $2 : $1 }
+
+CommentWord :: { () }
+CommentWord
+:	COMMENT_WORD							{ () }
+|	COMMENT_CODE							{ () }
+|	LIT_INTEGER							{ () }
+|	LIT_STRING							{ () }
+|	'Copyright'							{ () }
+|	'License'							{ () }
+|	'.'								{ () }
+|	'?'								{ () }
+|	'!'								{ () }
+|	','								{ () }
+|	';'								{ () }
+|	':'								{ () }
+|	'('								{ () }
+|	')'								{ () }
+|	'<'								{ () }
+|	'>'								{ () }
+|	'/'								{ () }
+|	'+'								{ () }
+|	'-'								{ () }
+|	'='								{ () }
+|	'\n'								{ () }
 
 PreprocIfdef(decls)
 :	'#ifdef' ID_CONST decls PreprocElse(decls) '#endif'		{ () }
@@ -239,6 +281,7 @@ Stmt
 |	return ';'							{ () }
 |	return Expr ';'							{ () }
 |	switch '(' Expr ')' CompoundStmt				{ () }
+|	Comment								{ () }
 
 IfStmt :: { () }
 IfStmt
@@ -402,8 +445,6 @@ LhsExpr :: { () }
 LhsExpr
 :	ID_VAR								{ () }
 |	'*' LhsExpr %prec DEREF						{ () }
--- TODO(iphydf): We don't want this, it's most likely a bug:
-|	'*' '(' QualType ')' LhsExpr %prec DEREF			{ () }
 |	LhsExpr '.' ID_VAR						{ () }
 |	LhsExpr '->' ID_VAR						{ () }
 |	LhsExpr '[' Expr ']'						{ () }
@@ -419,8 +460,13 @@ ArgList
 
 Args :: { [()] }
 Args
-:	Expr								{ [$1] }
-|	Args ',' Expr							{ $3 : $1 }
+:	Arg								{ [$1] }
+|	Args ',' Arg							{ $3 : $1 }
+
+Arg :: { () }
+Arg
+:	Expr								{ $1 }
+|	Comment Expr							{ $2 }
 
 EnumDecl :: { () }
 EnumDecl
@@ -429,17 +475,17 @@ EnumDecl
 EnumeratorList :: { () }
 EnumeratorList
 :	'{' Enumerators '}'						{ () }
-|	'{' Enumerators ',' '}'						{ () }
 
 Enumerators :: { [()] }
 Enumerators
 :	Enumerator							{ [$1] }
-|	Enumerators ',' Enumerator					{ $3 : $1 }
+|	Enumerators Enumerator						{ $2 : $1 }
 
 Enumerator :: { () }
 Enumerator
-:	ID_CONST							{ () }
-|	ID_CONST '=' ConstExpr						{ () }
+:	ID_CONST ','							{ () }
+|	ID_CONST '=' ConstExpr ','					{ () }
+|	Comment								{ () }
 
 AggregateDecl :: { () }
 AggregateDecl
@@ -461,6 +507,7 @@ MemberDecl
 :	QualType DeclSpec(ConstExpr) ';'				{ () }
 |	QualType DeclSpec(ConstExpr) ':' LIT_INTEGER ';'		{ () }
 |	PreprocIfdef(MemberDecls)					{ () }
+|	Comment								{ () }
 
 TypedefDecl :: { () }
 TypedefDecl

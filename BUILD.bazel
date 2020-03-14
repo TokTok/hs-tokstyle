@@ -12,6 +12,22 @@ alex_lexer(
     src = "src/Tokstyle/Cimple/Lexer.x",
 )
 
+haskell_library(
+    name = "cimple-lexer",
+    srcs = ["src/Tokstyle/Cimple/Lexer.hs"],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+    ],
+    src_strip_prefix = "src",
+    version = "0.0.2",
+    visibility = ["//hs-tokstyle:__subpackages__"],
+    deps = [
+        hazel_library("array"),
+        hazel_library("base"),
+    ],
+)
+
 happy_parser(
     name = "Parser",
     src = "src/Tokstyle/Cimple/Parser.y",
@@ -19,11 +35,26 @@ happy_parser(
 )
 
 haskell_library(
-    name = "hs-tokstyle",
-    srcs = glob(["src/**/*.*hs"]) + [
-        "src/Tokstyle/Cimple/Lexer.hs",
-        "src/Tokstyle/Cimple/Parser.hs",
+    name = "cimple-parser",
+    srcs = ["src/Tokstyle/Cimple/Parser.hs"],
+    compiler_flags = [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-imports",
     ],
+    src_strip_prefix = "src",
+    version = "0.0.2",
+    visibility = ["//hs-tokstyle:__subpackages__"],
+    deps = [
+        ":cimple-lexer",
+        hazel_library("array"),
+        hazel_library("base"),
+    ],
+)
+
+haskell_library(
+    name = "hs-tokstyle",
+    srcs = glob(["src/**/*.*hs"]),
     compiler_flags = [
         "-Wall",
         "-Werror",
@@ -33,9 +64,11 @@ haskell_library(
     version = "0.0.2",
     visibility = ["//visibility:public"],
     deps = [
-        hazel_library("array"),
+        ":cimple-lexer",
+        ":cimple-parser",
         hazel_library("base"),
         hazel_library("bytestring"),
+        hazel_library("containers"),
         hazel_library("deepseq"),
         hazel_library("filepath"),
         hazel_library("groom"),
@@ -51,6 +84,8 @@ hspec_test(
         "-Werror",
     ],
     deps = [
+        ":cimple-lexer",
+        ":cimple-parser",
         ":hs-tokstyle",
         hazel_library("base"),
         hazel_library("hspec"),

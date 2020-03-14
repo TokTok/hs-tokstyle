@@ -14,53 +14,53 @@ module Tokstyle.Cimple.Lexer
 tokens :-
 
 -- Ignore attributes.
-<0,ppSC>	"GNU_PRINTF("[^\)]+")"			;
-<0,ppSC>	"VLA"					{ mkL KwVla }
+<0>		"GNU_PRINTF("[^\)]+")"			;
+<0>		"VLA"					{ mkL KwVla }
 
 -- Winapi functions.
-<0,ppSC>	"WSAAddressToString"			{ mkL IdVar }
-<0,ppSC>	"LocalFree"				{ mkL IdVar }
-<0,ppSC>	"FormatMessageA"			{ mkL IdVar }
-<0,ppSC>	"WSAGetLastError"			{ mkL IdVar }
-<0,ppSC>	"WSAStringToAddress"			{ mkL IdVar }
-<0,ppSC>	"WSAStartup"				{ mkL IdVar }
-<0,ppSC>	"GetAdaptersInfo"			{ mkL IdVar }
-<0,ppSC>	"WSACleanup"				{ mkL IdVar }
-<0,ppSC>	"GetSystemTimeAsFileTime"		{ mkL IdVar }
-<0,ppSC>	"GetTickCount"				{ mkL IdVar }
+<0>		"WSAAddressToString"			{ mkL IdVar }
+<0>		"LocalFree"				{ mkL IdVar }
+<0>		"FormatMessageA"			{ mkL IdVar }
+<0>		"WSAGetLastError"			{ mkL IdVar }
+<0>		"WSAStringToAddress"			{ mkL IdVar }
+<0>		"WSAStartup"				{ mkL IdVar }
+<0>		"GetAdaptersInfo"			{ mkL IdVar }
+<0>		"WSACleanup"				{ mkL IdVar }
+<0>		"GetSystemTimeAsFileTime"		{ mkL IdVar }
+<0>		"GetTickCount"				{ mkL IdVar }
 
 -- Winapi struct members.
-<0,ppSC>	"GatewayList"				{ mkL IdVar }
-<0,ppSC>	"Next"					{ mkL IdVar }
-<0,ppSC>	"IpAddress"				{ mkL IdVar }
-<0,ppSC>	"IpAddressList"				{ mkL IdVar }
-<0,ppSC>	"IpMask"				{ mkL IdVar }
-<0,ppSC>	"String"				{ mkL IdVar }
+<0>		"GatewayList"				{ mkL IdVar }
+<0>		"Next"					{ mkL IdVar }
+<0>		"IpAddress"				{ mkL IdVar }
+<0>		"IpAddressList"				{ mkL IdVar }
+<0>		"IpMask"				{ mkL IdVar }
+<0>		"String"				{ mkL IdVar }
 
 -- Windows typedefs.
-<0,ppSC>	"DWORD"					{ mkL IdStdType }
-<0,ppSC>	"FILETIME"				{ mkL IdStdType }
-<0,ppSC>	"INT"					{ mkL IdStdType }
-<0,ppSC>	"LPSOCKADDR"				{ mkL IdStdType }
-<0,ppSC>	"IP_ADAPTER_INFO"			{ mkL IdStdType }
-<0,ppSC>	"LPTSTR"				{ mkL IdStdType }
-<0,ppSC>	"u_long"				{ mkL IdStdType }
-<0,ppSC>	"WSADATA"				{ mkL IdStdType }
+<0>		"DWORD"					{ mkL IdStdType }
+<0>		"FILETIME"				{ mkL IdStdType }
+<0>		"INT"					{ mkL IdStdType }
+<0>		"LPSOCKADDR"				{ mkL IdStdType }
+<0>		"IP_ADAPTER_INFO"			{ mkL IdStdType }
+<0>		"LPTSTR"				{ mkL IdStdType }
+<0>		"u_long"				{ mkL IdStdType }
+<0>		"WSADATA"				{ mkL IdStdType }
 
 -- System struct types.
-<0,ppSC>	"addrinfo"				{ mkL IdSueType }
-<0,ppSC>	"ifconf"				{ mkL IdSueType }
-<0,ppSC>	"ifreq"					{ mkL IdSueType }
-<0,ppSC>	"epoll_event"				{ mkL IdSueType }
-<0,ppSC>	"in_addr"				{ mkL IdSueType }
-<0,ppSC>	"in6_addr"				{ mkL IdSueType }
-<0,ppSC>	"ipv6_mreq"				{ mkL IdSueType }
-<0,ppSC>	"sockaddr"				{ mkL IdSueType }
-<0,ppSC>	"sockaddr_in"				{ mkL IdSueType }
-<0,ppSC>	"sockaddr_in6"				{ mkL IdSueType }
-<0,ppSC>	"sockaddr_storage"			{ mkL IdSueType }
-<0,ppSC>	"timespec"				{ mkL IdSueType }
-<0,ppSC>	"timeval"				{ mkL IdSueType }
+<0>		"addrinfo"				{ mkL IdSueType }
+<0>		"ifconf"				{ mkL IdSueType }
+<0>		"ifreq"					{ mkL IdSueType }
+<0>		"epoll_event"				{ mkL IdSueType }
+<0>		"in_addr"				{ mkL IdSueType }
+<0>		"in6_addr"				{ mkL IdSueType }
+<0>		"ipv6_mreq"				{ mkL IdSueType }
+<0>		"sockaddr"				{ mkL IdSueType }
+<0>		"sockaddr_in"				{ mkL IdSueType }
+<0>		"sockaddr_in6"				{ mkL IdSueType }
+<0>		"sockaddr_storage"			{ mkL IdSueType }
+<0>		"timespec"				{ mkL IdSueType }
+<0>		"timeval"				{ mkL IdSueType }
 
 -- Sodium constants.
 <0,ppSC>	"crypto_auth_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
@@ -68,8 +68,8 @@ tokens :-
 <0,ppSC>	"crypto_hash_sha256_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
 <0,ppSC>	"crypto_hash_sha512_"[A-Z][A-Z0-9_]*	{ mkL IdConst }
 <0,ppSC>	"crypto_sign_"[A-Z][A-Z0-9_]*		{ mkL IdConst }
-<0,ppSC>	"MAX"					{ mkL IdConst }
-<0,ppSC>	"MIN"					{ mkL IdConst }
+<0>		"MAX"					{ mkL IdConst }
+<0>		"MIN"					{ mkL IdConst }
 
 -- Standard C (ish).
 <ppSC>		defined					{ mkL PpDefined }
@@ -78,15 +78,6 @@ tokens :-
 <ppSC>		\\\n					;
 <ppSC>		$white					;
 
-<commentSC>	"*/"					{ start 0 }
-<commentSC>	[.\n]					;
-
-<dstringSC>	\"					{ start 0 }
-<dstringSC>	\\\\|\\[^"]|[^\\]|\n			;
-
-<sstringSC>	'					{ start 0 }
-<sstringSC>	\\\\|\\'|[^\\]|\n			;
-
 <ignoreSC>	"//!TOKSTYLE+"				{ start 0 }
 <ignoreSC>	[.\n]					;
 
@@ -94,9 +85,10 @@ tokens :-
 <0,ppSC>	"// ".*					;
 <0>		$white+					;
 <0>		"//!TOKSTYLE-"				{ start ignoreSC }
-<0>		"/*"					{ start commentSC }
-<0>		\"					{ mkL LitString `andBegin` dstringSC }
-<0>		'					{ mkL LitChar `andBegin` sstringSC }
+<0>		"/*""*"?				{ mkL CmtStart `andBegin` cmtSC }
+<0>		"/""*"+\n" *"\n" * :: ".+\n" *"\n" ""*"+"/"	{ mkL CmtBlock }
+<0,cmtSC>	\"(\\.|[^\"])*\"			{ mkL LitString }
+<0>		'(\\|[^'])*'				{ mkL LitChar }
 <0>		"<"[a-z0-9\.\/_]+">"			{ mkL LitSysInclude }
 <0>		"#if"					{ mkL PpIf `andBegin` ppSC }
 <0>		"#ifdef"				{ mkL PpIfdef }
@@ -152,36 +144,36 @@ tokens :-
 <0,ppSC>	[a-z][a-z0-9_]*_t			{ mkL IdStdType }
 <0,ppSC>	[a-z][a-z0-9_]*_cb			{ mkL IdFuncType }
 <0,ppSC>	[a-z][A-Za-z0-9_]*			{ mkL IdVar }
-<0,ppSC>	[0-9]+[LU]*				{ mkL LitInteger }
+<0,ppSC,cmtSC>	[0-9]+[LU]*				{ mkL LitInteger }
 <0,ppSC>	[0-9]+"."[0-9]+f?			{ mkL LitInteger }
 <0,ppSC>	0x[0-9a-fA-F]+[LU]*			{ mkL LitInteger }
-<0,ppSC>	"="					{ mkL PctEq }
+<0,ppSC,cmtSC>	"="					{ mkL PctEq }
 <0,ppSC>	"=="					{ mkL PctEqEq }
 <0,ppSC>	"&"					{ mkL PctAmpersand }
 <0,ppSC>	"&&"					{ mkL PctAmpersandAmpersand }
 <0,ppSC>	"&="					{ mkL PctAmpersandEq }
 <0,ppSC>	"->"					{ mkL PctArrow }
-<0,ppSC>	","					{ mkL PctComma }
-<0,ppSC>	"+"					{ mkL PctPlus }
+<0,ppSC,cmtSC>	","					{ mkL PctComma }
+<0,ppSC,cmtSC>	"+"					{ mkL PctPlus }
 <0,ppSC>	"++"					{ mkL PctPlusPlus }
 <0,ppSC>	"+="					{ mkL PctPlusEq }
-<0,ppSC>	"-"					{ mkL PctMinus }
+<0,ppSC,cmtSC>	"-"					{ mkL PctMinus }
 <0,ppSC>	"--"					{ mkL PctMinusMinus }
 <0,ppSC>	"-="					{ mkL PctMinusEq }
 <0,ppSC>	"~"					{ mkL PctTilde }
-<0,ppSC>	"/"					{ mkL PctSlash }
+<0,ppSC,cmtSC>	"/"					{ mkL PctSlash }
 <0,ppSC>	"/="					{ mkL PctSlashEq }
-<0,ppSC>	"."					{ mkL PctPeriod }
+<0,ppSC,cmtSC>	"."					{ mkL PctPeriod }
 <0,ppSC>	"..."					{ mkL PctEllipsis }
 <0,ppSC>	"%"					{ mkL PctPercent }
 <0,ppSC>	"%="					{ mkL PctPercentEq }
-<0,ppSC>	";"					{ mkL PctSemicolon }
-<0,ppSC>	":"					{ mkL PctColon }
-<0,ppSC>	"<"					{ mkL PctLess }
+<0,ppSC,cmtSC>	";"					{ mkL PctSemicolon }
+<0,ppSC,cmtSC>	":"					{ mkL PctColon }
+<0,ppSC,cmtSC>	"<"					{ mkL PctLess }
 <0,ppSC>	"<<"					{ mkL PctLessLess }
 <0,ppSC>	"<<="					{ mkL PctLessLessEq }
 <0,ppSC>	"<="					{ mkL PctLessEq }
-<0,ppSC>	">"					{ mkL PctGreater }
+<0,ppSC,cmtSC>	">"					{ mkL PctGreater }
 <0,ppSC>	">>"					{ mkL PctGreaterGreater }
 <0,ppSC>	">>="					{ mkL PctGreaterGreaterEq }
 <0,ppSC>	">="					{ mkL PctGreaterEq }
@@ -192,16 +184,41 @@ tokens :-
 <0,ppSC>	"]"					{ mkL PctRBrack }
 <0,ppSC>	"{"					{ mkL PctLBrace }
 <0,ppSC>	"}"					{ mkL PctRBrace }
-<0,ppSC>	"("					{ mkL PctLParen }
-<0,ppSC>	")"					{ mkL PctRParen }
-<0,ppSC>	"?"					{ mkL PctQMark }
-<0,ppSC>	"!"					{ mkL PctEMark }
+<0,ppSC,cmtSC>	"("					{ mkL PctLParen }
+<0,ppSC,cmtSC>	")"					{ mkL PctRParen }
+<0,ppSC,cmtSC>	"?"					{ mkL PctQMark }
+<0,ppSC,cmtSC>	"!"					{ mkL PctEMark }
 <0,ppSC>	"!="					{ mkL PctEMarkEq }
 <0,ppSC>	"*"					{ mkL PctAsterisk }
 <0,ppSC>	"*="					{ mkL PctAsteriskEq }
 <0,ppSC>	"^"					{ mkL PctCaret }
 <0,ppSC>	"^="					{ mkL PctCaretEq }
-<0,ppSC>	.					{ mkL Error }
+
+-- Comments.
+<cmtSC>		"Copyright ©"				{ mkL CmtSpdxCopyright }
+<cmtSC>		"SPDX-License-Identifier:"		{ mkL CmtSpdxLicense }
+<cmtSC>		"GPL-3.0-or-later"			{ mkL CmtWord }
+<cmtSC>		"TODO("[^\)]+"):"			{ mkL CmtWord }
+<cmtSC>		[@\\][a-z]+				{ mkL CmtWord }
+<cmtSC>		"*"[A-Za-z][A-Za-z0-9_']*"*"		{ mkL CmtWord }
+<cmtSC>		[A-Za-z][A-Za-z0-9_']*			{ mkL CmtWord }
+<cmtSC>		"#"[0-9]+				{ mkL CmtWord }
+<cmtSC>		"http://"[^ ]+				{ mkL CmtWord }
+<cmtSC>		[0-9]+"%"				{ mkL LitInteger }
+<cmtSC>		"<code>"				{ mkL CmtCode `andBegin` codeSC }
+<cmtSC>		"`"[^`]+"`"				{ mkL CmtCode }
+<cmtSC>		"*/"					{ mkL CmtEnd `andBegin` 0 }
+<cmtSC>		\n" "+"*/"				{ mkL CmtEnd `andBegin` 0 }
+<cmtSC,codeSC>	\n" "+"*"				{ mkL PpNewline }
+<cmtSC,codeSC>	\n					{ mkL PpNewline }
+<cmtSC>		" "+					;
+
+-- <code></code> blocks in comments.
+<codeSC>	"</code>"				{ mkL CmtCode `andBegin` cmtSC }
+<codeSC>	[^\<]+					{ mkL CmtCode }
+
+-- Error handling.
+<0,ppSC,cmtSC,codeSC>	.				{ mkL Error }
 
 {
 data LexemeClass
@@ -295,13 +312,20 @@ data LexemeClass
     | PpInclude
     | PpNewline
     | PpUndef
+    | CmtBlock
+    | CmtStart
+    | CmtSpdxCopyright
+    | CmtSpdxLicense
+    | CmtCode
+    | CmtWord
+    | CmtEnd
 
     | Error
     | Eof
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 data Lexeme = L AlexPosn LexemeClass String
-    deriving (Show)
+    deriving (Show, Eq)
 
 mkL :: LexemeClass -> AlexInput -> Int -> Alex Lexeme
 mkL c (p, _, _, str) len = return (L p c (take len str))
