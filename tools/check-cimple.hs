@@ -1,27 +1,17 @@
 module Main (main) where
 
-import qualified Data.ByteString        as BS
-import qualified Data.Text              as Text
-import qualified Data.Text.Encoding     as Text
-import qualified GHC.Compact            as Compact
-import           System.Environment     (getArgs)
-import           Tokstyle.Cimple.Lexer  (runAlex)
-import           Tokstyle.Cimple.Parser (parseCimple)
-import           Tokstyle.Sources       (sources)
-
-
-parseFile :: FilePath -> IO ()
-parseFile source = do
-    putStrLn $ "Processing " ++ source
-    contents <- Text.unpack . Text.decodeUtf8 <$> BS.readFile source
-    let ast = runAlex contents parseCimple
-    size <- Compact.compactSize =<< Compact.compactWithSharing ast
-    putStrLn $ "Memory size of AST: " ++ show size ++ " bytes"
+import           System.Environment (getArgs)
+import           Tokstyle.Cimple.IO (parseFile)
+import           Tokstyle.Sources   (sources)
 
 
 main :: IO ()
 main = do
-  args <- getArgs
-  mapM_ parseFile $ case args of
-    [] -> sources
-    _  -> args
+    args <- getArgs
+    asts <- mapM getRight =<< mapM parseFile (case args of
+        [] -> sources
+        _  -> args)
+    print . head $ asts
+  where
+    getRight (Left err) = fail err
+    getRight (Right ok) = return ok

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Tokstyle.Cimple.AST
     ( AssignOp (..)
     , BinaryOp (..)
@@ -9,90 +11,90 @@ module Tokstyle.Cimple.AST
 
 import           Tokstyle.Cimple.Lexer (Lexeme)
 
-data Node
+data Node text
     -- Preprocessor
-    = PreprocInclude Lexeme
-    | PreprocDefine Lexeme
-    | PreprocDefineConst Lexeme Node
-    | PreprocDefineMacro Lexeme [Node] Node
-    | PreprocIf Node [Node] Node
-    | PreprocIfdef Lexeme [Node] Node
-    | PreprocIfndef Lexeme [Node] Node
-    | PreprocElse [Node]
-    | PreprocElif Node [Node] Node
-    | PreprocError Lexeme
-    | PreprocUndef Lexeme
-    | PreprocDefined Lexeme
-    | PreprocScopedDefine Node [Node] Node
-    | MacroBodyStmt [Node] Lexeme
-    | MacroBodyFunCall Node
-    | MacroParam Lexeme
+    = PreprocInclude (Lexeme text)
+    | PreprocDefine (Lexeme text)
+    | PreprocDefineConst (Lexeme text) (Node text)
+    | PreprocDefineMacro (Lexeme text) [Node text] (Node text)
+    | PreprocIf (Node text) [Node text] (Node text)
+    | PreprocIfdef (Lexeme text) [Node text] (Node text)
+    | PreprocIfndef (Lexeme text) [Node text] (Node text)
+    | PreprocElse [Node text]
+    | PreprocElif (Node text) [Node text] (Node text)
+    | PreprocError (Lexeme text)
+    | PreprocUndef (Lexeme text)
+    | PreprocDefined (Lexeme text)
+    | PreprocScopedDefine (Node text) [Node text] (Node text)
+    | MacroBodyStmt [Node text] (Lexeme text)
+    | MacroBodyFunCall (Node text)
+    | MacroParam (Lexeme text)
     -- Comments
-    | Comment [Node]
-    | CommentBlock Lexeme
-    | CommentWord Lexeme
+    | Comment [Node text]
+    | CommentBlock (Lexeme text)
+    | CommentWord (Lexeme text)
     -- extern "C" block
-    | ExternC Lexeme Lexeme [Node] Lexeme
+    | ExternC (Lexeme text) (Lexeme text) [Node text] (Lexeme text)
     -- Statements
-    | CompoundStmt [Node]
+    | CompoundStmt [Node text]
     | Break
-    | Goto Lexeme
+    | Goto (Lexeme text)
     | Continue
-    | Return (Maybe Node)
-    | Switch Node [Node]
-    | IfStmt Node [Node] (Maybe Node)
-    | ForStmt (Maybe Node) (Maybe Node) (Maybe Node) [Node]
-    | WhileStmt Node [Node]
-    | DoWhileStmt [Node] Node
-    | Case Node Node
-    | Default Node
-    | Label Lexeme Node
+    | Return (Maybe (Node text))
+    | Switch (Node text) [Node text]
+    | IfStmt (Node text) [Node text] (Maybe (Node text))
+    | ForStmt (Maybe (Node text)) (Maybe (Node text)) (Maybe (Node text)) [Node text]
+    | WhileStmt (Node text) [Node text]
+    | DoWhileStmt [Node text] (Node text)
+    | Case (Node text) (Node text)
+    | Default (Node text)
+    | Label (Lexeme text) (Node text)
     -- Variable declarations
-    | VLA Node Lexeme Node
-    | VarDecl Node [Node]
-    | Declarator Node (Maybe Node)
-    | DeclSpecVar Lexeme
-    | DeclSpecArray Node (Maybe Node)
+    | VLA (Node text) (Lexeme text) (Node text)
+    | VarDecl (Node text) [Node text]
+    | Declarator (Node text) (Maybe (Node text))
+    | DeclSpecVar (Lexeme text)
+    | DeclSpecArray (Node text) (Maybe (Node text))
     -- Expressions
-    | InitialiserList [Node]
-    | UnaryExpr UnaryOp Node
-    | BinaryExpr Node BinaryOp Node
-    | TernaryExpr Node Node Node
-    | AssignExpr Node AssignOp Node
-    | ParenExpr Node
-    | CastExpr Node Node
-    | SizeofExpr Node
-    | LiteralExpr LiteralType Lexeme
-    | VarExpr Lexeme
-    | MemberAccess Node Lexeme
-    | PointerAccess Node Lexeme
-    | ArrayAccess Node Node
-    | FunctionCall Node [Node]
-    | CommentExpr Node Node
+    | InitialiserList [Node text]
+    | UnaryExpr UnaryOp (Node text)
+    | BinaryExpr (Node text) BinaryOp (Node text)
+    | TernaryExpr (Node text) (Node text) (Node text)
+    | AssignExpr (Node text) AssignOp (Node text)
+    | ParenExpr (Node text)
+    | CastExpr (Node text) (Node text)
+    | SizeofExpr (Node text)
+    | LiteralExpr LiteralType (Lexeme text)
+    | VarExpr (Lexeme text)
+    | MemberAccess (Node text) (Lexeme text)
+    | PointerAccess (Node text) (Lexeme text)
+    | ArrayAccess (Node text) (Node text)
+    | FunctionCall (Node text) [Node text]
+    | CommentExpr (Node text) (Node text)
     -- Type definitions
-    | EnumDecl Lexeme [Node] Lexeme
-    | Enumerator Lexeme (Maybe Node)
-    | Typedef Node Lexeme
-    | TypedefFunction Node
-    | Struct Lexeme [Node]
-    | Union Lexeme [Node]
-    | MemberDecl Node Node (Maybe Lexeme)
-    | TyConst Node
-    | TyPointer Node
-    | TyStruct Lexeme
-    | TyFunc Lexeme
-    | TyStd Lexeme
-    | TyUserDefined Lexeme
+    | EnumDecl (Lexeme text) [Node text] (Lexeme text)
+    | Enumerator (Lexeme text) (Maybe (Node text))
+    | Typedef (Node text) (Lexeme text)
+    | TypedefFunction (Node text)
+    | Struct (Lexeme text) [Node text]
+    | Union (Lexeme text) [Node text]
+    | MemberDecl (Node text) (Node text) (Maybe (Lexeme text))
+    | TyConst (Node text)
+    | TyPointer (Node text)
+    | TyStruct (Lexeme text)
+    | TyFunc (Lexeme text)
+    | TyStd (Lexeme text)
+    | TyUserDefined (Lexeme text)
     -- Functions
-    | FunctionDecl Scope Node
-    | FunctionDefn Scope Node [Node]
-    | FunctionPrototype Node Lexeme [Node]
-    | FunctionParam Node Node
+    | FunctionDecl Scope (Node text)
+    | FunctionDefn Scope (Node text) [Node text]
+    | FunctionPrototype (Node text) (Lexeme text) [Node text]
+    | FunctionParam (Node text) (Node text)
     | Ellipsis
     -- Constants
-    | ConstDecl Node Lexeme
-    | ConstDefn Scope Node Lexeme Node
-    deriving (Show, Eq)
+    | ConstDecl (Node text) (Lexeme text)
+    | ConstDefn Scope (Node text) (Lexeme text) (Node text)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 data AssignOp
     = AopEq

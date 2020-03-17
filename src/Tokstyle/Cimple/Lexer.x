@@ -1,4 +1,6 @@
 {
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Tokstyle.Cimple.Lexer
     ( Alex
     , AlexPosn (..)
@@ -12,8 +14,6 @@ module Tokstyle.Cimple.Lexer
     , runAlex
     ) where
 
-import           Data.Text              (Text)
-import qualified Data.Text              as Text
 import           Tokstyle.Cimple.Tokens (LexemeClass (..))
 }
 
@@ -229,30 +229,30 @@ tokens :-
 <0,ppSC,cmtSC,codeSC>	.				{ mkL Error }
 
 {
-data Lexeme = L AlexPosn LexemeClass Text
-    deriving (Show, Eq)
+data Lexeme text = L AlexPosn LexemeClass text
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
-mkL :: Applicative m => LexemeClass -> AlexInput -> Int -> m Lexeme
-mkL c (p, _, _, str) len = pure $ L p c (Text.pack $ take len str)
+mkL :: Applicative m => LexemeClass -> AlexInput -> Int -> m (Lexeme String)
+mkL c (p, _, _, str) len = pure $ L p c (take len str)
 
-lexemePosn :: Lexeme -> AlexPosn
+lexemePosn :: Lexeme text -> AlexPosn
 lexemePosn (L p _ _) = p
 
-lexemeClass :: Lexeme -> LexemeClass
+lexemeClass :: Lexeme text -> LexemeClass
 lexemeClass (L _ c _) = c
 
-lexemeText :: Lexeme -> Text
+lexemeText :: Lexeme text -> text
 lexemeText (L _ _ s) = s
 
-start :: Int -> AlexInput -> Int -> Alex Lexeme
+start :: Int -> AlexInput -> Int -> Alex (Lexeme String)
 start code _ _ = do
     alexSetStartCode code
     alexMonadScan
 
-alexEOF :: Alex Lexeme
-alexEOF = return (L (AlexPn 0 0 0) Eof Text.empty)
+alexEOF :: Alex (Lexeme String)
+alexEOF = return (L (AlexPn 0 0 0) Eof "")
 
-alexScanTokens :: String -> Either String [Lexeme]
+alexScanTokens :: String -> Either String [Lexeme String]
 alexScanTokens str =
     runAlex str $ loop []
   where
