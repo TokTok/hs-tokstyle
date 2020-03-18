@@ -4,9 +4,11 @@ import           Data.Text                            (Text)
 import           Tokstyle.Cimple.AST                  (Node (..))
 import           Tokstyle.Cimple.Lexer                (Lexeme)
 
+import qualified Tokstyle.Cimple.Analysis.FuncScopes  as FuncScopes
 import qualified Tokstyle.Cimple.Analysis.GlobalFuncs as GlobalFuncs
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
 analyse file ast = concatMap (\f -> f file ast)
-    [ GlobalFuncs.analyse
+    [ FuncScopes.analyse
+    , GlobalFuncs.analyse
     ]

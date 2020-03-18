@@ -1,24 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Cimple.Analysis.GlobalFuncs (analyse) where
 
-import           Control.Monad.State.Lazy (State)
-import qualified Control.Monad.State.Lazy as State
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import           System.FilePath          (takeExtension)
-import           Tokstyle.Cimple.AST      (Node (..), Scope (..))
-import           Tokstyle.Cimple.Lexer    (AlexPosn (..), Lexeme (..),
-                                           lexemeText)
-
-type Diagnostics a = State [Text] a
-
-warn :: FilePath -> Lexeme Text -> Text -> Diagnostics ()
-warn file (L (AlexPn _ line _) _ _) w = do
-    diags <- State.get
-    State.put $ diag : diags
-  where
-    diag =
-        Text.pack file <> ":" <> Text.pack (show line) <> ": " <> w
+import qualified Control.Monad.State.Lazy    as State
+import           Data.Text                   (Text)
+import           System.FilePath             (takeExtension)
+import           Tokstyle.Cimple.AST         (Node (..), Scope (..))
+import           Tokstyle.Cimple.Diagnostics (warn)
+import           Tokstyle.Cimple.Lexer       (Lexeme (..), lexemeText)
 
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]

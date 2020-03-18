@@ -10,6 +10,7 @@ module Tokstyle.Cimple.Lexer
     , lexemeClass
     , lexemePosn
     , lexemeText
+    , lexemeLine
     , mkL
     , runAlex
     ) where
@@ -243,6 +244,9 @@ lexemeClass (L _ c _) = c
 
 lexemeText :: Lexeme text -> text
 lexemeText (L _ _ s) = s
+
+lexemeLine :: Lexeme text -> Int
+lexemeLine (L (AlexPn _ l _) _ _) = l
 
 start :: Int -> AlexInput -> Int -> Alex (Lexeme String)
 start code _ _ = do
