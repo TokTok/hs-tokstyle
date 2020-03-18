@@ -6,9 +6,11 @@ import           Tokstyle.Cimple.Lexer                (Lexeme)
 
 import qualified Tokstyle.Cimple.Analysis.FuncScopes  as FuncScopes
 import qualified Tokstyle.Cimple.Analysis.GlobalFuncs as GlobalFuncs
+import qualified Tokstyle.Cimple.Analysis.LoggerCalls as LoggerCalls
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
 analyse file ast = concatMap (\f -> f file ast)
     [ FuncScopes.analyse
     , GlobalFuncs.analyse
+    , LoggerCalls.analyse
     ]

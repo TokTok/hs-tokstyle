@@ -248,7 +248,7 @@ MacroParam
 
 MacroBody :: { StringNode }
 MacroBody
-:	do CompoundStmt while '(' LIT_INTEGER ')'			{ MacroBodyStmt $2 $5 }
+:	do CompoundStmt while '(' LIT_INTEGER ')'			{% macroBodyStmt $2 $5 }
 |	FunctionCall							{ MacroBodyFunCall $1 }
 
 ExternC :: { StringNode }
@@ -259,7 +259,7 @@ ExternC
 	ToplevelDecls
 	'#ifdef' ID_CONST
 	'}'
-	'#endif'							{ ExternC $2 $4 $7 $9 }
+	'#endif'							{% externC $2 $4 $7 $9 }
 
 Stmts :: { [StringNode] }
 Stmts
@@ -583,4 +583,26 @@ parseError = fail . show
 
 lexwrap :: (Lexeme String -> Alex a) -> Alex a
 lexwrap = (alexMonadScan >>=)
+
+externC
+    :: Lexeme String
+    -> Lexeme String
+    -> [StringNode]
+    -> Lexeme String
+    -> Alex StringNode
+externC (L _ _ "__cplusplus") (L _ _ "\"C\"") decls (L _ _ "__cplusplus") =
+    return $ ExternC decls
+externC _ lang _ _ =
+    fail $ show lang
+        <> ": extern \"C\" declaration invalid (did you spell __cplusplus right?)"
+
+macroBodyStmt
+    :: [StringNode]
+    -> Lexeme String
+    -> Alex StringNode
+macroBodyStmt decls (L _ _ "0") =
+    return $ MacroBodyStmt decls
+macroBodyStmt _ cond =
+    fail $ show cond
+        <> ": macro do-while body must end in 'while (0)'"
 }

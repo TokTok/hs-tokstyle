@@ -33,7 +33,7 @@ sub show_production {
    my ($res, $prod) = @_;
 
    my $line = join " ", @{ $prod->{defn} };
-   push @$res, "\t" . $line . $prod->{tabs} . "{ $prod->{code} }\n";
+   push @$res, "\t" . $line . $prod->{tabs} . "$prod->{code}\n";
 }
 
 sub show_nonterm {
@@ -138,7 +138,7 @@ sub parse {
                next;
             }
 
-            if ($line =~ m/^[:|]\t([^\t]+)?(\t+)\{ (.*) \}/) {
+            if ($line =~ m/^[:|]\t([^\t]+)?(\t+)(\{%? .* \})/) {
                push @{ $nonterm->{productions} }, {
                   defn => parse_production ($1),
                   tabs => $2,
@@ -160,7 +160,7 @@ sub parse {
             die "Unhandled: '$line'";
          }
          when (MULTILINE_PRODUCTION) {
-            if ($line =~ m/^\t([^\t]+)(\t+)\{ (.*) \}/) {
+            if ($line =~ m/^\t([^\t]+)(\t+)(\{%? .* \})/) {
                $prod .= " $1";
                push @{ $nonterm->{productions} }, {
                   defn => parse_production ($prod),

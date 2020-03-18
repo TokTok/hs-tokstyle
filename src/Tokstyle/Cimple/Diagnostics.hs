@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.Diagnostics (warn) where
+module Tokstyle.Cimple.Diagnostics (Diagnostics, warn) where
 
 import           Control.Monad.State.Lazy (State)
 import qualified Control.Monad.State.Lazy as State

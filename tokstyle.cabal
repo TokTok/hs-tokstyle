@@ -22,12 +22,14 @@ library
     , Tokstyle.Cimple.Analysis
     , Tokstyle.Cimple.Analysis.FuncScopes
     , Tokstyle.Cimple.Analysis.GlobalFuncs
+    , Tokstyle.Cimple.Analysis.LoggerCalls
     , Tokstyle.Cimple.AST
     , Tokstyle.Cimple.Diagnostics
     , Tokstyle.Cimple.IO
     , Tokstyle.Cimple.Lexer
     , Tokstyle.Cimple.Parser
     , Tokstyle.Cimple.Tokens
+    , Tokstyle.Cimple.TraverseAst
     , Tokstyle.Sources
   other-modules:
       Tokstyle.C.Naming

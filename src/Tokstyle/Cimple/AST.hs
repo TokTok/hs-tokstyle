@@ -24,7 +24,7 @@ data Node lexeme
     | PreprocUndef lexeme
     | PreprocDefined lexeme
     | PreprocScopedDefine (Node lexeme) [Node lexeme] (Node lexeme)
-    | MacroBodyStmt [Node lexeme] lexeme
+    | MacroBodyStmt [Node lexeme]
     | MacroBodyFunCall (Node lexeme)
     | MacroParam lexeme
     -- Comments
@@ -32,7 +32,7 @@ data Node lexeme
     | CommentBlock lexeme
     | CommentWord lexeme
     -- extern "C" block
-    | ExternC lexeme lexeme [Node lexeme] lexeme
+    | ExternC [Node lexeme]
     -- Statements
     | CompoundStmt [Node lexeme]
     | Break
