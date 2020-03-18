@@ -19,6 +19,8 @@ library
   default-language:    Haskell2010
   exposed-modules:
       Tokstyle.C
+    , Tokstyle.Cimple.Analysis
+    , Tokstyle.Cimple.Analysis.GlobalFuncs
     , Tokstyle.Cimple.AST
     , Tokstyle.Cimple.IO
     , Tokstyle.Cimple.Lexer
@@ -63,6 +65,7 @@ executable check-cimple
       -Wall
   build-depends:
       base < 5
+    , text
     , tokstyle
   main-is: check-cimple.hs
 

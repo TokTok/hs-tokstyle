@@ -223,8 +223,8 @@ sub instantiate_prod_defn {
 
 sub type {
    my ($funcname) = @_;
-   return "Maybe (Node String)" if $funcname eq "Opt";
-   'Node String'
+   return "Maybe StringNode" if $funcname eq "Opt";
+   'StringNode'
 }
 
 sub instantiate_func {

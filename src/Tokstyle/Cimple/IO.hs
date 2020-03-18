@@ -11,7 +11,7 @@ import           Data.Text                (Text)
 import qualified Data.Text                as Text
 import qualified Data.Text.Encoding       as Text
 import           Tokstyle.Cimple.AST      (Node (..))
-import           Tokstyle.Cimple.Lexer    (runAlex)
+import           Tokstyle.Cimple.Lexer    (Lexeme, runAlex)
 import           Tokstyle.Cimple.Parser   (parseCimple)
 
 
@@ -29,13 +29,13 @@ cacheText s = do
             return text
 
 
-process :: [Node String] -> IO [Node Text]
+process :: [Node (Lexeme String)] -> IO [Node (Lexeme Text)]
 process stringAst = do
-    let (textAst, _) = runState (mapM (mapM cacheText) stringAst) Map.empty
+    let (textAst, _) = runState (mapM (mapM (mapM cacheText)) stringAst) Map.empty
     Compact.getCompact <$> Compact.compactWithSharing textAst
 
 
-parseFile :: FilePath -> IO (Either String [Node Text])
+parseFile :: FilePath -> IO (Either String [Node (Lexeme Text)])
 parseFile source = do
     putStrLn $ "Processing " ++ source
     contents <- Text.unpack . Text.decodeUtf8 <$> BS.readFile source

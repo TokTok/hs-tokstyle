@@ -26,6 +26,7 @@ haskell_binary(
     deps = [
         "//hs-tokstyle",
         hazel_library("base"),
+        hazel_library("text"),
     ],
 )
 

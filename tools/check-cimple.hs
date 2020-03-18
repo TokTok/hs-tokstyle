@@ -1,17 +1,30 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import           System.Environment (getArgs)
-import           Tokstyle.Cimple.IO (parseFile)
-import           Tokstyle.Sources   (sources)
+import qualified Data.Text.IO             as Text
+import           System.Environment       (getArgs)
+import           Tokstyle.Cimple.IO       (parseFile)
+import           Tokstyle.Sources         (sources)
+
+import           Tokstyle.Cimple.Analysis (analyse)
+
+
+processFile :: FilePath -> IO ()
+processFile file = do
+    ast <- parseFile file >>= getRight
+    case analyse file ast of
+        [] -> return ()
+        diags -> do
+            mapM_ Text.putStrLn diags
+            fail $ "errors found in " <> file
+  where
+    getRight (Left err) = fail err
+    getRight (Right ok) = return ok
 
 
 main :: IO ()
 main = do
     args <- getArgs
-    asts <- mapM getRight =<< mapM parseFile (case args of
+    mapM_ processFile $ case args of
         [] -> sources
-        _  -> args)
-    print . head $ asts
-  where
-    getRight (Left err) = fail err
-    getRight (Right ok) = return ok
+        _  -> args
