@@ -1,6 +1,10 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Tokstyle.Cimple.Tokens
     ( LexemeClass (..)
     ) where
+
+import           Data.Aeson   (FromJSON, ToJSON)
+import           GHC.Generics (Generic)
 
 data LexemeClass
     = IdConst
@@ -104,4 +108,7 @@ data LexemeClass
 
     | Error
     | Eof
-    deriving (Show, Eq, Ord)
+    deriving (Show, Eq, Generic, Ord)
+
+instance FromJSON LexemeClass
+instance ToJSON LexemeClass

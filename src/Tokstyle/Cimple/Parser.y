@@ -4,7 +4,7 @@ module Tokstyle.Cimple.Parser where
 import           Tokstyle.Cimple.AST    (AssignOp (..), BinaryOp (..),
                                          LiteralType (..), Node (..),
                                          Scope (..), UnaryOp (..))
-import           Tokstyle.Cimple.Lexer  (Alex, AlexPosn, Lexeme (..),
+import           Tokstyle.Cimple.Lexer  (Alex, AlexPosn, Lexeme (..), alexError,
                                          alexMonadScan)
 import           Tokstyle.Cimple.Tokens (LexemeClass (..))
 }
@@ -579,7 +579,7 @@ ConstDecl
 type StringNode = Node (Lexeme String)
 
 parseError :: Show text => Lexeme text -> Alex a
-parseError = fail . show
+parseError token = alexError $ "Parse error near token: " <> show token
 
 lexwrap :: (Lexeme String -> Alex a) -> Alex a
 lexwrap = (alexMonadScan >>=)
@@ -593,7 +593,7 @@ externC
 externC (L _ _ "__cplusplus") (L _ _ "\"C\"") decls (L _ _ "__cplusplus") =
     return $ ExternC decls
 externC _ lang _ _ =
-    fail $ show lang
+    alexError $ show lang
         <> ": extern \"C\" declaration invalid (did you spell __cplusplus right?)"
 
 macroBodyStmt
@@ -603,6 +603,6 @@ macroBodyStmt
 macroBodyStmt decls (L _ _ "0") =
     return $ MacroBodyStmt decls
 macroBodyStmt _ cond =
-    fail $ show cond
+    alexError $ show cond
         <> ": macro do-while body must end in 'while (0)'"
 }

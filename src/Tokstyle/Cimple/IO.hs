@@ -1,5 +1,6 @@
 module Tokstyle.Cimple.IO
     ( parseFile
+    , parseText
     ) where
 
 import           Control.Monad.State.Lazy (State, get, put, runState)
@@ -35,9 +36,16 @@ process stringAst = do
     Compact.getCompact <$> Compact.compactWithSharing textAst
 
 
+parseText :: Text -> IO (Either String [Node (Lexeme Text)])
+parseText contents =
+    mapM process res
+  where
+    res :: Either String [Node (Lexeme String)]
+    res = runAlex (Text.unpack contents) parseCimple
+
+
 parseFile :: FilePath -> IO (Either String [Node (Lexeme Text)])
 parseFile source = do
     putStrLn $ "Processing " ++ source
-    contents <- Text.unpack . Text.decodeUtf8 <$> BS.readFile source
-
-    mapM process $ runAlex contents parseCimple
+    contents <- Text.decodeUtf8 <$> BS.readFile source
+    parseText contents

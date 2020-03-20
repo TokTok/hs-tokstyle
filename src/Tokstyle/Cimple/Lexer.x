@@ -1,9 +1,12 @@
 {
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE DeriveTraversable  #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Tokstyle.Cimple.Lexer
     ( Alex
     , AlexPosn (..)
+    , alexError
     , alexScanTokens
     , alexMonadScan
     , Lexeme (..)
@@ -15,6 +18,8 @@ module Tokstyle.Cimple.Lexer
     , runAlex
     ) where
 
+import           Data.Aeson             (FromJSON, ToJSON)
+import           GHC.Generics           (Generic)
 import           Tokstyle.Cimple.Tokens (LexemeClass (..))
 }
 
@@ -230,8 +235,15 @@ tokens :-
 <0,ppSC,cmtSC,codeSC>	.				{ mkL Error }
 
 {
+deriving instance Generic AlexPosn
+instance FromJSON AlexPosn
+instance ToJSON AlexPosn
+
 data Lexeme text = L AlexPosn LexemeClass text
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Generic, Functor, Foldable, Traversable)
+
+instance FromJSON text => FromJSON (Lexeme text)
+instance ToJSON text => ToJSON (Lexeme text)
 
 mkL :: Applicative m => LexemeClass -> AlexInput -> Int -> m (Lexeme String)
 mkL c (p, _, _, str) len = pure $ L p c (take len str)

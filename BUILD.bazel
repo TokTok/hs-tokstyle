@@ -22,6 +22,7 @@ haskell_library(
     version = "0.0.2",
     visibility = ["//hs-tokstyle:__subpackages__"],
     deps = [
+        hazel_library("aeson"),
         hazel_library("array"),
         hazel_library("base"),
         hazel_library("text"),
@@ -46,6 +47,7 @@ haskell_library(
     visibility = ["//hs-tokstyle:__subpackages__"],
     deps = [
         ":cimple-lexer",
+        hazel_library("aeson"),
         hazel_library("array"),
         hazel_library("base"),
     ],

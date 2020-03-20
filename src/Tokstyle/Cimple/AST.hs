@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE DeriveTraversable #-}
 module Tokstyle.Cimple.AST
     ( AssignOp (..)
@@ -8,6 +9,9 @@ module Tokstyle.Cimple.AST
     , Node (..)
     , Scope (..)
     ) where
+
+import           Data.Aeson   (FromJSON, ToJSON)
+import           GHC.Generics (Generic)
 
 data Node lexeme
     -- Preprocessor
@@ -92,7 +96,10 @@ data Node lexeme
     -- Constants
     | ConstDecl (Node lexeme) lexeme
     | ConstDefn Scope (Node lexeme) lexeme (Node lexeme)
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Generic, Functor, Foldable, Traversable)
+
+instance FromJSON lexeme => FromJSON (Node lexeme)
+instance ToJSON lexeme => ToJSON (Node lexeme)
 
 data AssignOp
     = AopEq
@@ -106,7 +113,10 @@ data AssignOp
     | AopMod
     | AopLsh
     | AopRsh
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance FromJSON AssignOp
+instance ToJSON AssignOp
 
 data BinaryOp
     = BopNe
@@ -127,7 +137,10 @@ data BinaryOp
     | BopGt
     | BopGe
     | BopRsh
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance FromJSON BinaryOp
+instance ToJSON BinaryOp
 
 data UnaryOp
     = UopNot
@@ -137,7 +150,10 @@ data UnaryOp
     | UopDeref
     | UopIncr
     | UopDecr
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance FromJSON UnaryOp
+instance ToJSON UnaryOp
 
 data LiteralType
     = Char
@@ -145,9 +161,15 @@ data LiteralType
     | Bool
     | String
     | ConstId
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance FromJSON LiteralType
+instance ToJSON LiteralType
 
 data Scope
     = Global
     | Static
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic)
+
+instance FromJSON Scope
+instance ToJSON Scope
