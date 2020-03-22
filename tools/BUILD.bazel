@@ -4,10 +4,6 @@ load("@rules_haskell//haskell:defs.bzl", "haskell_binary")
 haskell_binary(
     name = "check-c",
     srcs = ["check-c.hs"],
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle",
@@ -18,10 +14,6 @@ haskell_binary(
 haskell_binary(
     name = "check-cimple",
     srcs = ["check-cimple.hs"],
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle",
@@ -33,10 +25,6 @@ haskell_binary(
 haskell_binary(
     name = "dump-tokens",
     srcs = ["dump-tokens.hs"],
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle:cimple-lexer",

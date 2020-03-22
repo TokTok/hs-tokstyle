@@ -18,10 +18,6 @@ haskell_library(
         "src/Tokstyle/Cimple/Lexer.hs",
         "src/Tokstyle/Cimple/Tokens.hs",
     ],
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     src_strip_prefix = "src",
     version = "0.0.2",
     visibility = ["//hs-tokstyle:__subpackages__"],
@@ -44,11 +40,7 @@ haskell_library(
         "src/Tokstyle/Cimple/AST.hs",
         "src/Tokstyle/Cimple/Parser.hs",
     ],
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-        "-Wno-unused-imports",
-    ],
+    compiler_flags = ["-Wno-unused-imports"],
     src_strip_prefix = "src",
     version = "0.0.2",
     visibility = ["//hs-tokstyle:__subpackages__"],
@@ -68,10 +60,6 @@ haskell_library(
             "src/Tokstyle/Cimple/Tokens.hs",
         ],
     ),
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     src_strip_prefix = "src",
     version = "0.0.2",
     visibility = ["//visibility:public"],
@@ -93,10 +81,6 @@ haskell_library(
 
 hspec_test(
     name = "test",
-    compiler_flags = [
-        "-Wall",
-        "-Werror",
-    ],
     deps = [
         ":cimple-lexer",
         ":cimple-parser",
