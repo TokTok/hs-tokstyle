@@ -27,7 +27,7 @@ haskell_binary(
     srcs = ["dump-tokens.hs"],
     visibility = ["//visibility:public"],
     deps = [
-        "//hs-tokstyle:cimple-lexer",
+        "//hs-tokstyle",
         hazel_library("base"),
         hazel_library("bytestring"),
         hazel_library("groom"),

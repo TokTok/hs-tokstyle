@@ -12,23 +12,6 @@ alex_lexer(
     src = "src/Tokstyle/Cimple/Lexer.x",
 )
 
-haskell_library(
-    name = "cimple-lexer",
-    srcs = [
-        "src/Tokstyle/Cimple/Lexer.hs",
-        "src/Tokstyle/Cimple/Tokens.hs",
-    ],
-    src_strip_prefix = "src",
-    version = "0.0.2",
-    visibility = ["//hs-tokstyle:__subpackages__"],
-    deps = [
-        hazel_library("aeson"),
-        hazel_library("array"),
-        hazel_library("base"),
-        hazel_library("text"),
-    ],
-)
-
 happy_parser(
     name = "Parser",
     src = "src/Tokstyle/Cimple/Parser.y",
@@ -36,38 +19,17 @@ happy_parser(
 )
 
 haskell_library(
-    name = "cimple-parser",
-    srcs = [
-        "src/Tokstyle/Cimple/AST.hs",
+    name = "hs-tokstyle",
+    srcs = glob(["src/**/*.*hs"]) + [
+        "src/Tokstyle/Cimple/Lexer.hs",
         "src/Tokstyle/Cimple/Parser.hs",
     ],
-    compiler_flags = ["-Wno-unused-imports"],
-    src_strip_prefix = "src",
-    version = "0.0.2",
-    visibility = ["//hs-tokstyle:__subpackages__"],
-    deps = [
-        ":cimple-lexer",
-        hazel_library("aeson"),
-        hazel_library("array"),
-        hazel_library("base"),
-    ],
-)
-
-haskell_library(
-    name = "hs-tokstyle",
-    srcs = glob(
-        ["src/**/*.*hs"],
-        exclude = [
-            "src/Tokstyle/Cimple/AST.hs",
-            "src/Tokstyle/Cimple/Tokens.hs",
-        ],
-    ),
     src_strip_prefix = "src",
     version = "0.0.2",
     visibility = ["//visibility:public"],
     deps = [
-        ":cimple-lexer",
-        ":cimple-parser",
+        hazel_library("aeson"),
+        hazel_library("array"),
         hazel_library("base"),
         hazel_library("bytestring"),
         hazel_library("compact"),
@@ -82,10 +44,9 @@ haskell_library(
 )
 
 hspec_test(
-    name = "test",
+    name = "testsuite",
+    size = "small",
     deps = [
-        ":cimple-lexer",
-        ":cimple-parser",
         ":hs-tokstyle",
         hazel_library("base"),
         hazel_library("hspec"),
