@@ -23,6 +23,7 @@ library
     , Tokstyle.Cimple.Analysis.FuncScopes
     , Tokstyle.Cimple.Analysis.GlobalFuncs
     , Tokstyle.Cimple.Analysis.LoggerCalls
+    , Tokstyle.Cimple.Analysis.LoggerNoEscapes
     , Tokstyle.Cimple.AST
     , Tokstyle.Cimple.Diagnostics
     , Tokstyle.Cimple.IO
