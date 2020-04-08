@@ -25,7 +25,7 @@ haskell_library(
         "src/Tokstyle/Cimple/Parser.hs",
     ],
     src_strip_prefix = "src",
-    version = "0.0.2",
+    version = "0.0.5",
     visibility = ["//visibility:public"],
     deps = [
         hazel_library("aeson"),
