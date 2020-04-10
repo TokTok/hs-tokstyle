@@ -1,3 +1,5 @@
 ---
 packages: [.]
 resolver: lts-14.27
+extra-deps:
+  - cimple-0.0.1@sha256:d1e49143567d33320c50125fd1e0c20e3fecaf68c5cd1f3f94462e58e8cb4f63,1932

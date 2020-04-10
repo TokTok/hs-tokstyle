@@ -2,8 +2,8 @@
 module Main (main) where
 
 import qualified Data.Text.IO             as Text
+import           Language.Cimple.IO       (parseFile)
 import           System.Environment       (getArgs)
-import           Tokstyle.Cimple.IO       (parseFile)
 import           Tokstyle.Sources         (sources)
 
 import           Tokstyle.Cimple.Analysis (analyse)

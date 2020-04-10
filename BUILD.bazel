@@ -1,38 +1,21 @@
 load("@ai_formation_hazel//tools:mangling.bzl", "hazel_library")
 load("@rules_haskell//haskell:defs.bzl", "haskell_library")
 load("//third_party/haskell/hspec-discover:build_defs.bzl", "hspec_test")
-load("//third_party/haskell/alex:build_defs.bzl", "alex_lexer")
-load("//third_party/haskell/happy:build_defs.bzl", "happy_parser")
 load("//tools/project:build_defs.bzl", "project")
 
 project()
 
-alex_lexer(
-    name = "Lexer",
-    src = "src/Tokstyle/Cimple/Lexer.x",
-)
-
-happy_parser(
-    name = "Parser",
-    src = "src/Tokstyle/Cimple/Parser.y",
-    preproc = "expand_yacc.pl",
-)
-
 haskell_library(
     name = "hs-tokstyle",
-    srcs = glob(["src/**/*.*hs"]) + [
-        "src/Tokstyle/Cimple/Lexer.hs",
-        "src/Tokstyle/Cimple/Parser.hs",
-    ],
+    srcs = glob(["src/**/*.*hs"]),
     src_strip_prefix = "src",
     version = "0.0.5",
     visibility = ["//visibility:public"],
     deps = [
+        "//hs-cimple",
         hazel_library("aeson"),
-        hazel_library("array"),
         hazel_library("base"),
         hazel_library("bytestring"),
-        hazel_library("compact"),
         hazel_library("containers"),
         hazel_library("deepseq"),
         hazel_library("filepath"),
@@ -48,6 +31,7 @@ hspec_test(
     size = "small",
     deps = [
         ":hs-tokstyle",
+        "//hs-cimple",
         hazel_library("base"),
         hazel_library("hspec"),
     ],

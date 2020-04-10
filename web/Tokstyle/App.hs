@@ -13,10 +13,9 @@ import qualified Data.Text.Encoding       as Text
 import qualified Data.Text.Encoding.Error as Text
 import           Servant
 
+import           Language.Cimple          (Lexeme, Node)
+import qualified Language.Cimple.IO       as Cimple
 import           Tokstyle.Cimple.Analysis (analyse)
-import           Tokstyle.Cimple.AST      (Node)
-import qualified Tokstyle.Cimple.IO       as Cimple
-import           Tokstyle.Cimple.Lexer    (Lexeme)
 
 
 type ParseResult = Either String [Node (Lexeme Text)]

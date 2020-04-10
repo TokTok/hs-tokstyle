@@ -5,11 +5,11 @@ import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
+import           Language.Cimple             (Lexeme (..), LiteralType (String),
+                                              Node (..))
+import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.TraverseAst
 import           System.FilePath             (takeFileName)
-import           Tokstyle.Cimple.AST         (LiteralType (String), Node (..))
-import qualified Tokstyle.Cimple.Diagnostics as Diagnostics
-import           Tokstyle.Cimple.Lexer       (Lexeme (..))
-import           Tokstyle.Cimple.TraverseAst
 
 
 linter :: FilePath -> AstActions (State [Text]) Text

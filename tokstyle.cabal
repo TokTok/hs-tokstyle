@@ -20,17 +20,11 @@ library
   exposed-modules:
       Tokstyle.C
     , Tokstyle.Cimple.Analysis
+    , Tokstyle.Cimple.Analysis.FuncPrototypes
     , Tokstyle.Cimple.Analysis.FuncScopes
     , Tokstyle.Cimple.Analysis.GlobalFuncs
     , Tokstyle.Cimple.Analysis.LoggerCalls
     , Tokstyle.Cimple.Analysis.LoggerNoEscapes
-    , Tokstyle.Cimple.AST
-    , Tokstyle.Cimple.Diagnostics
-    , Tokstyle.Cimple.IO
-    , Tokstyle.Cimple.Lexer
-    , Tokstyle.Cimple.Parser
-    , Tokstyle.Cimple.Tokens
-    , Tokstyle.Cimple.TraverseAst
     , Tokstyle.Sources
   other-modules:
       Tokstyle.C.Naming
@@ -41,10 +35,9 @@ library
   build-depends:
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
-    , array
     , bytestring
+    , cimple
     , containers
-    , compact
     , deepseq
     , filepath
     , groom
@@ -72,23 +65,9 @@ executable check-cimple
   main-is: check-cimple.hs
   build-depends:
       base < 5
+    , cimple
     , text
     , tokstyle
-    , text
-
-executable dump-tokens
-  default-language: Haskell2010
-  hs-source-dirs:
-      tools
-  ghc-options:
-      -Wall
-  main-is: dump-tokens.hs
-  build-depends:
-      base < 5
-    , bytestring
-    , groom
-    , tokstyle
-    , text
 
 executable webservice
   main-is:             webservice.hs
@@ -101,6 +80,7 @@ executable webservice
   build-depends:
       base >= 4 && < 5
     , bytestring
+    , cimple
     , servant           >= 0.5
     , servant-server    >= 0.5
     , text
@@ -116,11 +96,12 @@ test-suite testsuite
   hs-source-dirs: test
   main-is: testsuite.hs
   other-modules:
-      Tokstyle.CimpleSpec
+      Tokstyle.Cimple.AnalysisSpec
   ghc-options:
       -Wall
       -fno-warn-unused-imports
   build-depends:
       base < 5
-    , tokstyle
+    , cimple
     , hspec
+    , tokstyle

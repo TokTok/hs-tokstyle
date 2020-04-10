@@ -5,16 +5,16 @@ import           Control.Monad               (foldM, when)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Tokstyle.Cimple.AST         (Node (..), Scope (..))
-import           Tokstyle.Cimple.Diagnostics (warn)
-import           Tokstyle.Cimple.Lexer       (Lexeme (..), lexemeLine,
+import           Language.Cimple             (Lexeme (..), Node (..),
+                                              Scope (..), lexemeLine,
                                               lexemeText)
+import           Language.Cimple.Diagnostics (warn)
 
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
 analyse file ast = reverse $ snd $ State.runState (foldM go [] ast) []
   where
-    go decls (FunctionDecl declScope (FunctionPrototype _ name _)) =
+    go decls (FunctionDecl declScope (FunctionPrototype _ name _) _) =
         return $ (lexemeText name, (name, declScope)) : decls
     go decls (FunctionDefn defnScope (FunctionPrototype _ name _) _) =
         case lookup (lexemeText name) decls of

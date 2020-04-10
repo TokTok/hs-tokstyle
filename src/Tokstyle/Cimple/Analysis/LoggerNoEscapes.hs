@@ -6,10 +6,10 @@ import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text, isInfixOf)
 import qualified Data.Text                   as Text
-import           Tokstyle.Cimple.AST         (LiteralType (String), Node (..))
-import qualified Tokstyle.Cimple.Diagnostics as Diagnostics
-import           Tokstyle.Cimple.Lexer       (Lexeme (..), lexemeText)
-import           Tokstyle.Cimple.TraverseAst
+import           Language.Cimple             (Lexeme (..), LiteralType (String),
+                                              Node (..), lexemeText)
+import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.TraverseAst
 
 
 linter :: FilePath -> AstActions (State [Text]) Text
