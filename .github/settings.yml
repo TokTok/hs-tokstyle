@@ -1,11 +1,10 @@
 ---
-_extends: template
+_extends: .github
 
 repository:
   name: hs-tokstyle
   description: Style checker for TokTok C projects
   topics: linter, style, c
-  has_issues: true
 
 branches:
   - name: "master"
@@ -14,7 +13,5 @@ branches:
         contexts:
           - Codacy/PR Quality Review
           - Travis CI - Pull Request
-          - WIP
           - code-review/reviewable
           - coverage/coveralls
-          - license/cla

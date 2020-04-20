@@ -20,14 +20,14 @@ library
   exposed-modules:
       Tokstyle.C
     , Tokstyle.Cimple.Analysis
+    , Tokstyle.Sources
+  other-modules:
+      Tokstyle.C.Naming
     , Tokstyle.Cimple.Analysis.FuncPrototypes
     , Tokstyle.Cimple.Analysis.FuncScopes
     , Tokstyle.Cimple.Analysis.GlobalFuncs
     , Tokstyle.Cimple.Analysis.LoggerCalls
     , Tokstyle.Cimple.Analysis.LoggerNoEscapes
-    , Tokstyle.Sources
-  other-modules:
-      Tokstyle.C.Naming
     , Tokstyle.Result
   ghc-options:
       -Wall
