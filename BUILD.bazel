@@ -9,7 +9,7 @@ haskell_library(
     name = "hs-tokstyle",
     srcs = glob(["src/**/*.*hs"]),
     src_strip_prefix = "src",
-    version = "0.0.5",
+    version = "0.0.6",
     visibility = ["//visibility:public"],
     deps = [
         "//hs-cimple",
