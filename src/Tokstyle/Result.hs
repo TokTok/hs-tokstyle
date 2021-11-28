@@ -3,9 +3,8 @@
 {-# LANGUAGE Safe          #-}
 module Tokstyle.Result where
 
-import           Control.Applicative (Applicative (..))
-import           Control.DeepSeq     (NFData)
-import           GHC.Generics        (Generic)
+import           Control.DeepSeq (NFData)
+import           GHC.Generics    (Generic)
 
 
 data Result a
@@ -25,7 +24,10 @@ instance Applicative Result where
 
 instance Monad Result where
   return = pure
-  fail = Failure
 
   Success x   >>= f = f x
   Failure msg >>= _ = Failure msg
+
+
+instance MonadFail Result where
+  fail = Failure

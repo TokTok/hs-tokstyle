@@ -1,6 +1,5 @@
 module Tokstyle.C (main) where
 
-import           Control.Applicative             ((<$>))
 import qualified Data.List                       as List
 import           Language.C                      (CError, CTranslUnit,
                                                   ErrorInfo (..), InputStream,
