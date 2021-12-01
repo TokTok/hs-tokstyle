@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE Safe          #-}
+{-# LANGUAGE StrictData    #-}
 module Tokstyle.Result where
 
 import           Control.DeepSeq (NFData)

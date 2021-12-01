@@ -69,7 +69,7 @@ check (CTranslUnit edecls ni) _ =
 
     isGlobal = all $ \case
         CStorageSpec (CStatic _) -> False
-        _ -> True
+        _                        -> True
 
     violatesNamingScheme name =
         not (
