@@ -4,7 +4,6 @@ module Main (main) where
 import qualified Data.Text.IO             as Text
 import           Language.Cimple.IO       (parseFile)
 import           System.Environment       (getArgs)
-import           Tokstyle.Sources         (sources)
 
 import           Tokstyle.Cimple.Analysis (analyse)
 
@@ -23,8 +22,4 @@ processFile file = do
 
 
 main :: IO ()
-main = do
-    args <- getArgs
-    mapM_ processFile $ case args of
-        [] -> sources
-        _  -> args
+main = mapM_ processFile =<< getArgs
