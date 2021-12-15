@@ -33,7 +33,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple
+    , cimple            >= 0.0.2
     , containers
     , deepseq
     , filepath

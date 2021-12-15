@@ -11,7 +11,7 @@ import           System.FilePath             (takeExtension)
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
 analyse file _ | takeExtension file /= ".c" = []
-analyse file ast = reverse $ snd $ State.runState (mapM go ast) []
+analyse file ast = reverse $ State.execState (mapM go ast) []
   where
     go (FunctionDecl Global (FunctionPrototype _ name _) _) =
         warn file name $
