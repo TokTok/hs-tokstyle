@@ -46,7 +46,7 @@ server =
   where
     sourceH = return "https://github.com/TokTok/hs-tokstyle"
 
-    parseH = liftIO . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
+    parseH = return . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
 
     analyseH (_   , Left  err) = return [Text.pack err]
     analyseH (file, Right ast) = return $ analyse file ast
