@@ -20,7 +20,8 @@ library
   exposed-modules:
       Tokstyle.Cimple.Analysis
   other-modules:
-      Tokstyle.Cimple.Analysis.ForLoops
+      Tokstyle.Cimple.Analysis.DocComments
+    , Tokstyle.Cimple.Analysis.ForLoops
     , Tokstyle.Cimple.Analysis.FuncPrototypes
     , Tokstyle.Cimple.Analysis.FuncScopes
     , Tokstyle.Cimple.Analysis.GlobalFuncs
@@ -34,7 +35,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple            >= 0.0.2
+    , cimple            >= 0.0.3
     , containers
     , deepseq
     , filepath

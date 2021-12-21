@@ -49,7 +49,7 @@ server =
     parseH = return . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
 
     analyseH (_   , Left  err) = return [Text.pack err]
-    analyseH (file, Right ast) = return $ analyse file ast
+    analyseH (file, Right ast) = return $ analyse (file, ast)
 
 -- Turn the server into a WAI app. 'serve' is provided by servant,
 -- more precisely by the Servant.Server module.

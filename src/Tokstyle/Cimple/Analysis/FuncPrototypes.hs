@@ -9,17 +9,16 @@ import qualified Language.Cimple.Diagnostics as Diagnostics
 import           Language.Cimple.TraverseAst
 
 
-linter :: FilePath -> AstActions (State [Text]) Text
-linter file = defaultActions
-    { doNode = \node act ->
+linter :: AstActions (State [Text]) Text
+linter = defaultActions
+    { doNode = \file node act ->
         case node of
             FunctionPrototype _ name [] -> do
-                warn name "empty parameter list must be written as (void)"
+                Diagnostics.warn file name "empty parameter list must be written as (void)"
                 act
 
             _ -> act
     }
-  where warn = Diagnostics.warn file
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst (linter file) ast) []
+analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []

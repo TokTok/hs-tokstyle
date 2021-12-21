@@ -5,17 +5,16 @@ import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AlexPosn (..), AssignOp (..),
-                                              Lexeme (..), LexemeClass (..),
+import           Language.Cimple             (AssignOp (..), Lexeme (..),
                                               Node (..))
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
                                               traverseAst)
 
 
-linter :: FilePath -> AstActions (State [Text]) Text
-linter file = defaultActions
-    { doNode = \node act ->
+linter :: AstActions (State [Text]) Text
+linter = defaultActions
+    { doNode = \file node act ->
         case node of
             ForStmt (VarDecl _ty (Declarator (DeclSpecVar _i) (Just _v))) _ _ _ -> do
                 act
@@ -24,12 +23,12 @@ linter file = defaultActions
                 act
 
             ForStmt i _ _ _ -> do
-                warn (L (AlexPn 0 0 0) KwFor "for") . Text.pack . show $ i
+                warn file node . Text.pack . show $ i
                 act
 
             _ -> act
     }
-  where warn = Diagnostics.warn file
+  where warn file node = Diagnostics.warn file (Diagnostics.at node)
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst (linter file) ast) []
+analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
