@@ -1,31 +1,34 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
 import           Data.Text                (Text)
 import qualified Data.Text.IO             as Text
 import           Language.Cimple          (Lexeme, Node)
-import           Language.Cimple.IO       (parseProgram)
-import qualified Language.Cimple.Program  as Program
+import           Language.Cimple.IO       (parseFiles)
 import           System.Environment       (getArgs)
 
-import           Tokstyle.Cimple.Analysis (analyse)
+import           Tokstyle.Cimple.Analysis (analyse, analyseGlobal)
 
 
-processAst :: FilePath -> [Node (Lexeme Text)] -> IO ()
-processAst file ast = do
-    case analyse file ast of
+processAst :: [(FilePath, [Node (Lexeme Text)])] -> IO ()
+processAst tus = do
+    report $ analyseGlobal tus
+    mapM_ (report . analyse) tus
+  where
+    report = \case
         [] -> return ()
         diags -> do
             mapM_ Text.putStrLn diags
-            fail $ "errors found in " <> file
+            fail "tokstyle violations detected"
 
 
 main :: IO ()
 main =
     getArgs
-    >>= parseProgram
+    >>= parseFiles
     >>= getRight
-    >>= mapM_ (uncurry processAst) . Program.toList
+    >>= processAst
   where
     getRight (Left err) = fail err
     getRight (Right ok) = return ok

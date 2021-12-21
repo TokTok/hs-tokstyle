@@ -12,9 +12,9 @@ import           Language.Cimple.TraverseAst
 import           System.FilePath             (takeFileName)
 
 
-linter :: FilePath -> AstActions (State [Text]) Text
-linter file = defaultActions
-    { doNode = \node act ->
+linter :: AstActions (State [Text]) Text
+linter = defaultActions
+    { doNode = \file node act ->
         case node of
             -- Ignore all function calls where the second argument is a string
             -- literal. If it's a logger call, it's a valid one.
@@ -23,12 +23,11 @@ linter file = defaultActions
             FunctionCall (LiteralExpr _ (L _ _ "LOGGER_ASSERT")) (_:_:LiteralExpr String _:_) -> act
 
             FunctionCall (LiteralExpr _ name@(L _ _ func)) _ | Text.isPrefixOf "LOGGER_" func -> do
-                warn name $ "logger call `" <> func <> "' has a non-literal format argument"
+                Diagnostics.warn file name $ "logger call `" <> func <> "' has a non-literal format argument"
                 act
 
             _ -> act
     }
-  where warn = Diagnostics.warn file
 
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
@@ -36,4 +35,4 @@ analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
 -- with their (literal) arguments. We don't know that they are literals at this
 -- point, though.
 analyse file _ | takeFileName file == "logger.h" = []
-analyse file ast = reverse $ State.execState (traverseAst (linter file) ast) []
+analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []

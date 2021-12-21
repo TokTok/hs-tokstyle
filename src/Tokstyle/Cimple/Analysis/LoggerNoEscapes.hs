@@ -12,9 +12,9 @@ import qualified Language.Cimple.Diagnostics as Diagnostics
 import           Language.Cimple.TraverseAst
 
 
-linter :: FilePath -> AstActions (State [Text]) Text
-linter file = defaultActions
-    { doNode = \node act -> case node of
+linter :: AstActions (State [Text]) Text
+linter = defaultActions
+    { doNode = \file node act -> case node of
             -- LOGGER_ASSERT has its format as the third parameter.
         FunctionCall (LiteralExpr _ (L _ _ "LOGGER_ASSERT")) (_ : _ : LiteralExpr String fmt : _)
             -> do
@@ -42,4 +42,4 @@ checkFormat file fmt =
 
 
 analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst (linter file) ast) []
+analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
