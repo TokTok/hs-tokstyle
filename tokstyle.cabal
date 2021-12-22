@@ -20,7 +20,9 @@ library
   exposed-modules:
       Tokstyle.Cimple.Analysis
   other-modules:
-      Tokstyle.Cimple.Analysis.DocComments
+      Tokstyle.Cimple.Analysis.DeclaredOnce
+    , Tokstyle.Cimple.Analysis.DeclsHaveDefns
+    , Tokstyle.Cimple.Analysis.DocComments
     , Tokstyle.Cimple.Analysis.ForLoops
     , Tokstyle.Cimple.Analysis.FuncPrototypes
     , Tokstyle.Cimple.Analysis.FuncScopes

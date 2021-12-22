@@ -16,12 +16,8 @@ linter :: AstActions (State [Text]) Text
 linter = defaultActions
     { doNode = \file node act ->
         case node of
-            ForStmt (VarDecl _ty (Declarator (DeclSpecVar _i) (Just _v))) _ _ _ -> do
-                act
-
-            ForStmt (AssignExpr (VarExpr _i) AopEq _v) _ _ _ -> do
-                act
-
+            ForStmt (VarDecl _ty (Declarator (DeclSpecVar _i) (Just _v))) _ _ _ -> act
+            ForStmt (AssignExpr (VarExpr _i) AopEq _v) _ _ _ -> act
             ForStmt i _ _ _ -> do
                 warn file node . Text.pack . show $ i
                 act

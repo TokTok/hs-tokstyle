@@ -13,7 +13,10 @@ import qualified Tokstyle.Cimple.Analysis.GlobalFuncs     as GlobalFuncs
 import qualified Tokstyle.Cimple.Analysis.LoggerCalls     as LoggerCalls
 import qualified Tokstyle.Cimple.Analysis.LoggerNoEscapes as LoggerNoEscapes
 
+import qualified Tokstyle.Cimple.Analysis.DeclaredOnce    as DeclaredOnce
+import qualified Tokstyle.Cimple.Analysis.DeclsHaveDefns  as DeclsHaveDefns
 import qualified Tokstyle.Cimple.Analysis.DocComments     as DocComments
+
 
 type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
@@ -29,5 +32,7 @@ analyse (file, ast) = concatMap (\f -> f file ast)
 
 analyseGlobal :: [TranslationUnit] -> [Text]
 analyseGlobal tus = concatMap ($ tus)
-    [ DocComments.analyse
+    [ DeclaredOnce.analyse
+    , DeclsHaveDefns.analyse
+    , DocComments.analyse
     ]
