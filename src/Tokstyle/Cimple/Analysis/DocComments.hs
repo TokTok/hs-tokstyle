@@ -3,17 +3,16 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Cimple.Analysis.DocComments (analyse) where
 
-import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AlexPosn (..), Lexeme (..),
-                                              LexemeClass (..), Node (..))
+import           Language.Cimple             (AlexPosn (..), AstActions,
+                                              Lexeme (..), LexemeClass (..),
+                                              Node (..), defaultActions, doNode,
+                                              traverseAst)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           Language.Cimple.Pretty      (ppTranslationUnit)
-import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
-                                              traverseAst)
 
 
 data Linter = Linter
@@ -28,7 +27,7 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: AstActions (State Linter) () Text
+linter :: AstActions Linter
 linter = defaultActions
     { doNode = \file node act ->
         case node of

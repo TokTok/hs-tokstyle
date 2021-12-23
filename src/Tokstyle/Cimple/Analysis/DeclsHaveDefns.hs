@@ -3,17 +3,16 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Cimple.Analysis.DeclsHaveDefns (analyse) where
 
-import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
-import           Language.Cimple             (Lexeme (..), LexemeClass (..),
-                                              Node (..))
-import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
+import           Language.Cimple             (AstActions, Lexeme (..),
+                                              LexemeClass (..), Node (..),
+                                              defaultActions, doNode,
                                               traverseAst)
+import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
 
 
@@ -23,7 +22,7 @@ data DeclDefn = DeclDefn
     }
 
 
-collectPairs :: AstActions (State (Map Text DeclDefn)) () Text
+collectPairs :: AstActions (Map Text DeclDefn)
 collectPairs = defaultActions
     { doNode = \file node act ->
         case node of

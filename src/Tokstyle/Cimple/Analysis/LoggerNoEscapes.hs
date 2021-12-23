@@ -6,13 +6,14 @@ import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text, isInfixOf)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), LiteralType (String),
-                                              Node (..), lexemeText)
+import           Language.Cimple             (AstActions, Lexeme (..),
+                                              LiteralType (String), Node (..),
+                                              defaultActions, doNode,
+                                              lexemeText, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst
 
 
-linter :: AstActions (State [Text]) () Text
+linter :: AstActions [Text]
 linter = defaultActions
     { doNode = \file node act -> case node of
             -- LOGGER_ASSERT has its format as the third parameter.

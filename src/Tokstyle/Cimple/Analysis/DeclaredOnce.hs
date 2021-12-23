@@ -3,16 +3,15 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Cimple.Analysis.DeclaredOnce (analyse) where
 
-import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text                   (Text)
-import           Language.Cimple             (Lexeme (..), LexemeClass (..),
-                                              Node (..))
-import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
-import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
+import           Language.Cimple             (AstActions, Lexeme (..),
+                                              LexemeClass (..), Node (..),
+                                              defaultActions, doNode,
                                               traverseAst)
+import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 
 
 data Linter = Linter
@@ -27,7 +26,7 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: AstActions (State Linter) () Text
+linter :: AstActions Linter
 linter = defaultActions
     { doNode = \file node act ->
         case node of

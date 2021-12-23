@@ -6,10 +6,10 @@ import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node (..))
-import           Language.Cimple.Diagnostics (HasDiagnostics (..), at, warn)
-import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
+import           Language.Cimple             (AstActions, Lexeme (..),
+                                              Node (..), defaultActions, doNode,
                                               traverseAst)
+import           Language.Cimple.Diagnostics (HasDiagnostics (..), at, warn)
 
 
 data Linter = Linter
@@ -39,7 +39,7 @@ popScope = do
         scope:rest -> State.put l{stack = rest} >> return scope
 
 
-linter :: AstActions (State Linter) () Text
+linter :: AstActions Linter
 linter = defaultActions
     { doNode = \file node act ->
         case node of

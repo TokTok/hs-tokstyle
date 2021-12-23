@@ -1,18 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Cimple.Analysis.LoggerCalls (analyse) where
 
-import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), LiteralType (String),
-                                              Node (..))
+import           Language.Cimple             (AstActions, Lexeme (..),
+                                              LiteralType (String), Node (..),
+                                              defaultActions, doNode,
+                                              traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst
 import           System.FilePath             (takeFileName)
 
 
-linter :: AstActions (State [Text]) () Text
+linter :: AstActions [Text]
 linter = defaultActions
     { doNode = \file node act ->
         case node of

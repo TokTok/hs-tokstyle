@@ -1,18 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Cimple.Analysis.ForLoops (analyse) where
 
-import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AssignOp (..), Lexeme (..),
-                                              Node (..))
-import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
+import           Language.Cimple             (AssignOp (..), AstActions,
+                                              Lexeme (..), Node (..),
+                                              defaultActions, doNode,
                                               traverseAst)
+import qualified Language.Cimple.Diagnostics as Diagnostics
 
 
-linter :: AstActions (State [Text]) () Text
+linter :: AstActions [Text]
 linter = defaultActions
     { doNode = \file node act ->
         case node of
