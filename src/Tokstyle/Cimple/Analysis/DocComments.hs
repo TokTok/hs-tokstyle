@@ -18,7 +18,7 @@ import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
 
 data Linter = Linter
     { diags :: [Text]
-    , docs  :: [(Text, (FilePath, Node (Lexeme Text)))]
+    , docs  :: [(Text, (FilePath, Node () (Lexeme Text)))]
     }
 
 empty :: Linter
@@ -28,7 +28,7 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: AstActions (State Linter) Text
+linter :: AstActions (State Linter) () Text
 linter = defaultActions
     { doNode = \file node act ->
         case node of
@@ -51,7 +51,7 @@ linter = defaultActions
   where
     tshow = Text.pack . show
 
-    removeSloc :: Node (Lexeme a) -> Node (Lexeme a)
+    removeSloc :: Node a (Lexeme text) -> Node a (Lexeme text)
     removeSloc = fmap $ \(L _ c t) -> L (AlexPn 0 0 0) c t
 
     checkCommentEquals file doc fname = do
@@ -66,5 +66,5 @@ linter = defaultActions
                 warn file' (Diagnostics.at doc') $ "mismatching comment found here:\n"
                     <> tshow (ppTranslationUnit [doc'])
 
-analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
+analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
 analyse tus = reverse . diags $ State.execState (traverseAst linter $ reverse tus) empty

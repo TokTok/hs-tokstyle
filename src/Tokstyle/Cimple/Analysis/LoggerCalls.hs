@@ -12,7 +12,7 @@ import           Language.Cimple.TraverseAst
 import           System.FilePath             (takeFileName)
 
 
-linter :: AstActions (State [Text]) Text
+linter :: AstActions (State [Text]) () Text
 linter = defaultActions
     { doNode = \file node act ->
         case node of
@@ -30,7 +30,7 @@ linter = defaultActions
     }
 
 
-analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
+analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
 -- Ignore logger.h, which contains a bunch of macros that call LOGGER functions
 -- with their (literal) arguments. We don't know that they are literals at this
 -- point, though.

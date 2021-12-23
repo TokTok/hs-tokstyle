@@ -33,5 +33,6 @@ hspec_test(
         "//hs-cimple",
         hazel_library("base"),
         hazel_library("hspec"),
+        hazel_library("text"),
     ],
 )

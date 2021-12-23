@@ -9,7 +9,7 @@ import           Language.Cimple.Diagnostics (warn)
 import           System.FilePath             (takeExtension)
 
 
-analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
+analyse :: FilePath -> [Node a (Lexeme Text)] -> [Text]
 analyse file _ | takeExtension file /= ".c" = []
 analyse file ast = reverse $ State.execState (mapM go ast) []
   where

@@ -12,7 +12,7 @@ import           Language.Cimple.TraverseAst (AstActions (..), defaultActions,
                                               traverseAst)
 
 
-linter :: AstActions (State [Text]) Text
+linter :: AstActions (State [Text]) () Text
 linter = defaultActions
     { doNode = \file node act ->
         case node of
@@ -26,5 +26,5 @@ linter = defaultActions
     }
   where warn file node = Diagnostics.warn file (Diagnostics.at node)
 
-analyse :: FilePath -> [Node (Lexeme Text)] -> [Text]
+analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
 analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []

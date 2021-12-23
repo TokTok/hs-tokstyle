@@ -3,8 +3,18 @@ module Tokstyle.Cimple.AnalysisSpec where
 
 import           Test.Hspec               (Spec, describe, it, shouldBe)
 
+import           Data.Text                (Text)
+import qualified Data.Text                as Text
+import           Language.Cimple          (Lexeme, Node)
 import           Language.Cimple.IO       (parseText)
 import           Tokstyle.Cimple.Analysis (analyse)
+
+
+mustParse :: MonadFail m => [Text] -> m [Node () (Lexeme Text)]
+mustParse code =
+    case parseText $ Text.unlines code of
+        Left err -> fail err
+        Right ok -> return ok
 
 
 spec :: Spec
@@ -22,3 +32,15 @@ spec =
         it "should not give diagnostics on extern decls in .h files" $ do
             let Right ast = parseText "int a(void);"
             analyse ("test.h", ast) `shouldBe` []
+
+{-
+        it "should give diagnostics on vars that can be reduced in scope" $ do
+            ast <- mustParse
+                [ "int a(void) {"
+                , "  int i;"
+                , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
+                , "}"
+                ]
+            analyse ("test.c", ast)
+                `shouldBe` ["test.c:3: loop variable `i' should be declared in the for-init-decl"]
+-}

@@ -27,7 +27,7 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: AstActions (State Linter) Text
+linter :: AstActions (State Linter) () Text
 linter = defaultActions
     { doNode = \file node act ->
         case node of
@@ -43,5 +43,5 @@ linter = defaultActions
             _ -> act
     }
 
-analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
+analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
 analyse tus = reverse . diags $ State.execState (traverseAst linter tus) empty

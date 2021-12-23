@@ -23,7 +23,7 @@ data DeclDefn = DeclDefn
     }
 
 
-collectPairs :: AstActions (State (Map Text DeclDefn)) Text
+collectPairs :: AstActions (State (Map Text DeclDefn)) () Text
 collectPairs = defaultActions
     { doNode = \file node act ->
         case node of
@@ -44,7 +44,7 @@ collectPairs = defaultActions
             _ -> act
     }
 
-analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
+analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
 analyse =
     map makeDiagnostic
     . mapMaybe lacksDefn

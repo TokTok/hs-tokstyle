@@ -29,6 +29,7 @@ library
     , Tokstyle.Cimple.Analysis.GlobalFuncs
     , Tokstyle.Cimple.Analysis.LoggerCalls
     , Tokstyle.Cimple.Analysis.LoggerNoEscapes
+    , Tokstyle.Cimple.Analysis.VarUnusedInScope
     , Tokstyle.Result
   ghc-options:
       -Wall
@@ -37,7 +38,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple            >= 0.0.3
+    , cimple            >= 0.0.4
     , containers
     , deepseq
     , filepath
@@ -95,4 +96,5 @@ test-suite testsuite
       base < 5
     , cimple
     , hspec
+    , text
     , tokstyle
