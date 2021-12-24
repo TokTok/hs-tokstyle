@@ -16,7 +16,7 @@ import qualified Language.Cimple.Diagnostics as Diagnostics
 linter :: AstActions [Text]
 linter = defaultActions
     { doNode = \file node act -> case node of
-            -- LOGGER_ASSERT has its format as the third parameter.
+        -- LOGGER_ASSERT has its format as the third parameter.
         FunctionCall (LiteralExpr _ (L _ _ "LOGGER_ASSERT")) (_ : _ : LiteralExpr String fmt : _)
             -> do
                 checkFormat file fmt
@@ -34,13 +34,13 @@ linter = defaultActions
 
 checkFormat :: FilePath -> Lexeme Text -> State [Text] ()
 checkFormat file fmt =
-    when ("\\" `isInfixOf` text)
-        $  Diagnostics.warn file fmt
-        $  "logger format "
-        <> text
-        <> " contains escape sequences (newlines, tabs, or escaped quotes)"
+    when ("\\" `isInfixOf` text) $
+        Diagnostics.warn file fmt $
+            "logger format "
+            <> text
+            <> " contains escape sequences (newlines, tabs, or escaped quotes)"
     where text = lexemeText fmt
 
 
-analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
+analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
+analyse = reverse . flip State.execState [] . traverseAst linter

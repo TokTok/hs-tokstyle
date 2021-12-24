@@ -25,5 +25,5 @@ linter = defaultActions
     }
   where warn file node = Diagnostics.warn file (Diagnostics.at node)
 
-analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
+analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
+analyse = reverse . flip State.execState [] . traverseAst linter

@@ -20,5 +20,5 @@ linter = defaultActions
             _ -> act
     }
 
-analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
+analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
+analyse = reverse . flip State.execState [] . traverseAst linter

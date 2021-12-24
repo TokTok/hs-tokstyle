@@ -22,7 +22,7 @@ import qualified Tokstyle.Cimple.Analysis.DocComments     as DocComments
 type TranslationUnit = (FilePath, [Node () (Lexeme Text)])
 
 analyse :: TranslationUnit -> [Text]
-analyse (file, ast) = concatMap (\f -> f file ast)
+analyse tu = concatMap ($ tu)
     [ ForLoops.analyse
     , FuncPrototypes.analyse
     , FuncScopes.analyse

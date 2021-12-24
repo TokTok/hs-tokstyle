@@ -11,8 +11,8 @@ import           Language.Cimple             (Lexeme (..), Node (..),
 import           Language.Cimple.Diagnostics (warn)
 
 
-analyse :: FilePath -> [Node a (Lexeme Text)] -> [Text]
-analyse file ast = reverse $ snd $ State.runState (foldM go [] ast) []
+analyse :: (FilePath, [Node a (Lexeme Text)]) -> [Text]
+analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
   where
     go decls (FunctionDecl declScope (FunctionPrototype _ name _) _) =
         return $ (lexemeText name, (name, declScope)) : decls

@@ -66,4 +66,4 @@ linter = defaultActions
                     <> tshow (ppTranslationUnit [doc'])
 
 analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
-analyse tus = reverse . diags $ State.execState (traverseAst linter $ reverse tus) empty
+analyse = reverse . diags . flip State.execState empty . traverseAst linter . reverse

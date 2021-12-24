@@ -30,9 +30,9 @@ linter = defaultActions
     }
 
 
-analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
+analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
 -- Ignore logger.h, which contains a bunch of macros that call LOGGER functions
 -- with their (literal) arguments. We don't know that they are literals at this
 -- point, though.
-analyse file _ | takeFileName file == "logger.h" = []
-analyse file ast = reverse $ State.execState (traverseAst linter (file, ast)) []
+analyse (file, _) | takeFileName file == "logger.h" = []
+analyse tu = reverse . flip State.execState [] . traverseAst linter $ tu

@@ -56,5 +56,5 @@ linter = defaultActions
             _ -> act
     }
 
-analyse :: FilePath -> [Node () (Lexeme Text)] -> [Text]
-analyse = curry $ reverse . diags . flip State.execState empty . traverseAst linter
+analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
+analyse = reverse . diags . flip State.execState empty . traverseAst linter
