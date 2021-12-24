@@ -1,5 +1,5 @@
 name:                tokstyle
-version:             0.0.6
+version:             0.0.7
 synopsis:            TokTok C code style checker
 description:         TokTok C code style checker
 homepage:            https://toktok.github.io/tokstyle
