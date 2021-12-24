@@ -1,0 +1,37 @@
+name: publish
+
+on:
+  push:
+    branches: [master]
+    tags: ["*"]
+
+jobs:
+  cabal:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-haskell@v1
+        with:
+          ghc-version: "8.10.3"
+          cabal-version: "3.2"
+
+      - name: Build haddock documentation
+        run: cabal haddock --haddock-for-hackage --enable-doc
+
+      - name: Publish package to Hackage
+        env:
+          API_TOKEN_HACKAGE: ${{ secrets.API_TOKEN_HACKAGE }}
+        run: |
+          PACKAGE=$(grep '^name:' *.cabal | awk '{print $2}')
+          VERSION=$(grep '^version:' *.cabal | awk '{print $2}')
+          cabal sdist
+          curl --header "Authorization: X-ApiKey $API_TOKEN_HACKAGE" \
+            -F "package=@dist-newstyle/sdist/$PACKAGE-$VERSION.tar.gz" \
+            "https://hackage.haskell.org/packages/candidates"
+          curl --header "Authorization: X-ApiKey $API_TOKEN_HACKAGE" \
+            -X PUT \
+            -H "Content-Type: application/x-tar" \
+            -H "Content-Encoding: gzip" \
+            --data-binary "@dist-newstyle/$PACKAGE-$VERSION-docs.tar.gz" \
+            "https://hackage.haskell.org/package/$PACKAGE-$VERSION/candidate/docs"
