@@ -26,6 +26,7 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
+
       - name: Install dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi
       - name: Run tests
@@ -39,19 +40,9 @@ jobs:
       - uses: actions/setup-haskell@v1
         with:
           enable-stack: true
-          stack-version: 'latest'
+          stack-version: "latest"
 
-      - name: Cache
-        uses: actions/cache@v1
-        env:
-          cache-name: cache-stack
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/stack.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+      - uses: freckle/stack-cache-action@main
 
       - name: Install dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi

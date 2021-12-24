@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeOperators         #-}
 module Tokstyle.App (app) where
 
-import           Control.Monad.IO.Class   (liftIO)
 import           Data.ByteString          (ByteString)
 import           Data.Text                (Text)
 import qualified Data.Text                as Text
