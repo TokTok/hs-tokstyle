@@ -5,12 +5,14 @@ import sys
 
 API = "https://tokstyle.herokuapp.com"
 
+
 def tokstyle(src, fh):
     ast = requests.post(f"{API}/parse", data=fh.read().encode("utf-8"))
     res = requests.post(f"{API}/analyse", json=[src, ast.json()])
 
     for err in res.json():
         print(err)
+
 
 if len(sys.argv) <= 1:
     tokstyle("<stdin>", sys.stdin)
