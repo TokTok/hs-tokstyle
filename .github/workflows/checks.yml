@@ -1,0 +1,28 @@
+# WARNING: Actions in this file can access repository secrets. They should never
+# execute code of the pull request. All scripts should be fetched from merged
+# TokTok code.
+name: checks
+
+on:
+  pull_request_target:
+    branches: [master]
+
+jobs:
+  check-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pull request code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout tools
+        uses: actions/checkout@v2
+          repository: TokTok/hs-github-tools
+          path: tools
+
+      - name: Check version against GitHub releases
+        env:
+          GH_USER: ${{ secrets.GH_USER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: $GITHUB_WORKSPACE/tools/.github/check_release $GITHUB_WORKSPACE/$GITHUB_REPOSITORY
