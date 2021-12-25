@@ -33,7 +33,8 @@ def hspec_test(**kwargs):
 
 resp = requests.get(
     "https://api.github.com/repos/TokTok/hs-tokstyle/releases",
-    auth=(os.environ["GH_USER"], os.environ["GH_TOKEN"]))
+    auth=(os.environ["GH_USER"], os.environ["GH_TOKEN"]),
+)
 release = resp.json()[0]
 if release["draft"]:
     with open("BUILD.bazel", "r") as fh:
@@ -42,5 +43,6 @@ if release["draft"]:
     bzl_release = bzl_data["version"]
     if gh_release != bzl_release:
         print(
-            f"Latest GitHub draft release {gh_release} does not match BUILD.bazel {bzl_release}")
+            f"Latest GitHub draft release {gh_release} does not match BUILD.bazel {bzl_release}"
+        )
         sys.exit(1)
