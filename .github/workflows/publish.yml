@@ -11,13 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v2
       - name: Checkout TokTok/ci-tools
         uses: actions/checkout@v2
         with:
           repository: TokTok/ci-tools
           path: ci-tools
 
-      - uses: actions/checkout@v2
       - uses: actions/setup-haskell@v1
         with:
           ghc-version: "8.10.3"

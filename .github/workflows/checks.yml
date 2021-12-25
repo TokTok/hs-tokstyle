@@ -12,16 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Checkout TokTok/ci-tools
         uses: actions/checkout@v2
         with:
           repository: TokTok/ci-tools
           path: ci-tools
-
-      - name: Checkout pull request code
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check version against GitHub releases
         env:
