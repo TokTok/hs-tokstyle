@@ -43,7 +43,7 @@ server =
     :<|> parseH
     :<|> analyseH
   where
-    sourceH = return "https://github.com/TokTok/hs-tokstyle"
+    sourceH = return "https://github.com/TokTok/hs-tokstyle\n"
 
     parseH = return . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
 
