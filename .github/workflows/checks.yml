@@ -25,4 +25,4 @@ jobs:
         env:
           GH_USER: ${{ secrets.GH_USER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: $GITHUB_WORKSPACE/ci-tools/bin/check_release $GITHUB_WORKSPACE/$GITHUB_REPOSITORY
+        run: $GITHUB_WORKSPACE/ci-tools/bin/check_release
