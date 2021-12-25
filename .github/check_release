@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+import os
+import sys
+
+import requests
+
+bzl_data = {}
+
+def glob(*args, **kwargs):
+    pass
+
+def load(*args):
+    pass
+
+def project(**kwargs):
+    pass
+
+def hazel_library(pkg):
+    return pkg
+
+def haskell_library(version, **kwargs):
+    bzl_data["version"] = version
+
+def hspec_test(**kwargs):
+    pass
+
+
+resp = requests.get(
+        "https://api.github.com/repos/TokTok/hs-tokstyle/releases",
+        auth=(os.environ["GH_USER"], os.environ["GH_TOKEN"]))
+release = resp.json()[0]
+if release["draft"]:
+    with open("BUILD.bazel", "r") as fh:
+        exec(fh.read())
+    gh_release = release["name"][1:]
+    bzl_release = bzl_data["version"]
+    if gh_release != bzl_release:
+        print(f"Latest GitHub draft release {gh_release} does not match BUILD.bazel {bzl_release}")
+        sys.exit(1)
