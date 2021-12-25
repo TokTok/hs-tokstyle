@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   release:
-    types: [published]
+    types: [released]
 
 jobs:
   hackage:
