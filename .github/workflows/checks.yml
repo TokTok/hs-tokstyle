@@ -18,11 +18,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Checkout tools
         uses: actions/checkout@v2
-          repository: TokTok/hs-github-tools
-          path: tools
+          repository: TokTok/ci-tools
+          path: ci-tools
 
       - name: Check version against GitHub releases
         env:
           GH_USER: ${{ secrets.GH_USER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: $GITHUB_WORKSPACE/tools/tools/check_release $GITHUB_WORKSPACE/$GITHUB_REPOSITORY
+        run: $GITHUB_WORKSPACE/ci-tools/bin/check_release $GITHUB_WORKSPACE/$GITHUB_REPOSITORY
