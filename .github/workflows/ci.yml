@@ -16,16 +16,15 @@ jobs:
           cabal-version: "3.2"
 
       - name: Cache
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         env:
           cache-name: cache-cabal
         with:
-          path: ~/.cabal
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-${{ env.cache-name }}
 
       - name: Install non-Haskell dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi
@@ -42,9 +41,17 @@ jobs:
           enable-stack: true
           stack-version: "latest"
 
-      - uses: freckle/stack-cache-action@main
+      - name: Cache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-stack
+        with:
+          path: |
+            ~/.stack
+            .stack-work
+          key: ${{ runner.os }}-${{ env.cache-name }}
 
-      - name: Install dependencies
+      - name: Install non-Haskell dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi
       - name: Run tests
         run: stack test
