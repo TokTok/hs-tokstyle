@@ -3,7 +3,8 @@ name: publish
 on:
   push:
     branches: [master]
-    tags: ["*"]
+  release:
+    types: [published]
 
 jobs:
   hackage:
@@ -31,7 +32,8 @@ jobs:
       - name: Build haddock documentation
         run: cabal haddock --haddock-for-hackage --enable-doc
 
-      - name: Publish package to Hackage
+      - name: Publish package candidate to Hackage
+        if: ${{ github.event_name == 'push' }}
         env:
           API_TOKEN_HACKAGE: ${{ secrets.API_TOKEN_HACKAGE }}
         run: |
@@ -47,3 +49,21 @@ jobs:
             -H "Content-Encoding: gzip" \
             --data-binary "@dist-newstyle/$PACKAGE-$VERSION-docs.tar.gz" \
             "https://hackage.haskell.org/package/$PACKAGE-$VERSION/candidate/docs"
+
+      - name: Publish package to Hackage
+        if: ${{ github.event_name == 'release' }}
+        env:
+          API_TOKEN_HACKAGE: ${{ secrets.API_TOKEN_HACKAGE }}
+        run: |
+          PACKAGE=$(grep '^name:' *.cabal | awk '{print $2}')
+          VERSION=$(grep '^version:' *.cabal | awk '{print $2}')
+          cabal sdist
+          curl --header "Authorization: X-ApiKey $API_TOKEN_HACKAGE" \
+            -F "package=@dist-newstyle/sdist/$PACKAGE-$VERSION.tar.gz" \
+            "https://hackage.haskell.org/packages"
+          curl --header "Authorization: X-ApiKey $API_TOKEN_HACKAGE" \
+            -X PUT \
+            -H "Content-Type: application/x-tar" \
+            -H "Content-Encoding: gzip" \
+            --data-binary "@dist-newstyle/$PACKAGE-$VERSION-docs.tar.gz" \
+            "https://hackage.haskell.org/package/$PACKAGE-$VERSION/docs"
