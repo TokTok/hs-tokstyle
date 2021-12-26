@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.Analysis.VarUnusedInScope (analyse) where
+module Tokstyle.Linter.VarUnusedInScope (analyse) where
 
 import           Control.Monad.State.Lazy    (State)
 import qualified Control.Monad.State.Lazy    as State

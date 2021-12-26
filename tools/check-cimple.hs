@@ -2,13 +2,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import           Data.Text                (Text)
-import qualified Data.Text.IO             as Text
-import           Language.Cimple          (Lexeme, Node)
-import           Language.Cimple.IO       (parseFiles)
-import           System.Environment       (getArgs)
+import           Data.Text          (Text)
+import qualified Data.Text.IO       as Text
+import           Language.Cimple    (Lexeme, Node)
+import           Language.Cimple.IO (parseFiles)
+import           System.Environment (getArgs)
 
-import           Tokstyle.Cimple.Analysis (analyse, analyseGlobal)
+import           Tokstyle.Linter    (analyse, analyseGlobal)
 
 
 processAst :: [(FilePath, [Node () (Lexeme Text)])] -> IO ()

@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.Analysis.FuncScopes (analyse) where
+module Tokstyle.Linter.FuncScopes (analyse) where
 
 import           Control.Monad               (foldM, when)
 import qualified Control.Monad.State.Lazy    as State

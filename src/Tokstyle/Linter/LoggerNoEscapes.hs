@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.Analysis.LoggerNoEscapes (analyse) where
+module Tokstyle.Linter.LoggerNoEscapes (analyse) where
 
 import           Control.Monad               (when)
 import           Control.Monad.State.Lazy    (State)

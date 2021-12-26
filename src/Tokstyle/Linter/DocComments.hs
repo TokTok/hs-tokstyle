@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
-module Tokstyle.Cimple.Analysis.DocComments (analyse) where
+module Tokstyle.Linter.DocComments (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)
