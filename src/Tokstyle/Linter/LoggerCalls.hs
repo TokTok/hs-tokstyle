@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.Analysis.LoggerCalls (analyse) where
+module Tokstyle.Linter.LoggerCalls (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Text                   (Text)

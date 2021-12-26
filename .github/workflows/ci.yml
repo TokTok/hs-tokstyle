@@ -24,7 +24,11 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: ${{ runner.os }}-${{ env.cache-name }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
       - name: Install non-Haskell dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi
@@ -49,7 +53,11 @@ jobs:
           path: |
             ~/.stack
             .stack-work
-          key: ${{ runner.os }}-${{ env.cache-name }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
 
       - name: Install non-Haskell dependencies
         run: if [ -f tools/prepare_third_party.sh ]; then tools/prepare_third_party.sh; fi

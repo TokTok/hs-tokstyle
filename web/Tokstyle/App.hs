@@ -14,7 +14,7 @@ import           Servant
 
 import           Language.Cimple          (Lexeme, Node)
 import qualified Language.Cimple.IO       as Cimple
-import           Tokstyle.Cimple.Analysis (analyse)
+import           Tokstyle.Linter          (analyse)
 
 
 type ParseResult = Either String [Node () (Lexeme Text)]

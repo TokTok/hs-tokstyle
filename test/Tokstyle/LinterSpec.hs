@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Cimple.AnalysisSpec where
+module Tokstyle.LinterSpec where
 
-import           Test.Hspec               (Spec, describe, it, shouldBe)
+import           Test.Hspec         (Spec, describe, it, shouldBe)
 
-import           Data.Text                (Text)
-import qualified Data.Text                as Text
-import           Language.Cimple          (Lexeme, Node)
-import           Language.Cimple.IO       (parseText)
-import           Tokstyle.Cimple.Analysis (analyse)
+import           Data.Text          (Text)
+import qualified Data.Text          as Text
+import           Language.Cimple    (Lexeme, Node)
+import           Language.Cimple.IO (parseText)
+import           Tokstyle.Linter    (analyse)
 
 
 mustParse :: MonadFail m => [Text] -> m [Node () (Lexeme Text)]

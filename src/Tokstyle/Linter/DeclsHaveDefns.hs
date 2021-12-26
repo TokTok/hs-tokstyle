@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
-module Tokstyle.Cimple.Analysis.DeclsHaveDefns (analyse) where
+module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
 import           Data.Map                    (Map)
