@@ -2,28 +2,28 @@
 module Tokstyle.Linter.ForLoops (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
+import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import           Language.Cimple             (AssignOp (..), AstActions,
-                                              Lexeme (..), Node (..),
+                                              Lexeme (..), Node, NodeF (..),
                                               defaultActions, doNode,
                                               traverseAst)
-import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.Diagnostics (warn)
 
 
 linter :: AstActions [Text]
 linter = defaultActions
     { doNode = \file node act ->
-        case node of
-            ForStmt (VarDecl _ty (Declarator (DeclSpecVar _i) (Just _v))) _ _ _ -> act
-            ForStmt (AssignExpr (VarExpr _i) AopEq _v) _ _ _ -> act
+        case unFix node of
+            ForStmt (Fix (VarDecl _ty (Fix (Declarator (Fix (DeclSpecVar _i)) (Just _v))))) _ _ _ -> act
+            ForStmt (Fix (AssignExpr (Fix (VarExpr _i)) AopEq _v)) _ _ _ -> act
             ForStmt i _ _ _ -> do
                 warn file node . Text.pack . show $ i
                 act
 
             _ -> act
     }
-  where warn file node = Diagnostics.warn file (Diagnostics.at node)
 
-analyse :: (FilePath, [Node () (Lexeme Text)]) -> [Text]
+analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter

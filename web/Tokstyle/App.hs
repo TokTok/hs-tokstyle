@@ -17,7 +17,7 @@ import qualified Language.Cimple.IO       as Cimple
 import           Tokstyle.Linter          (analyse)
 
 
-type ParseResult = Either String [Node () (Lexeme Text)]
+type ParseResult = Either String [Node (Lexeme Text)]
 
 -- API specification
 type TokstyleApi =

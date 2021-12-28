@@ -3,20 +3,21 @@ module Tokstyle.Linter.FuncScopes (analyse) where
 
 import           Control.Monad               (foldM, when)
 import qualified Control.Monad.State.Lazy    as State
+import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node (..),
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               Scope (..), lexemeLine,
                                               lexemeText)
 import           Language.Cimple.Diagnostics (warn)
 
 
-analyse :: (FilePath, [Node a (Lexeme Text)]) -> [Text]
+analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
   where
-    go decls (FunctionDecl declScope (FunctionPrototype _ name _) _) =
+    go decls (Fix (FunctionDecl declScope (Fix (FunctionPrototype _ name _)))) =
         return $ (lexemeText name, (name, declScope)) : decls
-    go decls (FunctionDefn defnScope (FunctionPrototype _ name _) _) =
+    go decls (Fix (FunctionDefn defnScope (Fix (FunctionPrototype _ name _)) _)) =
         case lookup (lexemeText name) decls of
             Nothing -> return decls
             Just (decl, declScope) -> do

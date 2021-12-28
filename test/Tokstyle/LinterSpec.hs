@@ -10,7 +10,7 @@ import           Language.Cimple.IO (parseText)
 import           Tokstyle.Linter    (analyse)
 
 
-mustParse :: MonadFail m => [Text] -> m [Node () (Lexeme Text)]
+mustParse :: MonadFail m => [Text] -> m [Node (Lexeme Text)]
 mustParse code =
     case parseText $ Text.unlines code of
         Left err -> fail err

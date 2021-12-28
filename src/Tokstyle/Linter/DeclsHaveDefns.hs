@@ -4,14 +4,15 @@
 module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
+import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
 import           Language.Cimple             (AstActions, Lexeme (..),
-                                              LexemeClass (..), Node (..),
-                                              defaultActions, doNode,
-                                              traverseAst)
+                                              LexemeClass (..), Node,
+                                              NodeF (..), defaultActions,
+                                              doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
 
@@ -25,15 +26,15 @@ data DeclDefn = DeclDefn
 collectPairs :: AstActions (Map Text DeclDefn)
 collectPairs = defaultActions
     { doNode = \file node act ->
-        case node of
-            FunctionDecl _ (FunctionPrototype _ fn@(L _ IdVar fname) _) _ -> do
+        case unFix node of
+            FunctionDecl _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) -> do
                 State.modify $ \pairs ->
                     case Map.lookup fname pairs of
                         Nothing -> Map.insert fname (DeclDefn{ decl = Just (file, fn), defn = Nothing }) pairs
                         Just dd -> Map.insert fname (dd      { decl = Just (file, fn)                 }) pairs
                 act
 
-            FunctionDefn _ (FunctionPrototype _ fn@(L _ IdVar fname) _) _ -> do
+            FunctionDefn _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) _ -> do
                 State.modify $ \pairs ->
                     case Map.lookup fname pairs of
                         Nothing -> Map.insert fname (DeclDefn{ decl = Nothing, defn = Just (file, fn) }) pairs
@@ -43,7 +44,7 @@ collectPairs = defaultActions
             _ -> act
     }
 
-analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
+analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse =
     map makeDiagnostic
     . mapMaybe lacksDefn

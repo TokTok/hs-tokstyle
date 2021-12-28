@@ -17,6 +17,7 @@ haskell_library(
         hazel_library("base"),
         hazel_library("bytestring"),
         hazel_library("containers"),
+        hazel_library("data-fix"),
         hazel_library("deepseq"),
         hazel_library("filepath"),
         hazel_library("groom"),

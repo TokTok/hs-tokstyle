@@ -11,7 +11,7 @@ import           System.Environment (getArgs)
 import           Tokstyle.Linter    (analyse, analyseGlobal)
 
 
-processAst :: [(FilePath, [Node () (Lexeme Text)])] -> IO ()
+processAst :: [(FilePath, [Node (Lexeme Text)])] -> IO ()
 processAst tus = do
     report $ analyseGlobal tus
     mapM_ (report . analyse) tus

@@ -4,13 +4,14 @@
 module Tokstyle.Linter.DeclaredOnce (analyse) where
 
 import qualified Control.Monad.State.Lazy    as State
+import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text                   (Text)
 import           Language.Cimple             (AstActions, Lexeme (..),
-                                              LexemeClass (..), Node (..),
-                                              defaultActions, doNode,
-                                              traverseAst)
+                                              LexemeClass (..), Node,
+                                              NodeF (..), defaultActions,
+                                              doNode, traverseAst)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 
 
@@ -29,8 +30,8 @@ instance HasDiagnostics Linter where
 linter :: AstActions Linter
 linter = defaultActions
     { doNode = \file node act ->
-        case node of
-            FunctionDecl _ (FunctionPrototype _ fn@(L _ IdVar fname) _) _ -> do
+        case unFix node of
+            FunctionDecl _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) -> do
                 l@Linter{decls} <- State.get
                 case Map.lookup fname decls of
                     Nothing -> State.put l{decls = Map.insert fname (file, fn) decls }
@@ -42,5 +43,5 @@ linter = defaultActions
             _ -> act
     }
 
-analyse :: [(FilePath, [Node () (Lexeme Text)])] -> [Text]
+analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse tus = reverse . diags $ State.execState (traverseAst linter tus) empty

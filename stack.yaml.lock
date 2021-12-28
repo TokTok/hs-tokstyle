@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: cimple-0.0.5@sha256:886c42213892c44239ee935402aa381592de25dcb9e1a837a91a0fbbfa5a6c94,2667
+    hackage: cimple-0.0.7@sha256:49ea11ed0065138791e52bf49dc6253ee49e52655f55c8dad6fddbb98a4554c5,2831
     pantry-tree:
-      size: 1585
-      sha256: e4aefb74638b660a044b37aeb0eb9236db0398fa0c6efe1a851f90434fbb5579
+      size: 1724
+      sha256: 0e4cf762d7a6d2d6ef598ad16bcf02da15065be80c3db8078c2d6406a028bdb8
   original:
-    hackage: cimple-0.0.5
+    hackage: cimple-0.0.7
 snapshots:
 - completed:
     size: 586296
