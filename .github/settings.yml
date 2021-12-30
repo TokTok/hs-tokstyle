@@ -11,8 +11,8 @@ branches:
     protection:
       required_status_checks:
         contexts:
-          - build-cabal
-          - build-stack
-          - cirrus-ci
-          - Codacy Static Code Analysis
-          - code-review/reviewable
+          - "bazel-release"
+          - "build / cabal"
+          - "build / stack"
+          - "Codacy Static Code Analysis"
+          - "code-review/reviewable"

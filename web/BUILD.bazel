@@ -1,0 +1,20 @@
+load("@ai_formation_hazel//tools:mangling.bzl", "hazel_library")
+load("@rules_haskell//haskell:defs.bzl", "haskell_binary")
+
+haskell_binary(
+    name = "webservice",
+    srcs = glob(["**/*.hs"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//hs-cimple",
+        "//hs-tokstyle",
+        hazel_library("base"),
+        hazel_library("bytestring"),
+        hazel_library("servant"),
+        hazel_library("servant-server"),
+        hazel_library("text"),
+        hazel_library("wai"),
+        hazel_library("wai-cors"),
+        hazel_library("warp"),
+    ],
+)
