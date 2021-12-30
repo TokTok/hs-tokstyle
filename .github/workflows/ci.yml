@@ -7,6 +7,3 @@ on:
 jobs:
   build:
     uses: TokTok/ci-tools/.github/workflows/haskell-ci.yml@master
-    with:
-      ghc-version: "8.10.3"
-      cabal-version: "3.2"
