@@ -1,21 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Linter.FuncPrototypes (analyse) where
 
-import qualified Control.Monad.State.Lazy    as State
+import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (AstActions, Lexeme, Node,
-                                              NodeF (..), defaultActions,
+import           Language.Cimple             (AstActions', Lexeme, Node,
+                                              NodeF (..), defaultActions',
                                               doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 
 
-linter :: AstActions [Text]
-linter = defaultActions
+linter :: AstActions' [Text]
+linter = defaultActions'
     { doNode = \file node act ->
         case unFix node of
             FunctionPrototype _ name [] -> do
-                Diagnostics.warn file name "empty parameter list must be written as (void)"
+                Diagnostics.warn' file name "empty parameter list must be written as (void)"
                 act
 
             _ -> act

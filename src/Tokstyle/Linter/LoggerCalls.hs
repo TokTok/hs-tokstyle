@@ -1,20 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Linter.LoggerCalls (analyse) where
 
-import qualified Control.Monad.State.Lazy    as State
+import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AstActions, Lexeme (..),
+import           Language.Cimple             (AstActions', Lexeme (..),
                                               LiteralType (String), Node,
-                                              NodeF (..), defaultActions,
+                                              NodeF (..), defaultActions',
                                               doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
 
 
-linter :: AstActions [Text]
-linter = defaultActions
+linter :: AstActions' [Text]
+linter = defaultActions'
     { doNode = \file node act ->
         case unFix node of
             -- Ignore all function calls where the second argument is a string
@@ -24,7 +24,7 @@ linter = defaultActions
             FunctionCall (Fix (LiteralExpr _ (L _ _ "LOGGER_ASSERT"))) (_:_:Fix (LiteralExpr String _):_) -> act
 
             FunctionCall (Fix (LiteralExpr _ name@(L _ _ func))) _ | Text.isPrefixOf "LOGGER_" func -> do
-                Diagnostics.warn file name $ "logger call `" <> func <> "' has a non-literal format argument"
+                Diagnostics.warn' file name $ "logger call `" <> func <> "' has a non-literal format argument"
                 act
 
             _ -> act

@@ -29,6 +29,7 @@ library
     , Tokstyle.Linter.GlobalFuncs
     , Tokstyle.Linter.LoggerCalls
     , Tokstyle.Linter.LoggerNoEscapes
+    , Tokstyle.Linter.VarUnusedInScope
     , Tokstyle.Result
   ghc-options:
       -Wall
@@ -37,7 +38,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple            >= 0.0.7
+    , cimple            >= 0.0.8
     , containers
     , data-fix
     , deepseq
@@ -87,6 +88,7 @@ test-suite testsuite
   main-is: testsuite.hs
   other-modules:
       Tokstyle.LinterSpec
+    , Tokstyle.Linter.VarUnusedInScopeSpec
   ghc-options:
       -Wall
       -fno-warn-unused-imports

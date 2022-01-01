@@ -3,15 +3,15 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
-import qualified Control.Monad.State.Lazy    as State
+import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
-import           Language.Cimple             (AstActions, Lexeme (..),
+import           Language.Cimple             (AstActions', Lexeme (..),
                                               LexemeClass (..), Node,
-                                              NodeF (..), defaultActions,
+                                              NodeF (..), defaultActions',
                                               doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
@@ -23,8 +23,8 @@ data DeclDefn = DeclDefn
     }
 
 
-collectPairs :: AstActions (Map Text DeclDefn)
-collectPairs = defaultActions
+collectPairs :: AstActions' (Map Text DeclDefn)
+collectPairs = defaultActions'
     { doNode = \file node act ->
         case unFix node of
             FunctionDecl _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) -> do
