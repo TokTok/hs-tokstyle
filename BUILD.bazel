@@ -19,6 +19,7 @@ haskell_library(
         hazel_library("containers"),
         hazel_library("data-fix"),
         hazel_library("deepseq"),
+        hazel_library("edit-distance"),
         hazel_library("filepath"),
         hazel_library("groom"),
         hazel_library("mtl"),
