@@ -38,8 +38,9 @@ linter = defaultActions'
                     Just (file', fn') -> do
                         warn' file' fn' $ "duplicate declaration of function `" <> fname <> "'"
                         warn' file fn $ "function `" <> fname <> "' also declared here"
-                act
+                return node
 
+            FunctionDefn{} -> return node
             _ -> act
     }
 

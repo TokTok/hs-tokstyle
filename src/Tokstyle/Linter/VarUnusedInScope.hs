@@ -142,8 +142,8 @@ checkScopes file = \case
 linter :: AstActions' [Text]
 linter = defaultActions'
     { doNode = \file node act ->
-        case node of
-            Fix FunctionDefn{} -> do
+        case unFix node of
+            FunctionDefn{} -> do
                 _ <- foldFixM (checkScopes file) node
                 return node
 

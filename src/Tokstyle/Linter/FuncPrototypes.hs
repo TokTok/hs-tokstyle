@@ -18,6 +18,7 @@ linter = defaultActions'
                 Diagnostics.warn' file name "empty parameter list must be written as (void)"
                 act
 
+            FunctionDefn{} -> return node
             _ -> act
     }
 

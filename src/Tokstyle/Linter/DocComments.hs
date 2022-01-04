@@ -33,11 +33,11 @@ linter = defaultActions'
         case unFix node of
             Commented doc (Fix (FunctionDecl _ (Fix (FunctionPrototype _ (L _ IdVar fname) _)))) -> do
                 checkCommentEquals file doc fname
-                act
+                return node
 
             Commented doc (Fix (FunctionDefn _ (Fix (FunctionPrototype _ (L _ IdVar fname) _)) _)) -> do
                 checkCommentEquals file doc fname
-                act
+                return node
 
             {-
             Commented _ n -> do
@@ -45,6 +45,7 @@ linter = defaultActions'
                 act
             -}
 
+            FunctionDefn{} -> return node
             _ -> act
     }
   where
