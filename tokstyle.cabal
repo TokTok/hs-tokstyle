@@ -29,6 +29,8 @@ library
     , Tokstyle.Linter.GlobalFuncs
     , Tokstyle.Linter.LoggerCalls
     , Tokstyle.Linter.LoggerNoEscapes
+    , Tokstyle.Linter.TypeCheck
+    , Tokstyle.Linter.TypedefName
     , Tokstyle.Linter.VarUnusedInScope
     , Tokstyle.Result
   ghc-options:
