@@ -5,15 +5,16 @@
 module Tokstyle.Linter.VarUnusedInScope where
 
 import           Control.Monad               (foldM)
+import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFixM)
 import           Data.List                   (delete, find)
 import           Data.Text                   (Text)
-import           Language.Cimple             (AstActions', Lexeme (..), Node,
-                                              NodeF (..), UnaryOp (..),
-                                              defaultActions', doNode,
+import           Language.Cimple             (IdentityActions, Lexeme (..),
+                                              Node, NodeF (..), UnaryOp (..),
+                                              defaultActions, doNode,
                                               lexemeText, traverseAst)
-import           Language.Cimple.Diagnostics (Diagnostics', warn')
+import           Language.Cimple.Diagnostics (Diagnostics, warn)
 
 
 data ReadKind
@@ -62,10 +63,10 @@ combineBranches ls1 ls2 = foldr join [] (ls1 ++ ls2)
 
     joinVar var1 var2 = error ("combineBranches" <> show (var1, var2))
 
-combineStatements :: FilePath -> [Var] -> [Var] -> Diagnostics' [Var]
+combineStatements :: FilePath -> [Var] -> [Var] -> Diagnostics [Var]
 combineStatements file ls1 ls2 = foldM join [] (ls1 ++ ls2)
   where
-    join :: [Var] -> Var -> Diagnostics' [Var]
+    join :: [Var] -> Var -> Diagnostics [Var]
     join ls var1 =
         case lookupVar var1 ls of
             Nothing   -> return $ var1 : ls
@@ -82,25 +83,25 @@ combineStatements file ls1 ls2 = foldM join [] (ls1 ++ ls2)
     joinVar var1@(Var WriteThenRead _) _              = return [var1]
 
     joinVar (Var Declare l1) (Var Write l2) = do
-        warn' file l1 $ "variable `" <> lexemeText l1 <> "' can be reduced in scope"
-        warn' file l2 "  possibly to here"
+        warn file l1 $ "variable `" <> lexemeText l1 <> "' can be reduced in scope"
+        warn file l2 "  possibly to here"
         return []
 
     joinVar (Var Declare _) _ = return []
     joinVar var1@(Var _ l1) (Var Declare l2) = do
-        warn' file l1 $ "variable `" <> lexemeText l1 <> "' used before its declaration"
-        warn' file l2 $ "  `" <> lexemeText l2 <> "' was declared here"
+        warn file l1 $ "variable `" <> lexemeText l1 <> "' used before its declaration"
+        warn file l2 $ "  `" <> lexemeText l2 <> "' was declared here"
         return [var1]
 
 
-checkScopes :: FilePath -> NodeF (Lexeme Text) [Var] -> Diagnostics' [Var]
+checkScopes :: FilePath -> NodeF (Lexeme Text) [Var] -> Diagnostics [Var]
 checkScopes file = \case
     CompoundStmt ls             -> checkCompoundStmt ls
     ForStmt decl cont incr body -> return $ foldr combine [] [body, incr, cont, decl]
     IfStmt c t Nothing          -> return $ t ++ c
     IfStmt c t (Just e)         -> return $ combineBranches t e ++ c
 
-    DeclSpecVar var             -> return [Var Declare var]
+    VarDecl t var a             -> return $ Var Declare var : foldr combine t a
 
     VarExpr var                 -> return [Var (Read Alone) var]
     AssignExpr lhs _ []         -> return $ map readToWrite lhs
@@ -139,8 +140,8 @@ checkScopes file = \case
     writeToRead var                     = var
 
 
-linter :: AstActions' [Text]
-linter = defaultActions'
+linter :: IdentityActions (State [Text]) Text
+linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDefn{} -> do

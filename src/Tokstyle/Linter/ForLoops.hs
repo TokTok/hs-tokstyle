@@ -1,25 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
+{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.ForLoops (analyse) where
 
+import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AssignOp (..), AstActions',
+import           Language.Cimple             (AssignOp (..), IdentityActions,
                                               Lexeme (..), Node, NodeF (..),
-                                              defaultActions', doNode,
+                                              defaultActions, doNode,
                                               traverseAst)
-import           Language.Cimple.Diagnostics (warn')
+import           Language.Cimple.Diagnostics (warn)
 
 
-linter :: AstActions' [Text]
-linter = defaultActions'
+linter :: IdentityActions (State [Text]) Text
+linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
-            ForStmt (Fix (VarDecl _ty (Fix (Declarator (Fix (DeclSpecVar _i)) (Just _v))))) _ _ _ -> act
-            ForStmt (Fix (AssignExpr (Fix (VarExpr _i)) AopEq _v)) _ _ _ -> act
+            ForStmt (Fix (VarDeclStmt (Fix VarDecl{}) Just{})) _ _ _ -> act
+            ForStmt (Fix (AssignExpr (Fix VarExpr{}) AopEq _)) _ _ _ -> act
             ForStmt i _ _ _ -> do
-                warn' file node . Text.pack . show $ i
+                warn file node $ "ForLoops: " <> Text.pack (show i)
                 act
 
             _ -> act
