@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
@@ -13,9 +14,10 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AstActions', Lexeme (..), Node,
-                                              NodeF (..), defaultActions',
-                                              doNode, lexemeText, traverseAst)
+import           Language.Cimple             (IdentityActions, Lexeme (..),
+                                              Node, NodeF (..), doNode,
+                                              identityActions, lexemeText,
+                                              traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
 import           Text.EditDistance           (defaultEditCosts,
@@ -48,8 +50,8 @@ addDefn file l@(L _ _ name) =
             Just dd -> Map.insert name (dd      {                 defn = Just (file, l) }) pairs
 
 
-collectPairs :: AstActions' Env
-collectPairs = defaultActions'
+collectPairs :: IdentityActions (State Env) Text
+collectPairs = identityActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDecl _ (Fix (FunctionPrototype _ fname _)) -> do
@@ -60,7 +62,7 @@ collectPairs = defaultActions'
                 addDefn file fname
                 return node
 
-            Typedef (Fix (TyStruct sname)) _ -> do
+            TyStruct sname -> do
                 addDecl file sname
                 return node
 

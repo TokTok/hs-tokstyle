@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
+{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.FuncScopes (analyse) where
 
 import           Control.Monad               (foldM, when)
@@ -9,7 +11,7 @@ import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               Scope (..), lexemeLine,
                                               lexemeText)
-import           Language.Cimple.Diagnostics (warn')
+import           Language.Cimple.Diagnostics (warn)
 
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
@@ -21,7 +23,7 @@ analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
         case lookup (lexemeText name) decls of
             Nothing -> return decls
             Just (decl, declScope) -> do
-                when (declScope /= defnScope) $ warn' file name $
+                when (declScope /= defnScope) $ warn file name $
                     warning decl declScope defnScope
                 return decls
     go decls _ = return decls
