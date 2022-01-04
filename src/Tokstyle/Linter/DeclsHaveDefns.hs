@@ -3,18 +3,27 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
+import           Control.Arrow               ((&&&))
+import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
+import           Data.List                   (sortOn)
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
-import           Language.Cimple             (AstActions', Lexeme (..),
-                                              LexemeClass (..), Node,
+import qualified Data.Text                   as Text
+import           Language.Cimple             (AstActions', Lexeme (..), Node,
                                               NodeF (..), defaultActions',
-                                              doNode, traverseAst)
+                                              doNode, lexemeText, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
+import           Text.EditDistance           (defaultEditCosts,
+                                              levenshteinDistance)
+
+
+maxEditDistance :: Int
+maxEditDistance = 5
 
 
 data DeclDefn = DeclDefn
@@ -22,23 +31,41 @@ data DeclDefn = DeclDefn
     , defn :: Maybe (FilePath, Lexeme Text)
     }
 
+type Env = Map Text DeclDefn
 
-collectPairs :: AstActions' (Map Text DeclDefn)
+addDecl :: FilePath -> Lexeme Text -> State Env ()
+addDecl file l@(L _ _ name) =
+    State.modify $ \pairs ->
+        case Map.lookup name pairs of
+            Nothing -> Map.insert name (DeclDefn{ decl = Just (file, l), defn = Nothing }) pairs
+            Just dd -> Map.insert name (dd      { decl = Just (file, l)                 }) pairs
+
+addDefn :: FilePath -> Lexeme Text -> State Env ()
+addDefn file l@(L _ _ name) =
+    State.modify $ \pairs ->
+        case Map.lookup name pairs of
+            Nothing -> Map.insert name (DeclDefn{ decl = Nothing, defn = Just (file, l) }) pairs
+            Just dd -> Map.insert name (dd      {                 defn = Just (file, l) }) pairs
+
+
+collectPairs :: AstActions' Env
 collectPairs = defaultActions'
     { doNode = \file node act ->
         case unFix node of
-            FunctionDecl _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) -> do
-                State.modify $ \pairs ->
-                    case Map.lookup fname pairs of
-                        Nothing -> Map.insert fname (DeclDefn{ decl = Just (file, fn), defn = Nothing }) pairs
-                        Just dd -> Map.insert fname (dd      { decl = Just (file, fn)                 }) pairs
+            FunctionDecl _ (Fix (FunctionPrototype _ fname _)) -> do
+                addDecl file fname
                 act
 
-            FunctionDefn _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) _ -> do
-                State.modify $ \pairs ->
-                    case Map.lookup fname pairs of
-                        Nothing -> Map.insert fname (DeclDefn{ decl = Nothing, defn = Just (file, fn) }) pairs
-                        Just dd -> Map.insert fname (dd      {                 defn = Just (file, fn) }) pairs
+            FunctionDefn _ (Fix (FunctionPrototype _ fname _)) _ -> do
+                addDefn file fname
+                act
+
+            Typedef (Fix (TyStruct sname)) _ -> do
+                addDecl file sname
+                act
+
+            Struct sname _ -> do
+                addDefn file sname
                 act
 
             _ -> act
@@ -46,8 +73,8 @@ collectPairs = defaultActions'
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse =
-    map makeDiagnostic
-    . mapMaybe lacksDefn
+    (\(a, b) -> concatMap (makeDiagnostic a) b)
+    . (mapMaybe defn &&& mapMaybe lacksDefn)
     . Map.elems
     . flip State.execState Map.empty
     . traverseAst collectPairs
@@ -56,5 +83,18 @@ analyse =
     lacksDefn DeclDefn{decl, defn = Nothing} = decl
     lacksDefn _                              = Nothing
 
-    makeDiagnostic (file, fn@(L _ _ fname)) =
-        Diagnostics.sloc file fn <> ": missing definition for `" <> fname <> "'"
+makeDiagnostic :: [(FilePath, Lexeme Text)] -> (FilePath, Lexeme Text) -> [Text]
+makeDiagnostic defns (file, fn@(L _ _ name)) =
+    Diagnostics.sloc file fn <> ": missing definition for `" <> name <> "'"
+    : suggestion
+  where
+    dists = sortOn fst . map ((levenshteinDistance defaultEditCosts (normalise fn) . normalise . snd) &&& id)
+    normalise = Text.unpack . Text.toLower . lexemeText
+
+    suggestion =
+        case dists defns of
+            (d, (dfile, dn@(L _ _ dname))):_ | d < maxEditDistance ->
+                [Diagnostics.sloc dfile dn <> ": did you mean `" <> dname <> "'?"]
+            _ -> []
+
+
