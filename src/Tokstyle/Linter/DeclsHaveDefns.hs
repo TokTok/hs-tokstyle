@@ -96,5 +96,3 @@ makeDiagnostic defns (file, fn@(L _ _ name)) =
             (d, (dfile, dn@(L _ _ dname))):_ | d < maxEditDistance ->
                 [Diagnostics.sloc dfile dn <> ": did you mean `" <> dname <> "'?"]
             _ -> []
-
-
