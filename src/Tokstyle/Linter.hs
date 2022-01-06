@@ -12,6 +12,7 @@ import qualified Tokstyle.Linter.FuncScopes       as FuncScopes
 import qualified Tokstyle.Linter.GlobalFuncs      as GlobalFuncs
 import qualified Tokstyle.Linter.LoggerCalls      as LoggerCalls
 import qualified Tokstyle.Linter.LoggerNoEscapes  as LoggerNoEscapes
+import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
 import qualified Tokstyle.Linter.VarUnusedInScope as VarUnusedInScope
 
@@ -31,6 +32,7 @@ analyse tu = concatMap ($ tu)
     , GlobalFuncs.analyse
     , LoggerCalls.analyse
     , LoggerNoEscapes.analyse
+    , Parens.analyse
     , TypedefName.analyse
     , VarUnusedInScope.analyse
     ]
