@@ -9,10 +9,10 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AlexPosn (..), IdentityActions,
-                                              Lexeme (..), LexemeClass (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doLexeme, doNode, traverseAst)
+import           Language.Cimple             (IdentityActions, Lexeme (..),
+                                              LexemeClass (..), Node,
+                                              NodeF (..), defaultActions,
+                                              doNode, removeSloc, traverseAst)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (ppTranslationUnit)
 
@@ -52,11 +52,6 @@ linter = defaultActions
     }
   where
     tshow = Text.pack . show
-
-    removeSloc :: Node (Lexeme Text) -> Node (Lexeme Text)
-    removeSloc = flip State.evalState () . traverseAst defaultActions
-      { doLexeme = \_ (L _ c t) _ -> pure $ L (AlexPn 0 0 0) c t
-      }
 
     checkCommentEquals file doc fname = do
         l@Linter{docs} <- State.get

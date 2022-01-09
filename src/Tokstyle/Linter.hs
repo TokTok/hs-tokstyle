@@ -6,6 +6,8 @@ module Tokstyle.Linter
 import           Data.Text                        (Text)
 import           Language.Cimple                  (Lexeme, Node)
 
+import qualified Tokstyle.Linter.CallocArgs       as CallocArgs
+import qualified Tokstyle.Linter.CallocType       as CallocType
 import qualified Tokstyle.Linter.ForLoops         as ForLoops
 import qualified Tokstyle.Linter.FuncPrototypes   as FuncPrototypes
 import qualified Tokstyle.Linter.FuncScopes       as FuncScopes
@@ -27,7 +29,9 @@ type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
 analyse :: TranslationUnit -> [Text]
 analyse tu = concatMap ($ tu)
-    [ ForLoops.analyse
+    [ CallocArgs.analyse
+    , CallocType.analyse
+    , ForLoops.analyse
     , FuncPrototypes.analyse
     , FuncScopes.analyse
     , GlobalFuncs.analyse
