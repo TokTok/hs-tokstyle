@@ -28,6 +28,7 @@ library
     , Tokstyle.Linter.FuncScopes
     , Tokstyle.Linter.GlobalFuncs
     , Tokstyle.Linter.LoggerCalls
+    , Tokstyle.Linter.LoggerConst
     , Tokstyle.Linter.LoggerNoEscapes
     , Tokstyle.Linter.Parens
     , Tokstyle.Linter.TypeCheck
