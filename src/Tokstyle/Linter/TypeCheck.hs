@@ -28,11 +28,15 @@ data Env = Env
 instance HasDiagnostics Env where
     addDiagnostic diag env@Env{diags} = env{diags = addDiagnostic diag diags}
 
+addName :: Text -> Type -> State Env ()
+addName n t = State.modify $ \env@Env{types} -> env{types = Map.insert n t types}
+
 
 type Types = Map Text Type
 data Type
     -- C types
-    = NamedType Text
+    = Void
+    | NamedType Text
     | PointerType Type
     | ConstType Type
     | ArrayType Type [Type]
@@ -44,6 +48,7 @@ data Type
     -- parameter).
     | VarDeclType Text Type
     | StructDeclType Text [Type]
+    | FunctionType Type [Type]
 
     -- Array dimensions.
     | ComputeInt Int
@@ -93,7 +98,6 @@ extractType file n = \case
         warn file n $ Text.pack (show x)
         return Nothing
 
-
   where ok = return . Just
 
 
@@ -117,25 +121,50 @@ getTypes = defaultActions
             _ -> act
     }
 
-linter :: Env -> IdentityActions (State [Text]) Text
-linter _ = defaultActions
-    { doNode = \_file node act ->
+checkTypes :: FilePath -> Node (Lexeme Text) -> NodeF (Lexeme Text) Type -> State Env Type
+checkTypes _file _n = \case
+    TyStd         (L _ _ name) -> return $ NamedType name
+    TyStruct      (L _ _ name) -> return $ NamedType name
+    TyFunc        (L _ _ name) -> return $ NamedType name
+    TyUserDefined (L _ _ name) -> return $ NamedType name
+    TyPointer ty               -> return $ PointerType ty
+    TyConst   ty               -> return $ ConstType ty
+
+    VarDecl ty (L _ _ name) [] -> do
+        addName name ty
+        return $ VarDeclType name ty
+
+    FunctionPrototype ret (L _ _ name) params -> do
+        let ty = FunctionType ret params
+        addName name ty
+        return ty
+
+    _x -> do
+        --_ <- error (show (_file, _x))
+        --warn file n $ Text.pack (show x)
+        return Void
+
+linter :: IdentityActions (State Env) Text
+linter = defaultActions
+    { doNode = \file node act ->
         case unFix node of
-            FunctionDefn{} -> return node
-            _              -> act
+            FunctionDefn{} -> do
+                _ <- foldFixM (checkTypes file node) node
+                return node
+
+            _ -> act
     }
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse tus =
-    reverse $ diagsE ++ diagsC
+    reverse $ diags globals ++ diags checked
   where
-    env =
+    globals =
         flip State.execState empty
         . traverseAst getTypes
         $ tus
 
-    diagsE = diags env
-    diagsC =
-        flip State.execState []
-        . traverseAst (linter env)
+    checked =
+        flip State.execState globals
+        . traverseAst linter
         $ tus
