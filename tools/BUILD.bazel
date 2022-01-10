@@ -4,11 +4,13 @@ load("@rules_haskell//haskell:defs.bzl", "haskell_binary")
 haskell_binary(
     name = "check-cimple",
     srcs = ["check-cimple.hs"],
+    compiler_flags = ["-threaded"],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-cimple",
         "//hs-tokstyle",
         hazel_library("base"),
+        hazel_library("parallel"),
         hazel_library("text"),
     ],
 )

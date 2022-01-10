@@ -2,19 +2,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import           Data.Text          (Text)
-import qualified Data.Text.IO       as Text
-import           Language.Cimple    (Lexeme, Node)
-import           Language.Cimple.IO (parseFiles)
-import           System.Environment (getArgs)
+import           Control.Parallel.Strategies (parMap, rpar)
+import           Data.Text                   (Text)
+import qualified Data.Text.IO                as Text
+import           Language.Cimple             (Lexeme, Node)
+import           Language.Cimple.IO          (parseFiles)
+import           System.Environment          (getArgs)
 
-import           Tokstyle.Linter    (analyse, analyseGlobal)
+import           Tokstyle.Linter             (analyse, analyseGlobal)
 
 
 processAst :: [(FilePath, [Node (Lexeme Text)])] -> IO ()
-processAst tus = do
-    report $ analyseGlobal tus
-    mapM_ (report . analyse) tus
+processAst tus = report $ concat $ analyseGlobal tus : parMap rpar analyse tus
   where
     report = \case
         [] -> return ()

@@ -64,6 +64,7 @@ executable check-cimple
   build-depends:
       base < 5
     , cimple
+    , parallel
     , text
     , tokstyle
 
