@@ -33,6 +33,7 @@ library
     , Tokstyle.Linter.LoggerConst
     , Tokstyle.Linter.LoggerNoEscapes
     , Tokstyle.Linter.MallocType
+    , Tokstyle.Linter.MemcpyStructs
     , Tokstyle.Linter.Parens
     , Tokstyle.Linter.TypeCheck
     , Tokstyle.Linter.TypedefName

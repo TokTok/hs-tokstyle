@@ -1,6 +1,8 @@
 load("@ai_formation_hazel//tools:mangling.bzl", "hazel_library")
 load("@rules_haskell//haskell:defs.bzl", "haskell_binary")
 
+package(features = ["-layering_check"])
+
 haskell_binary(
     name = "check-cimple",
     srcs = ["check-cimple.hs"],
