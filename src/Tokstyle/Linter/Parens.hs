@@ -21,6 +21,12 @@ needsParens n = case unFix n of
     _             -> False
 
 
+checkArg :: FilePath -> Node (Lexeme Text) -> State [Text] ()
+checkArg file arg = case unFix arg of
+    ParenExpr{} -> warn file arg "function call argument does not need parentheses"
+    _           -> return ()
+
+
 linter :: IdentityActions (State [Text]) Text
 linter = defaultActions
     { doNode = \file node act ->
@@ -29,11 +35,15 @@ linter = defaultActions
             PreprocDefineConst{} -> return node
             PreprocDefineMacro{} -> return node
 
+            FunctionCall _ args -> do
+                mapM_ (checkArg file) args
+                act
+
             VarDeclStmt _ (Just (Fix ParenExpr{})) -> do
-                warn file node $ "variable initialiser does not need parentheses"
+                warn file node "variable initialiser does not need parentheses"
                 act
             ParenExpr expr | not $ needsParens expr -> do
-                warn file node $ "expression does not need parentheses"
+                warn file node "expression does not need parentheses"
                 act
 
             _ -> act
