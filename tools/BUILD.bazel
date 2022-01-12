@@ -6,7 +6,10 @@ package(features = ["-layering_check"])
 haskell_binary(
     name = "check-cimple",
     srcs = ["check-cimple.hs"],
-    compiler_flags = ["-threaded"],
+    compiler_flags = [
+        "-rtsopts",
+        "-threaded",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-cimple",
