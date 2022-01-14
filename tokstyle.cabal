@@ -37,6 +37,7 @@ library
     , Tokstyle.Linter.Parens
     , Tokstyle.Linter.TypeCheck
     , Tokstyle.Linter.TypedefName
+    , Tokstyle.Linter.UnsafeFunc
     , Tokstyle.Linter.VarUnusedInScope
   ghc-options:
       -Wall

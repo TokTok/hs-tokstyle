@@ -19,6 +19,7 @@ import qualified Tokstyle.Linter.MallocType       as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs    as MemcpyStructs
 import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
+import qualified Tokstyle.Linter.UnsafeFunc       as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope as VarUnusedInScope
 
 import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
@@ -44,6 +45,7 @@ analyse tu = concatMap ($ tu)
     , MemcpyStructs.analyse
     , Parens.analyse
     , TypedefName.analyse
+    , UnsafeFunc.analyse
     , VarUnusedInScope.analyse
     ]
 
