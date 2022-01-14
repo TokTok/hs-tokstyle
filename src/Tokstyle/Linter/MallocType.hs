@@ -13,7 +13,7 @@ import           Language.Cimple             (IdentityActions, Lexeme (..),
 import           Language.Cimple.Diagnostics (warn)
 
 supportedTypes :: [Text]
-supportedTypes = ["uint8_t", "int16_t", "IP_ADAPTER_INFO"]
+supportedTypes = ["char", "uint8_t", "int16_t", "IP_ADAPTER_INFO"]
 
 checkType :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkType file castTy = case unFix castTy of
