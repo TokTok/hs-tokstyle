@@ -14,7 +14,8 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
+import           Language.Cimple             (AlexPosn (..), IdentityActions,
+                                              Lexeme (..), LexemeClass (..),
                                               Node, NodeF (..), defaultActions,
                                               doNode, lexemeText, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
@@ -33,6 +34,14 @@ data DeclDefn = DeclDefn
     }
 
 type Env = Map Text DeclDefn
+
+empty :: Env
+empty = Map.fromList
+    [ ("ev_loop", inFile "ev.h")
+    ]
+  where
+    inFile f = DeclDefn{ decl = Just (f, lexeme), defn = Just (f, lexeme) }
+    lexeme = L (AlexPn 0 0 0) Eof ""
 
 addDecl :: FilePath -> Lexeme Text -> State Env ()
 addDecl file l@(L _ _ name) =
@@ -77,7 +86,7 @@ analyse =
     (\(a, b) -> concatMap (makeDiagnostic a) b)
     . (mapMaybe defn &&& mapMaybe lacksDefn)
     . Map.elems
-    . flip State.execState Map.empty
+    . flip State.execState empty
     . traverseAst collectPairs
     . filter (not . (`elem` ["ccompat.h", "tox.h"]) . takeFileName . fst)
   where
