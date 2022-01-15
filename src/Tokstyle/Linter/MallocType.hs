@@ -3,17 +3,27 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.MallocType (analyse) where
 
+import           Control.Monad               (unless, when)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (BinaryOp (..), IdentityActions,
+                                              Lexeme (..), Node, NodeF (..),
+                                              defaultActions, doNode,
+                                              removeSloc, traverseAst)
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.Pretty      (showNode)
 
 supportedTypes :: [Text]
-supportedTypes = ["char", "uint8_t", "int16_t", "IP_ADAPTER_INFO"]
+supportedTypes = ["char", "uint8_t", "int16_t"]
+
+isByteSize :: Node (Lexeme Text) -> Bool
+isByteSize ty = case unFix ty of
+    TyStd (L _ _ "char")    -> True
+    TyStd (L _ _ "int8_t")  -> True
+    TyStd (L _ _ "uint8_t") -> True
+    _                       -> False
 
 checkType :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkType file castTy = case unFix castTy of
@@ -22,13 +32,31 @@ checkType file castTy = case unFix castTy of
         "`malloc' should be used for builtin types only "
         <> "(e.g. `uint8_t *' or `int16_t *'); use `calloc' instead"
 
+checkSize :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()
+checkSize file castTy@(Fix (TyPointer objTy)) size = case unFix size of
+    BinaryExpr _ BopMul r -> checkSize file castTy r
+    SizeofType sizeTy ->
+        when (removeSloc sizeTy /= removeSloc objTy) $
+            warn file size $ "`size' argument in call to `malloc' indicates "
+                <> "creation of an array with element type `" <> showNode sizeTy <> "', "
+                <> "but result is cast to `" <> showNode castTy <> "'"
+    _ ->
+        unless (isByteSize objTy) $
+            warn file size $ "`malloc' result must be cast to a byte-sized type if `sizeof' is omitted"
+checkSize file castTy _ =
+    warn file castTy "`malloc' result must be cast to a pointer type"
+
 
 linter :: IdentityActions (State [Text]) Text
 linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
-            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _)) -> do
+            -- Windows API weirdness: ignore completely.
+            CastExpr (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO"))))) _ -> return node
+
+            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "malloc"))) [size])) -> do
                 checkType file castTy
+                checkSize file castTy size
                 return node
 
             FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _ -> do
