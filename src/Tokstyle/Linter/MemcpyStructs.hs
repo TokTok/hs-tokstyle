@@ -15,13 +15,10 @@ import           Language.Cimple.Pretty      (showNode)
 
 exemptions :: [Text]
 exemptions =
-    [ "Cmp_data"
-    , "DHT_Cmp_data"
-    , "IP_Port"
+    [ "IP_Port"
     , "IP4"
     , "IP6"
     , "Node_format"
-    , "Onion_Client_Cmp_data"
     ]
 
 checkSize :: FilePath -> Node (Lexeme Text) -> State [Text] ()
