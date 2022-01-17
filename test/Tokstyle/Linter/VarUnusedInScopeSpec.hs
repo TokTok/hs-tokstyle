@@ -7,7 +7,7 @@ import           Data.Text          (Text)
 import qualified Data.Text          as Text
 import           Language.Cimple    (Lexeme, Node)
 import           Language.Cimple.IO (parseText)
-import           Tokstyle.Linter    (analyse)
+import           Tokstyle.Linter    (allWarnings, analyse)
 
 
 mustParse :: MonadFail m => [Text] -> m [Node (Lexeme Text)]
@@ -27,10 +27,10 @@ spec =
                 , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope"
-                , "test.c:3:   possibly to here"
+                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should support #if/#endif" $ do
@@ -42,10 +42,10 @@ spec =
                 , "#endif"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:3: variable `i' can be reduced in scope"
-                , "test.c:4:   possibly to here"
+                [ "test.c:3: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should support #if/#else/#endif" $ do
@@ -60,12 +60,12 @@ spec =
                 , "#endif"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:6: variable `i' can be reduced in scope"
-                , "test.c:7:   possibly to here"
-                , "test.c:3: variable `i' can be reduced in scope"
-                , "test.c:4:   possibly to here"
+                [ "test.c:6: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:7:   possibly to here [-Wvar-unused-in-scope]"
+                , "test.c:3: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should detect multiple uses, as long as all of them are writes" $ do
@@ -76,10 +76,10 @@ spec =
                 , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope"
-                , "test.c:3:   possibly to here"
+                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should work on variables declared multiple scopes up" $ do
@@ -92,10 +92,10 @@ spec =
                 , "  }"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope"
-                , "test.c:4:   possibly to here"
+                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should work on variables only-written in both if branches" $ do
@@ -109,10 +109,10 @@ spec =
                 , "  }"
                 , "}"
                 ]
-            analyse ("test.c", ast)
+            analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope"
-                , "test.c:4:   possibly to here"
+                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
         it "should not diagnose variables that are read in one of the branches" $ do
@@ -126,7 +126,7 @@ spec =
                 , "  }"
                 , "}"
                 ]
-            analyse ("test.c", ast) `shouldBe` []
+            analyse allWarnings ("test.c", ast) `shouldBe` []
 
         it "should not give diagnostics on vars read in the same scope" $ do
             ast <- mustParse
@@ -136,7 +136,7 @@ spec =
                 , "  print_int(i);"
                 , "}"
                 ]
-            analyse ("test.c", ast) `shouldBe` []
+            analyse allWarnings ("test.c", ast) `shouldBe` []
 
         it "should not give diagnostics on vars used as the bound for another for-loop" $ do
             ast <- mustParse
@@ -146,7 +146,7 @@ spec =
                 , "  for (int j = 0; j < i; ++j) { puts(\"hello!\"); }"
                 , "}"
                 ]
-            analyse ("test.c", ast) `shouldBe` []
+            analyse allWarnings ("test.c", ast) `shouldBe` []
 
         it "should not give diagnostics on assignments on array index operations" $ do
             ast <- mustParse
@@ -155,4 +155,4 @@ spec =
                 , "  if (true) { c[0] = 'a'; }"
                 , "}"
                 ]
-            analyse ("test.c", ast) `shouldBe` []
+            analyse allWarnings ("test.c", ast) `shouldBe` []

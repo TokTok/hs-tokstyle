@@ -20,11 +20,13 @@ library
   exposed-modules:
       Tokstyle.Linter
   other-modules:
-      Tokstyle.Linter.CallocArgs
+      Tokstyle.Linter.CallbackNames
+    , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
     , Tokstyle.Linter.DeclaredOnce
     , Tokstyle.Linter.DeclsHaveDefns
     , Tokstyle.Linter.DocComments
+    , Tokstyle.Linter.EnumNames
     , Tokstyle.Linter.ForLoops
     , Tokstyle.Linter.FuncPrototypes
     , Tokstyle.Linter.FuncScopes

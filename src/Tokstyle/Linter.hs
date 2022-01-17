@@ -1,13 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Linter
     ( analyse
     , analyseGlobal
+    , allWarnings
     ) where
 
 import           Data.Text                        (Text)
 import           Language.Cimple                  (Lexeme, Node)
 
+import qualified Tokstyle.Linter.CallbackNames    as CallbackNames
 import qualified Tokstyle.Linter.CallocArgs       as CallocArgs
 import qualified Tokstyle.Linter.CallocType       as CallocType
+import qualified Tokstyle.Linter.EnumNames        as EnumNames
 import qualified Tokstyle.Linter.ForLoops         as ForLoops
 import qualified Tokstyle.Linter.FuncPrototypes   as FuncPrototypes
 import qualified Tokstyle.Linter.FuncScopes       as FuncScopes
@@ -30,29 +34,46 @@ import qualified Tokstyle.Linter.TypeCheck        as TypeCheck
 
 type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
-analyse :: TranslationUnit -> [Text]
-analyse tu = concatMap ($ tu)
-    [ CallocArgs.analyse
-    , CallocType.analyse
-    , ForLoops.analyse
-    , FuncPrototypes.analyse
-    , FuncScopes.analyse
-    , GlobalFuncs.analyse
-    , LoggerCalls.analyse
-    , LoggerConst.analyse
-    , LoggerNoEscapes.analyse
-    , MallocType.analyse
-    , MemcpyStructs.analyse
-    , Parens.analyse
-    , TypedefName.analyse
-    , UnsafeFunc.analyse
-    , VarUnusedInScope.analyse
+run :: [(Text, t -> [Text])] -> [Text] -> t -> [Text]
+run linters flags tu =
+    concatMap (apply tu) $ filter ((`elem` flags) . fst) linters
+  where
+    apply tus = (\(flag, f) -> map (<> " [-W" <> flag <> "]") $ f tus)
+
+localLinters :: [(Text, (FilePath, [Node (Lexeme Text)]) -> [Text])]
+localLinters =
+    [ ("callback-names", CallbackNames.analyse)
+    , ("calloc-args", CallocArgs.analyse)
+    , ("calloc-type", CallocType.analyse)
+    , ("enum-names", EnumNames.analyse)
+    , ("for-loops", ForLoops.analyse)
+    , ("func-prototypes", FuncPrototypes.analyse)
+    , ("func-scopes", FuncScopes.analyse)
+    , ("global-funcs", GlobalFuncs.analyse)
+    , ("logger-calls", LoggerCalls.analyse)
+    , ("logger-const", LoggerConst.analyse)
+    , ("logger-no-escapes", LoggerNoEscapes.analyse)
+    , ("malloc-type", MallocType.analyse)
+    , ("memcpy-structs", MemcpyStructs.analyse)
+    , ("parens", Parens.analyse)
+    , ("typedef-name", TypedefName.analyse)
+    , ("unsafe-func", UnsafeFunc.analyse)
+    , ("var-unused-in-scope", VarUnusedInScope.analyse)
     ]
 
-analyseGlobal :: [TranslationUnit] -> [Text]
-analyseGlobal tus = concatMap ($ tus)
-    [ DeclaredOnce.analyse
-    , DeclsHaveDefns.analyse
-    , DocComments.analyse
-    , TypeCheck.analyse
+globalLinters :: [(Text, [(FilePath, [Node (Lexeme Text)])] -> [Text])]
+globalLinters =
+    [ ("declared-once", DeclaredOnce.analyse)
+    , ("decls-have-defns", DeclsHaveDefns.analyse)
+    , ("doc-comments", DocComments.analyse)
+    , ("type-check", TypeCheck.analyse)
     ]
+
+analyse :: [Text] -> TranslationUnit -> [Text]
+analyse = run localLinters
+
+analyseGlobal :: [Text] -> [TranslationUnit] -> [Text]
+analyseGlobal = run globalLinters
+
+allWarnings :: [Text]
+allWarnings = map fst localLinters ++ map fst globalLinters
