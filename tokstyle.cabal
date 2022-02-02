@@ -23,6 +23,7 @@ library
       Tokstyle.Linter.CallbackNames
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
+    , Tokstyle.Linter.CompoundInit
     , Tokstyle.Linter.DeclaredOnce
     , Tokstyle.Linter.DeclsHaveDefns
     , Tokstyle.Linter.DocComments

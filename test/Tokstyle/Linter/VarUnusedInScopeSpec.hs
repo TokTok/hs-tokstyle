@@ -29,7 +29,7 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
@@ -44,7 +44,7 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:3: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:3: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
@@ -62,9 +62,9 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:6: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:6: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:7:   possibly to here [-Wvar-unused-in-scope]"
-                , "test.c:3: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                , "test.c:3: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
@@ -78,7 +78,7 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
@@ -94,7 +94,7 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 
@@ -111,7 +111,7 @@ spec =
                 ]
             analyse allWarnings ("test.c", ast)
                 `shouldBe`
-                [ "test.c:2: variable `i' can be reduced in scope [-Wvar-unused-in-scope]"
+                [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
                 , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
                 ]
 

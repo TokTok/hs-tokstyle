@@ -35,8 +35,8 @@ linter = defaultActions
     }
   where
     warning tag tname name =
-        "typedef name `" <> lexemeText tname <> "' does not match " <> tag
-        <> " name `" <> lexemeText name <> "'"
+        "typedef name `" <> lexemeText tname <> "` does not match " <> tag
+        <> " name `" <> lexemeText name <> "`"
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter

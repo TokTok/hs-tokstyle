@@ -30,7 +30,7 @@ analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
 
     warning decl declScope defnScope =
         "function definition `" <> lexemeText decl
-        <> "' does not agree with its declaration about scope: "
+        <> "` does not agree with its declaration about scope: "
         <> "declaration on line " <> Text.pack (show (lexemeLine decl))
         <> " is " <> scopeKeyword declScope <> " but definition is "
         <> scopeKeyword defnScope

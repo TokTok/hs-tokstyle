@@ -18,15 +18,14 @@ exemptions =
     [ "IP_Port"
     , "IP4"
     , "IP6"
-    , "Node_format"
     ]
 
-checkSize :: FilePath -> Node (Lexeme Text) -> State [Text] ()
-checkSize file size = case unFix size of
+checkSize :: Text -> Text -> FilePath -> Node (Lexeme Text) -> State [Text] ()
+checkSize fname instead file size = case unFix size of
     SizeofType ty@(Fix (TyUserDefined (L _ _ name))) | not $ name `elem` exemptions ->
         warn file size $
-            "`memcpy' should not be used for structs like `"
-            <> showNode ty <> "' - use assignment instead"
+            "`" <> fname <> "` should not be used for structs like `"
+            <> showNode ty <> "` - use " <> instead <> " instead"
 
     _ -> return ()
 
@@ -35,8 +34,11 @@ linter :: IdentityActions (State [Text]) Text
 linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
+            FunctionCall (Fix (VarExpr (L _ _ "memset"))) [_, _, size] -> do
+                checkSize "memset" "`(Type) {0}`" file size
+                return node
             FunctionCall (Fix (VarExpr (L _ _ "memcpy"))) [_, _, size] -> do
-                checkSize file size
+                checkSize "memcpy" "assignment" file size
                 return node
 
             _ -> act

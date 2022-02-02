@@ -18,7 +18,7 @@ linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
             FunctionPrototype _ name [] -> do
-                Diagnostics.warn file name "empty parameter list must be written as (void)"
+                Diagnostics.warn file name "empty parameter list must be written as `(void)`"
                 act
 
             FunctionDefn{} -> return node

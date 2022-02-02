@@ -41,7 +41,7 @@ linter = defaultActions
     { doNode = \file node act ->
         case unFix node of
             FunctionCall (Fix (VarExpr (L _ _ (checkName -> Just (name, (msg, replacement)))))) _ -> do
-                warn file node $ "function `" <> name <> "' should not be used, because it " <> msg
+                warn file node $ "function `" <> name <> "` should not be used, because it " <> msg
                     <> fromMaybe "" ((\r -> "; use " <> r <> " instead") <$> replacement)
                 return node
 
