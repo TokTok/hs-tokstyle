@@ -31,12 +31,12 @@ linter = defaultActions
         case unFix node of
             VarDecl (Fix (TyPointer (Fix TyFunc{}))) (L _ _ varName) _ -> do
                 unless (isValid varName) $ do
-                    warn file node $ "function pointer `" <> varName <> "' should end in 'callback'"
+                    warn file node $ "function pointer `" <> varName <> "` should end in `callback`"
                 return node
 
             VarDecl (Fix TyFunc{}) (L _ _ varName) _ -> do
                 unless (isValid varName) $ do
-                    warn file node $ "function pointer parameter `" <> varName <> "' should end in 'callback'"
+                    warn file node $ "function pointer parameter `" <> varName <> "` should end in `callback`"
                 return node
 
             _ -> act

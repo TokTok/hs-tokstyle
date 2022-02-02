@@ -17,7 +17,7 @@ import           Language.Cimple.Diagnostics (warn)
 checkSize, checkNmemb, checkFlexibleCalloc :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkSize file size = case unFix size of
     SizeofType{} -> return ()
-    _ -> warn file size $ "`size' argument in call to `calloc' must be a sizeof expression"
+    _ -> warn file size $ "`size` argument in call to `calloc` must be a sizeof expression"
 
 checkNmemb file nmemb = case unFix nmemb of
     LiteralExpr{} -> return ()
@@ -28,14 +28,14 @@ checkNmemb file nmemb = case unFix nmemb of
         checkNmemb file r
 
     SizeofType{} ->
-        warn file nmemb $ "`sizeof' should not appear in the first argument to `calloc'"
+        warn file nmemb $ "`sizeof` should not appear in the first argument to `calloc`"
 
     _ ->
-        warn file nmemb $ "invalid expression in `nmemb' argument to `calloc'"
+        warn file nmemb $ "invalid expression in `nmemb` argument to `calloc`"
 
 checkFlexibleCalloc file nmemb = case unFix nmemb of
     LiteralExpr Int (L _ _ "1") -> return ()
-    _ -> warn file nmemb $ "in call to `calloc': `nmemb' must be 1 if `size' is not a pure sizeof expression"
+    _ -> warn file nmemb $ "in call to `calloc`: `nmemb` must be 1 if `size` is not a pure sizeof expression"
 
 
 linter :: IdentityActions (State [Text]) Text
@@ -54,7 +54,7 @@ linter = defaultActions
                 return node
 
             FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ -> do
-                warn file node $ "invalid `calloc' invocation: 2 arguments expected"
+                warn file node $ "invalid `calloc` invocation: 2 arguments expected"
                 return node
 
             _ -> act

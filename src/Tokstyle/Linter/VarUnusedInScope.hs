@@ -83,14 +83,14 @@ combineStatements file ls1 ls2 = foldM join [] (ls1 ++ ls2)
     joinVar var1@(Var WriteThenRead _) _              = return [var1]
 
     joinVar (Var Declare l1) (Var Write l2) = do
-        warn file l1 $ "variable `" <> lexemeText l1 <> "' can be reduced in scope"
+        warn file l1 $ "variable `" <> lexemeText l1 <> "` can be reduced in scope"
         warn file l2 "  possibly to here"
         return []
 
     joinVar (Var Declare _) _ = return []
     joinVar var1@(Var _ l1) (Var Declare l2) = do
-        warn file l1 $ "variable `" <> lexemeText l1 <> "' used before its declaration"
-        warn file l2 $ "  `" <> lexemeText l2 <> "' was declared here"
+        warn file l1 $ "variable `" <> lexemeText l1 <> "` used before its declaration"
+        warn file l2 $ "  `" <> lexemeText l2 <> "` was declared here"
         return [var1]
 
 

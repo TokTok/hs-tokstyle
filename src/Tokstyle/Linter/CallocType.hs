@@ -19,8 +19,8 @@ checkTypes :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Tex
 checkTypes file castTy sizeofTy = case unFix castTy of
     TyPointer ty1 | removeSloc ty1 == removeSloc sizeofTy -> return ()
     _ -> warn file castTy $
-        "`calloc' result is cast to `" <> showNode castTy
-        <> "' but allocated type is `" <> showNode sizeofTy <> "'"
+        "`calloc` result is cast to `" <> showNode castTy
+        <> "` but allocated type is `" <> showNode sizeofTy <> "`"
 
 
 linter :: IdentityActions (State [Text]) Text
@@ -36,7 +36,7 @@ linter = defaultActions
                 return node
 
             FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ -> do
-                warn file node "the result of `calloc' must be cast to its member type"
+                warn file node "the result of `calloc` must be cast to its member type"
                 return node
 
             _ -> act

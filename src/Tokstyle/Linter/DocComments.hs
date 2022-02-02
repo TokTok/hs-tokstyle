@@ -60,7 +60,7 @@ linter = defaultActions
             Just (_, doc') | removeSloc doc == removeSloc doc' -> return ()
             Just (file', doc') -> do
                 warn file doc $ "comment on definition of `" <> fname
-                    <> "' does not match declaration:\n"
+                    <> "` does not match declaration:\n"
                     <> tshow (ppTranslationUnit [doc])
                 warn file' doc' $ "mismatching comment found here:\n"
                     <> tshow (ppTranslationUnit [doc'])

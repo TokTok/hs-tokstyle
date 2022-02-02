@@ -18,15 +18,14 @@ exemptions =
     [ "IP_Port"
     , "IP4"
     , "IP6"
-    , "Node_format"
     ]
 
 checkSize :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkSize file size = case unFix size of
     SizeofType ty@(Fix (TyUserDefined (L _ _ name))) | not $ name `elem` exemptions ->
         warn file size $
-            "`memcpy' should not be used for structs like `"
-            <> showNode ty <> "' - use assignment instead"
+            "`memcpy` should not be used for structs like `"
+            <> showNode ty <> "` - use assignment instead"
 
     _ -> return ()
 

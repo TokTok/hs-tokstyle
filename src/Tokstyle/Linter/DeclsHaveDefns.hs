@@ -95,7 +95,7 @@ analyse =
 
 makeDiagnostic :: [(FilePath, Lexeme Text)] -> (FilePath, Lexeme Text) -> [Text]
 makeDiagnostic defns (file, fn@(L _ _ name)) =
-    Diagnostics.sloc file fn <> ": missing definition for `" <> name <> "'"
+    Diagnostics.sloc file fn <> ": missing definition for `" <> name <> "`"
     : suggestion
   where
     dists = sortOn fst . map ((levenshteinDistance defaultEditCosts (normalise fn) . normalise . snd) &&& id)
@@ -104,5 +104,5 @@ makeDiagnostic defns (file, fn@(L _ _ name)) =
     suggestion =
         case dists defns of
             (d, (dfile, dn@(L _ _ dname))):_ | d < maxEditDistance ->
-                [Diagnostics.sloc dfile dn <> ": did you mean `" <> dname <> "'?"]
+                [Diagnostics.sloc dfile dn <> ": did you mean `" <> dname <> "`?"]
             _ -> []

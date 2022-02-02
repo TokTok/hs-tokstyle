@@ -18,5 +18,5 @@ analyse (file, ast) = reverse $ State.execState (mapM go ast) []
   where
     go (Fix (FunctionDecl Global (Fix (FunctionPrototype _ name _)))) =
         warn file name $
-            "global function `" <> lexemeText name <> "' declared in .c file"
+            "global function `" <> lexemeText name <> "` declared in .c file"
     go _ = return ()

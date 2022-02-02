@@ -38,8 +38,8 @@ linter = defaultActions
                 case Map.lookup fname decls of
                     Nothing -> State.put l{decls = Map.insert fname (file, fn) decls }
                     Just (file', fn') -> do
-                        warn file' fn' $ "duplicate declaration of function `" <> fname <> "'"
-                        warn file fn $ "function `" <> fname <> "' also declared here"
+                        warn file' fn' $ "duplicate declaration of function `" <> fname <> "`"
+                        warn file fn $ "function `" <> fname <> "` also declared here"
                 return node
 
             FunctionDefn{} -> return node

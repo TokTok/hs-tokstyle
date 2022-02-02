@@ -27,7 +27,7 @@ linter = defaultActions
             FunctionCall (Fix (LiteralExpr _ (L _ _ "LOGGER_ASSERT"))) (_:_:Fix (LiteralExpr String _):_) -> act
 
             FunctionCall (Fix (LiteralExpr _ name@(L _ _ func))) _ | Text.isPrefixOf "LOGGER_" func -> do
-                Diagnostics.warn file name $ "logger call `" <> func <> "' has a non-literal format argument"
+                Diagnostics.warn file name $ "logger call `" <> func <> "` has a non-literal format argument"
                 act
 
             _ -> act

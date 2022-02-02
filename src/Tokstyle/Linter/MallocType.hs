@@ -29,22 +29,22 @@ checkType :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkType file castTy = case unFix castTy of
     TyPointer (Fix (TyStd (L _ _ tyName))) | tyName `elem` supportedTypes -> return ()
     _ -> warn file castTy $
-        "`malloc' should be used for builtin types only "
-        <> "(e.g. `uint8_t *' or `int16_t *'); use `calloc' instead"
+        "`malloc` should be used for builtin types only "
+        <> "(e.g. `uint8_t *` or `int16_t *`); use `calloc` instead"
 
 checkSize :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()
 checkSize file castTy@(Fix (TyPointer objTy)) size = case unFix size of
     BinaryExpr _ BopMul r -> checkSize file castTy r
     SizeofType sizeTy ->
         when (removeSloc sizeTy /= removeSloc objTy) $
-            warn file size $ "`size' argument in call to `malloc' indicates "
-                <> "creation of an array with element type `" <> showNode sizeTy <> "', "
-                <> "but result is cast to `" <> showNode castTy <> "'"
+            warn file size $ "`size` argument in call to `malloc` indicates "
+                <> "creation of an array with element type `" <> showNode sizeTy <> "`, "
+                <> "but result is cast to `" <> showNode castTy <> "`"
     _ ->
         unless (isByteSize objTy) $
-            warn file size $ "`malloc' result must be cast to a byte-sized type if `sizeof' is omitted"
+            warn file size $ "`malloc` result must be cast to a byte-sized type if `sizeof` is omitted"
 checkSize file castTy _ =
-    warn file castTy "`malloc' result must be cast to a pointer type"
+    warn file castTy "`malloc` result must be cast to a pointer type"
 
 
 linter :: IdentityActions (State [Text]) Text
@@ -60,7 +60,7 @@ linter = defaultActions
                 return node
 
             FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _ -> do
-                warn file node "the result of `malloc' must be cast; plain `void *' is not supported"
+                warn file node "the result of `malloc` must be cast; plain `void *` is not supported"
                 return node
 
             _ -> act

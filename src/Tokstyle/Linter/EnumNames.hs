@@ -45,8 +45,8 @@ linter = defaultActions
                 Linter{enumName, prefix} <- State.get
                 unless (Text.isPrefixOf prefix name) $
                     warn file node $
-                        "enumerator `" <> name <> "' in enum `" <> enumName
-                        <> "' should start with `" <> prefix <> "'"
+                        "enumerator `" <> name <> "` in enum `" <> enumName
+                        <> "` should start with `" <> prefix <> "`"
                 return node
 
             _ -> act
