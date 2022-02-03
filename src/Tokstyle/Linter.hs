@@ -7,7 +7,7 @@ module Tokstyle.Linter
 
 import           Data.Text                         (Text)
 import           Language.Cimple                   (Lexeme, Node)
-                                                  
+
 import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
 import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
@@ -27,7 +27,7 @@ import qualified Tokstyle.Linter.Parens            as Parens
 import qualified Tokstyle.Linter.TypedefName       as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc        as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope  as VarUnusedInScope
-                                                  
+
 import qualified Tokstyle.Linter.DeclaredOnce      as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns    as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments       as DocComments
