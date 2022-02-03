@@ -8,12 +8,11 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AssignOp (..),
-                                              Lexeme (..), Node, NodeF (..))
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (AssignOp (..), Lexeme (..), Node,
+                                              NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 linter :: AstActions (State [Text]) Text

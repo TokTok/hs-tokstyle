@@ -7,14 +7,12 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (BinaryOp (..), 
-                                              Lexeme (..), Node, NodeF (..),
-                                              removeSloc)
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
+                                              NodeF (..), removeSloc)
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 checkTypes :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()

@@ -10,12 +10,10 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..),
-                                              Node, NodeF (..))
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 data Linter = Linter

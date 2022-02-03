@@ -8,13 +8,11 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             ( Lexeme (..),
-                                              LiteralType (String), Node,
-                                              NodeF (..))
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), LiteralType (String),
+                                              Node, NodeF (..))
 import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 import           System.FilePath             (takeFileName)
 
 

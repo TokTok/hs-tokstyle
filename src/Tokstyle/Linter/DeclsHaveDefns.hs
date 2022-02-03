@@ -14,13 +14,12 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AlexPosn (..), 
-                                              Lexeme (..), LexemeClass (..),
-                                              Node, NodeF (..), lexemeText)
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (AlexPosn (..), Lexeme (..),
+                                              LexemeClass (..), Node,
+                                              NodeF (..), lexemeText)
 import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 import           System.FilePath             (takeFileName)
 import           Text.EditDistance           (defaultEditCosts,
                                               levenshteinDistance)

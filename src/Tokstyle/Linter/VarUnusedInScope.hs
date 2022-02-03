@@ -10,13 +10,11 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFixM)
 import           Data.List                   (delete, find)
 import           Data.Text                   (Text)
-import           Language.Cimple             ( Lexeme (..),
-                                              Node, NodeF (..), UnaryOp (..),
-                                              lexemeText)
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
+                                              UnaryOp (..), lexemeText)
 import           Language.Cimple.Diagnostics (Diagnostics, warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 data ReadKind

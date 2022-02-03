@@ -5,7 +5,7 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.TypeCheck where
 
-import           Control.Monad(void)
+import           Control.Monad               (void)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFixM)
@@ -14,13 +14,12 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (catMaybes)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (BinaryOp,
-                                              Lexeme (..), LiteralType (..),
-                                              Node, NodeF (..))
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (BinaryOp, Lexeme (..),
+                                              LiteralType (..), Node,
+                                              NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 data Env = Env
     { diags :: [Text]

@@ -8,14 +8,12 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (BinaryOp (..),
-                                              Lexeme (..), Node, NodeF (..),
-                                              removeSloc)
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
+                                              NodeF (..), removeSloc)
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 supportedTypes :: [Text]
 supportedTypes = ["char", "uint8_t", "int16_t"]

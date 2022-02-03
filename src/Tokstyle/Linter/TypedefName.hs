@@ -7,12 +7,11 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             ( Lexeme (..),
-                                              Node, NodeF (..), lexemeText)
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
+                                              lexemeText)
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 linter :: AstActions (State [Text]) Text

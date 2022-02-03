@@ -10,13 +10,11 @@ import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text                   (Text)
-import           Language.Cimple             ( Lexeme (..),
-                                              LexemeClass (..), Node,
-                                              NodeF (..))
-import           Language.Cimple.TraverseAst             (AstActions,
-                                              astActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), LexemeClass (..),
+                                              Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 data Linter = Linter
