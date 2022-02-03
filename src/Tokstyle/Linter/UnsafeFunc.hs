@@ -10,10 +10,10 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 forbidden :: [(Text, (Text, Maybe Text))]
 forbidden =
@@ -36,14 +36,13 @@ forbidden =
 checkName :: Text -> Maybe (Text, (Text, Maybe Text))
 checkName name = (name,) <$> lookup name forbidden
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionCall (Fix (VarExpr (L _ _ (checkName -> Just (name, (msg, replacement)))))) _ -> do
                 warn file node $ "function `" <> name <> "` should not be used, because it " <> msg
                     <> fromMaybe "" ((\r -> "; use " <> r <> " instead") <$> replacement)
-                return node
 
             _ -> act
     }

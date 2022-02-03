@@ -50,7 +50,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple            >= 0.0.11
+    , cimple            >= 0.0.13
     , containers
     , data-fix
     , deepseq

@@ -7,10 +7,10 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 needsParens :: Node a -> Bool
@@ -27,13 +27,13 @@ checkArg file arg = case unFix arg of
     _           -> return ()
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             -- Extra parentheses inside macro body is allowed (and sometimes needed).
-            PreprocDefineConst{} -> return node
-            PreprocDefineMacro{} -> return node
+            PreprocDefineConst{} -> return ()
+            PreprocDefineMacro{} -> return ()
 
             FunctionCall _ args -> do
                 mapM_ (checkArg file) args

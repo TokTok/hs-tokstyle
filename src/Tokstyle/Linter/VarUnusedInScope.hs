@@ -4,17 +4,17 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.VarUnusedInScope where
 
-import           Control.Monad               (foldM)
+import           Control.Monad               (foldM, void)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFixM)
 import           Data.List                   (delete, find)
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), UnaryOp (..),
-                                              defaultActions, doNode,
-                                              lexemeText, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
+                                              UnaryOp (..), lexemeText)
 import           Language.Cimple.Diagnostics (Diagnostics, warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 data ReadKind
@@ -140,13 +140,12 @@ checkScopes file = \case
     writeToRead var                     = var
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDefn{} -> do
-                _ <- foldFixM (checkScopes file) node
-                return node
+                void $ foldFixM (checkScopes file) node
 
             _ -> act
     }

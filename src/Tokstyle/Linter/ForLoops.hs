@@ -8,15 +8,15 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AssignOp (..), IdentityActions,
-                                              Lexeme (..), Node, NodeF (..),
-                                              defaultActions, doNode,
-                                              traverseAst)
+import           Language.Cimple             (AssignOp (..), Lexeme (..), Node,
+                                              NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             ForStmt (Fix (VarDeclStmt (Fix VarDecl{}) Just{})) _ _ _ -> act

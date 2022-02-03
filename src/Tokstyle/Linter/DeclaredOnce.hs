@@ -10,11 +10,11 @@ import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              LexemeClass (..), Node,
-                                              NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), LexemeClass (..),
+                                              Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 data Linter = Linter
@@ -29,8 +29,8 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: IdentityActions (State Linter) Text
-linter = defaultActions
+linter :: AstActions (State Linter) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDecl _ (Fix (FunctionPrototype _ fn@(L _ IdVar fname) _)) -> do
@@ -40,9 +40,8 @@ linter = defaultActions
                     Just (file', fn') -> do
                         warn file' fn' $ "duplicate declaration of function `" <> fname <> "`"
                         warn file fn $ "function `" <> fname <> "` also declared here"
-                return node
 
-            FunctionDefn{} -> return node
+            FunctionDefn{} -> pure ()
             _ -> act
     }
 

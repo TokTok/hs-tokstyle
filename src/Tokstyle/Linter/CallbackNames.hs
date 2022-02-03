@@ -10,10 +10,10 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
 isValid :: Text -> Bool
@@ -25,19 +25,17 @@ isValid name = any (`Text.isSuffixOf` name)
     ]
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             VarDecl (Fix (TyPointer (Fix TyFunc{}))) (L _ _ varName) _ -> do
                 unless (isValid varName) $ do
                     warn file node $ "function pointer `" <> varName <> "` should end in `callback`"
-                return node
 
             VarDecl (Fix TyFunc{}) (L _ _ varName) _ -> do
                 unless (isValid varName) $ do
                     warn file node $ "function pointer parameter `" <> varName <> "` should end in `callback`"
-                return node
 
             _ -> act
     }

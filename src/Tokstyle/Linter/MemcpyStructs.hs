@@ -7,11 +7,11 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 exemptions :: [Text]
 exemptions =
@@ -30,16 +30,14 @@ checkSize fname instead file size = case unFix size of
     _ -> return ()
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionCall (Fix (VarExpr (L _ _ "memset"))) [_, _, size] -> do
                 checkSize "memset" "`(Type) {0}`" file size
-                return node
             FunctionCall (Fix (VarExpr (L _ _ "memcpy"))) [_, _, size] -> do
                 checkSize "memcpy" "assignment" file size
-                return node
 
             _ -> act
     }

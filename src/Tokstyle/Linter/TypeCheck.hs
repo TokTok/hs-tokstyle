@@ -5,6 +5,7 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.TypeCheck where
 
+import           Control.Monad               (void)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFixM)
@@ -13,11 +14,12 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (catMaybes)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (BinaryOp, IdentityActions,
-                                              Lexeme (..), LiteralType (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (BinaryOp, Lexeme (..),
+                                              LiteralType (..), Node,
+                                              NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 data Env = Env
     { diags :: [Text]
@@ -101,8 +103,8 @@ extractType file n = \case
   where ok = return . Just
 
 
-getTypes :: IdentityActions (State Env) Text
-getTypes = defaultActions
+getTypes :: AstActions (State Env) Text
+getTypes = astActions
     { doNode = \file node act ->
         case unFix node of
             Struct{} -> do
@@ -117,7 +119,7 @@ getTypes = defaultActions
             -- of the owl).
 
             -- Ignore everything inside functions, we'll type-check them later.
-            FunctionDefn{} -> return node
+            FunctionDefn{} -> return ()
             _ -> act
     }
 
@@ -144,13 +146,12 @@ checkTypes _file _n = \case
         --warn file n $ Text.pack (show x)
         return Void
 
-linter :: IdentityActions (State Env) Text
-linter = defaultActions
+linter :: AstActions (State Env) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionDefn{} -> do
-                _ <- foldFixM (checkTypes file node) node
-                return node
+            FunctionDefn{} ->
+                void $ foldFixM (checkTypes file node) node
 
             _ -> act
     }

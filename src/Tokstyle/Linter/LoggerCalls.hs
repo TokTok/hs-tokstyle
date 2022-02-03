@@ -8,16 +8,16 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              LiteralType (String), Node,
-                                              NodeF (..), defaultActions,
-                                              doNode, traverseAst)
+import           Language.Cimple             (Lexeme (..), LiteralType (String),
+                                              Node, NodeF (..))
 import qualified Language.Cimple.Diagnostics as Diagnostics
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 import           System.FilePath             (takeFileName)
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             -- Ignore all function calls where the second argument is a string
