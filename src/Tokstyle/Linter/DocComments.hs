@@ -9,10 +9,12 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
+import           Language.Cimple             (Lexeme (..),
                                               LexemeClass (..), Node,
-                                              NodeF (..), defaultActions,
-                                              doNode, removeSloc, traverseAst)
+                                              NodeF (..), removeSloc)
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
+                                              doNode, traverseAst)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (ppTranslationUnit)
 
@@ -29,17 +31,15 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: IdentityActions (State Linter) Text
-linter = defaultActions
+linter :: AstActions (State Linter) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             Commented doc (Fix (FunctionDecl _ (Fix (FunctionPrototype _ (L _ IdVar fname) _)))) -> do
                 checkCommentEquals file doc fname
-                return node
 
             Commented doc (Fix (FunctionDefn _ (Fix (FunctionPrototype _ (L _ IdVar fname) _)) _)) -> do
                 checkCommentEquals file doc fname
-                return node
 
             {-
             Commented _ n -> do
@@ -47,7 +47,7 @@ linter = defaultActions
                 act
             -}
 
-            FunctionDefn{} -> return node
+            FunctionDefn{} -> return ()
             _ -> act
     }
   where

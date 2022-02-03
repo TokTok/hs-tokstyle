@@ -8,10 +8,12 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (BinaryOp (..), IdentityActions,
+import           Language.Cimple             (BinaryOp (..),
                                               Lexeme (..), Node, NodeF (..),
-                                              defaultActions, doNode,
-                                              removeSloc, traverseAst)
+                                              removeSloc)
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
+                                              doNode, traverseAst)
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 
@@ -47,21 +49,19 @@ checkSize file castTy _ =
     warn file castTy "`malloc` result must be cast to a pointer type"
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             -- Windows API weirdness: ignore completely.
-            CastExpr (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO"))))) _ -> return node
+            CastExpr (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO"))))) _ -> return ()
 
             CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "malloc"))) [size])) -> do
                 checkType file castTy
                 checkSize file castTy size
-                return node
 
             FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _ -> do
                 warn file node "the result of `malloc` must be cast; plain `void *` is not supported"
-                return node
 
             _ -> act
     }

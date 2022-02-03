@@ -7,9 +7,11 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (BinaryOp (..), IdentityActions,
+import           Language.Cimple             (BinaryOp (..), 
                                               Lexeme (..), LiteralType (..),
-                                              Node, NodeF (..), defaultActions,
+                                              Node, NodeF (..))
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
                                               doNode, traverseAst)
 import           Language.Cimple.Diagnostics (warn)
 
@@ -38,24 +40,21 @@ checkFlexibleCalloc file nmemb = case unFix nmemb of
     _ -> warn file nmemb $ "in call to `calloc`: `nmemb` must be 1 if `size` is not a pure sizeof expression"
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             -- Special support for flexible array member. We should get rid of
             -- this, but for now it's allowed.
             FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [nmemb, Fix (BinaryExpr (Fix SizeofType{}) BopPlus _)] -> do
                 checkFlexibleCalloc file nmemb
-                return node
 
             FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [nmemb, size] -> do
                 checkNmemb file nmemb
                 checkSize file size
-                return node
 
             FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ -> do
                 warn file node $ "invalid `calloc` invocation: 2 arguments expected"
-                return node
 
             _ -> act
     }

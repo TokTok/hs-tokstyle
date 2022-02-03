@@ -7,8 +7,9 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text, isPrefixOf)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
+import           Language.Cimple             (Lexeme (..),
+                                              Node, NodeF (..))
+import           Language.Cimple.TraverseAst             (astActions,AstActions,
                                               doNode, traverseAst)
 import           Language.Cimple.Diagnostics (warn)
 
@@ -42,13 +43,12 @@ checkParam file param = case unFix param of
 
     _ -> return ()
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionPrototype _ _ params -> do
                 mapM_ (checkParam file) params
-                return node
 
             _ -> act
     }

@@ -10,8 +10,10 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
+import           Language.Cimple             (Lexeme (..),
+                                              Node, NodeF (..))
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
                                               doNode, traverseAst)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 
@@ -29,8 +31,8 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
-linter :: IdentityActions (State Linter) Text
-linter = defaultActions
+linter :: AstActions (State Linter) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             EnumConsts (Just (L _ _ enumName)) _ -> do
@@ -47,7 +49,6 @@ linter = defaultActions
                     warn file node $
                         "enumerator `" <> name <> "` in enum `" <> enumName
                         <> "` should start with `" <> prefix <> "`"
-                return node
 
             _ -> act
     }

@@ -7,21 +7,23 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme, Node,
-                                              NodeF (..), defaultActions,
+import           Language.Cimple             ( Lexeme, Node,
+                                              NodeF (..))
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
                                               doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionPrototype _ name [] -> do
                 Diagnostics.warn file name "empty parameter list must be written as `(void)`"
                 act
 
-            FunctionDefn{} -> return node
+            FunctionDefn{} -> return ()
             _ -> act
     }
 

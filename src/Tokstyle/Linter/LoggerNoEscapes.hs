@@ -9,15 +9,17 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text, isInfixOf)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (IdentityActions, Lexeme (..),
+import           Language.Cimple             (Lexeme (..),
                                               LiteralType (String), Node,
-                                              NodeF (..), defaultActions,
-                                              doNode, lexemeText, traverseAst)
+                                              NodeF (..), lexemeText)
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
+                                              doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act -> case unFix node of
         -- LOGGER_ASSERT has its format as the third parameter.
         FunctionCall (Fix (LiteralExpr _ (L _ _ "LOGGER_ASSERT"))) (_ : _ : Fix (LiteralExpr String fmt) : _)

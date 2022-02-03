@@ -14,10 +14,12 @@ import qualified Data.Map                    as Map
 import           Data.Maybe                  (mapMaybe)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (AlexPosn (..), IdentityActions,
+import           Language.Cimple             (AlexPosn (..), 
                                               Lexeme (..), LexemeClass (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, lexemeText, traverseAst)
+                                              Node, NodeF (..), lexemeText)
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
+                                              doNode, traverseAst)
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           System.FilePath             (takeFileName)
 import           Text.EditDistance           (defaultEditCosts,
@@ -58,25 +60,21 @@ addDefn file l@(L _ _ name) =
             Just dd -> Map.insert name (dd      {                 defn = Just (file, l) }) pairs
 
 
-collectPairs :: IdentityActions (State Env) Text
-collectPairs = defaultActions
+collectPairs :: AstActions (State Env) Text
+collectPairs = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDecl _ (Fix (FunctionPrototype _ fname _)) -> do
                 addDecl file fname
-                return node
 
             FunctionDefn _ (Fix (FunctionPrototype _ fname _)) _ -> do
                 addDefn file fname
-                return node
 
             TyStruct sname -> do
                 addDecl file sname
-                return node
 
             Struct sname _ -> do
                 addDefn file sname
-                return node
 
             _ -> act
     }

@@ -7,30 +7,28 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (IdentityActions, Lexeme (..),
-                                              Node, NodeF (..), defaultActions,
-                                              doNode, lexemeText, traverseAst)
+import           Language.Cimple             ( Lexeme (..),
+                                              Node, NodeF (..), lexemeText)
+import           Language.Cimple.TraverseAst             (AstActions,
+                                              astActions,
+                                              doNode, traverseAst)
 import           Language.Cimple.Diagnostics (warn)
 
 
-linter :: IdentityActions (State [Text]) Text
-linter = defaultActions
+linter :: AstActions (State [Text]) Text
+linter = astActions
     { doNode = \file node act ->
         case unFix node of
             Typedef (Fix (TyStruct sname)) tname | lexemeText sname /= lexemeText tname -> do
                 warn file sname $ warning "struct" tname sname
-                return node
             Typedef (Fix (Struct sname _)) tname | lexemeText sname /= lexemeText tname -> do
                 warn file sname $ warning "struct" tname sname
-                return node
             Typedef (Fix (Union uname _)) tname | lexemeText uname /= lexemeText tname -> do
                 warn file uname $ warning "union" tname uname
-                return node
             EnumDecl ename _ tname | lexemeText ename /= lexemeText tname -> do
                 warn file ename $ warning "union" tname ename
-                return node
 
-            FunctionDefn{} -> return node
+            FunctionDefn{} -> return ()
             _ -> act
     }
   where
