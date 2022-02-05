@@ -13,7 +13,6 @@ import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
 import qualified Tokstyle.Linter.CompoundInit      as CompoundInit
 import qualified Tokstyle.Linter.EnumNames         as EnumNames
-import qualified Tokstyle.Linter.ForLoops          as ForLoops
 import qualified Tokstyle.Linter.FuncPrototypes    as FuncPrototypes
 import qualified Tokstyle.Linter.FuncScopes        as FuncScopes
 import qualified Tokstyle.Linter.GlobalFuncs       as GlobalFuncs
@@ -49,7 +48,6 @@ localLinters =
     , ("calloc-type", CallocType.analyse)
     , ("compound-init", CompoundInit.analyse)
     , ("enum-names", EnumNames.analyse)
-    , ("for-loops", ForLoops.analyse)
     , ("func-prototypes", FuncPrototypes.analyse)
     , ("func-scopes", FuncScopes.analyse)
     , ("global-funcs", GlobalFuncs.analyse)

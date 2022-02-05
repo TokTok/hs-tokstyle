@@ -28,7 +28,6 @@ library
     , Tokstyle.Linter.DeclsHaveDefns
     , Tokstyle.Linter.DocComments
     , Tokstyle.Linter.EnumNames
-    , Tokstyle.Linter.ForLoops
     , Tokstyle.Linter.FuncPrototypes
     , Tokstyle.Linter.FuncScopes
     , Tokstyle.Linter.GlobalFuncs
