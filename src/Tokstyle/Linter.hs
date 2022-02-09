@@ -22,6 +22,8 @@ import qualified Tokstyle.Linter.LoggerConst       as LoggerConst
 import qualified Tokstyle.Linter.LoggerNoEscapes   as LoggerNoEscapes
 import qualified Tokstyle.Linter.MallocType        as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs     as MemcpyStructs
+import qualified Tokstyle.Linter.MissingNonNull    as MissingNonNull
+import qualified Tokstyle.Linter.NonNull           as NonNull
 import qualified Tokstyle.Linter.Parens            as Parens
 import qualified Tokstyle.Linter.TypedefName       as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc        as UnsafeFunc
@@ -43,32 +45,34 @@ run linters flags tu =
 
 localLinters :: [(Text, (FilePath, [Node (Lexeme Text)]) -> [Text])]
 localLinters =
-    [ ("callback-names", CallbackNames.analyse)
-    , ("calloc-args", CallocArgs.analyse)
-    , ("calloc-type", CallocType.analyse)
-    , ("compound-init", CompoundInit.analyse)
-    , ("enum-names", EnumNames.analyse)
-    , ("func-prototypes", FuncPrototypes.analyse)
-    , ("func-scopes", FuncScopes.analyse)
-    , ("global-funcs", GlobalFuncs.analyse)
+    [ ("callback-names"     , CallbackNames.analyse    )
+    , ("calloc-args"        , CallocArgs.analyse       )
+    , ("calloc-type"        , CallocType.analyse       )
+    , ("compound-init"      , CompoundInit.analyse     )
+    , ("enum-names"         , EnumNames.analyse        )
+    , ("func-prototypes"    , FuncPrototypes.analyse   )
+    , ("func-scopes"        , FuncScopes.analyse       )
+    , ("global-funcs"       , GlobalFuncs.analyse      )
     , ("large-struct-params", LargeStructParams.analyse)
-    , ("logger-calls", LoggerCalls.analyse)
-    , ("logger-const", LoggerConst.analyse)
-    , ("logger-no-escapes", LoggerNoEscapes.analyse)
-    , ("malloc-type", MallocType.analyse)
-    , ("memcpy-structs", MemcpyStructs.analyse)
-    , ("parens", Parens.analyse)
-    , ("typedef-name", TypedefName.analyse)
-    , ("unsafe-func", UnsafeFunc.analyse)
-    , ("var-unused-in-scope", VarUnusedInScope.analyse)
+    , ("logger-calls"       , LoggerCalls.analyse      )
+    , ("logger-const"       , LoggerConst.analyse      )
+    , ("logger-no-escapes"  , LoggerNoEscapes.analyse  )
+    , ("malloc-type"        , MallocType.analyse       )
+    , ("memcpy-structs"     , MemcpyStructs.analyse    )
+    , ("missing-non-null"   , MissingNonNull.analyse   )
+    , ("non-null"           , NonNull.analyse          )
+    , ("parens"             , Parens.analyse           )
+    , ("typedef-name"       , TypedefName.analyse      )
+    , ("unsafe-func"        , UnsafeFunc.analyse       )
+    , ("var-unused-in-scope", VarUnusedInScope.analyse )
     ]
 
 globalLinters :: [(Text, [(FilePath, [Node (Lexeme Text)])] -> [Text])]
 globalLinters =
-    [ ("declared-once", DeclaredOnce.analyse)
-    , ("decls-have-defns", DeclsHaveDefns.analyse)
-    , ("doc-comments", DocComments.analyse)
-    , ("type-check", TypeCheck.analyse)
+    [ ("declared-once"      , DeclaredOnce.analyse     )
+    , ("decls-have-defns"   , DeclsHaveDefns.analyse   )
+    , ("doc-comments"       , DocComments.analyse      )
+    , ("type-check"         , TypeCheck.analyse        )
     ]
 
 analyse :: [Text] -> TranslationUnit -> [Text]

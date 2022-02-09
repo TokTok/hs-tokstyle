@@ -1,9 +1,11 @@
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.FuncScopes (analyse) where
 
-import           Control.Monad               (foldM, when)
+import           Control.Monad               (when)
+import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
@@ -11,23 +13,40 @@ import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               Scope (..), lexemeLine,
                                               lexemeText)
-import           Language.Cimple.Diagnostics (warn)
+import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
 
 
-analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
-analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
+data Linter = Linter
+    { diags :: [Text]
+    , decls :: [(Text, (Lexeme Text, Scope))]
+    }
+
+empty :: Linter
+empty = Linter [] []
+
+instance HasDiagnostics Linter where
+    addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
+
+
+linter :: AstActions (State Linter) Text
+linter = astActions
+    { doNode = \file node act ->
+        case unFix node of
+            FunctionDecl declScope (Fix (FunctionPrototype _ name _)) ->
+                State.modify $ \l@Linter{decls} -> l{decls = (lexemeText name, (name, declScope)) : decls}
+            FunctionDefn defnScope (Fix (FunctionPrototype _ name _)) _ -> do
+                Linter{decls} <- State.get
+                case lookup (lexemeText name) decls of
+                    Nothing -> return ()
+                    Just (decl, declScope) -> do
+                        when (declScope /= defnScope) $ warn file name $
+                            warning decl declScope defnScope
+
+            _ -> act
+    }
   where
-    go decls (Fix (FunctionDecl declScope (Fix (FunctionPrototype _ name _)))) =
-        return $ (lexemeText name, (name, declScope)) : decls
-    go decls (Fix (FunctionDefn defnScope (Fix (FunctionPrototype _ name _)) _)) =
-        case lookup (lexemeText name) decls of
-            Nothing -> return decls
-            Just (decl, declScope) -> do
-                when (declScope /= defnScope) $ warn file name $
-                    warning decl declScope defnScope
-                return decls
-    go decls _ = return decls
-
     warning decl declScope defnScope =
         "function definition `" <> lexemeText decl
         <> "` does not agree with its declaration about scope: "
@@ -37,3 +56,6 @@ analyse (file, ast) = reverse $ snd $ State.runState (foldM go [] ast) []
 
     scopeKeyword Global = "extern"
     scopeKeyword Static = "static"
+
+analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
+analyse = reverse . diags . flip State.execState empty . traverseAst linter
