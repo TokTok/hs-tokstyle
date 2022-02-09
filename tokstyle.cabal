@@ -20,7 +20,8 @@ library
   exposed-modules:
       Tokstyle.Linter
   other-modules:
-      Tokstyle.Linter.CallbackNames
+      Tokstyle.Common
+    , Tokstyle.Linter.CallbackNames
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
     , Tokstyle.Linter.CompoundInit
@@ -37,6 +38,8 @@ library
     , Tokstyle.Linter.LoggerNoEscapes
     , Tokstyle.Linter.MallocType
     , Tokstyle.Linter.MemcpyStructs
+    , Tokstyle.Linter.MissingNonNull
+    , Tokstyle.Linter.NonNull
     , Tokstyle.Linter.Parens
     , Tokstyle.Linter.TypeCheck
     , Tokstyle.Linter.TypedefName
@@ -49,7 +52,7 @@ library
       base              >= 4 && < 5
     , aeson             >= 0.8.1.0
     , bytestring
-    , cimple            >= 0.0.13
+    , cimple            >= 0.0.14
     , containers
     , data-fix
     , deepseq

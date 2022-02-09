@@ -25,7 +25,7 @@ checkSize fname instead file size = case unFix size of
     SizeofType ty@(Fix (TyUserDefined (L _ _ name))) | not $ name `elem` exemptions ->
         warn file size $
             "`" <> fname <> "` should not be used for structs like `"
-            <> showNode ty <> "` - use " <> instead <> " instead"
+            <> showNode ty <> "`; use " <> instead <> " instead"
 
     _ -> return ()
 

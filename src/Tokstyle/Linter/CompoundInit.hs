@@ -17,7 +17,7 @@ linter = astActions
     { doNode = \file node act ->
         case unFix node of
             VarDeclStmt _ (Just (Fix CompoundExpr{})) -> do
-                warn file node "don't use compound literals in initialisations - use simple `Type var = {0};`"
+                warn file node "don't use compound literals in initialisations; use simple `Type var = {0};`"
 
             _ -> act
     }
