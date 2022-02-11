@@ -18,6 +18,7 @@ exemptions =
     , "IP4"
     , "Logger_Level"
     , "Packet"
+    , "Packet_Direction"  -- this is an enum
     , "Socket"
     , "State_Type"
     ]
