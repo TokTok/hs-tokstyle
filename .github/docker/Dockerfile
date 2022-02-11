@@ -1,6 +1,8 @@
-# hadolint ignore=DL3007
-FROM toxchat/haskell:latest
+FROM toxchat/toktok-stack:haskell AS build
 
 RUN ["rm", "-rf", "/work/hs-tokstyle"]
 COPY --chown=builder:users . /work/hs-tokstyle
-RUN ["stack", "build", "tokstyle"]
+RUN ["stack", "install", "tokstyle"]
+
+FROM scratch
+COPY --from=build /home/builder/.local/ /
