@@ -9,19 +9,19 @@ typedef __socklen_t socklen_t;
 #define AF_INET6  __AF_INET6
 
 enum {
-  SOCK_STREAM = 1,
-  SOCK_DGRAM = 2,
+    SOCK_STREAM = 1,
+    SOCK_DGRAM = 2,
 };
 
 enum {
-  SOL_SOCKET = 1,
+    SOL_SOCKET = 1,
 };
 
 enum {
-  SO_REUSEADDR = 2,
-  SO_BROADCAST = 6,
-  SO_SNDBUF = 7,
-  SO_RCVBUF = 8,
+    SO_REUSEADDR = 2,
+    SO_BROADCAST = 6,
+    SO_SNDBUF = 7,
+    SO_RCVBUF = 8,
 };
 
 int getsockopt(int sockfd, int level, int optname, void *restrict optval,
