@@ -76,6 +76,19 @@ executable check-cimple
     , text
     , tokstyle
 
+executable check-c
+  default-language: Haskell2010
+  hs-source-dirs:
+      tools
+  ghc-options:
+      -Wall
+  main-is: check-c.hs
+  build-depends:
+      base < 5
+    , containers
+    , language-c
+    , text
+
 executable webservice
   main-is:             webservice.hs
   ghc-options:
