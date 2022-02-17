@@ -1,6 +1,7 @@
-module Main where
+module Main (main) where
 
-import           Control.Monad                   (forM_)
+import           Control.Monad                   (forM_, unless)
+import qualified Control.Monad.Parallel          as Par
 import           Data.List                       (isPrefixOf, partition)
 import qualified Data.Map                        as Map
 import           Language.C
@@ -8,6 +9,7 @@ import           Language.C.Analysis.AstAnalysis
 import           Language.C.Analysis.SemError
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
+import           Language.C.Data.Ident
 import           Language.C.System.GCC
 import           System.Environment              (getArgs)
 import           System.Exit                     (ExitCode (..), exitWith)
@@ -26,7 +28,8 @@ checkTypes sysInclude =
     checkBlockItem :: MonadTrav m => CBlockItem -> m ()
     checkBlockItem (CBlockDecl decl) = checkDecl decl
     checkBlockItem (CBlockStmt stmt) = checkStmt stmt
-    checkBlockItem stmt = throwTravError $ userErr $ "block-item: " <> show stmt
+    checkBlockItem (CNestedFunDef _) =
+        throwTravError $ userErr $ "nested functions are not supported"
 
     checkInit :: MonadTrav m => CInit -> m ()
     checkInit (CInitExpr e _) = checkExpr e
@@ -36,7 +39,8 @@ checkTypes sysInclude =
     checkDecl (CDecl _ decls _) = forM_ decls $ \(_, i, e) -> do
         maybeM i checkInit
         maybeM e checkExpr
-    checkDecl decl = throwTravError $ userErr $ "decl: " <> show decl
+    checkDecl CStaticAssert{} =
+        throwTravError $ userErr $ "static_assert not allowed in functions"
 
     checkExpr :: MonadTrav m => Expr -> m ()
     checkExpr (CCast t e _) = do
@@ -64,6 +68,8 @@ checkTypes sysInclude =
     checkExpr (CCall f a _) = do
         checkExpr f
         mapM_ checkExpr a
+    checkExpr (CComma es _) =
+        mapM_ checkExpr es
     checkExpr (CCompoundLit d i _) = do
         checkDecl d
         mapM_ (checkInit . snd) i
@@ -76,10 +82,17 @@ checkTypes sysInclude =
     checkStmt (CIf cond t e _) = do
         ty <- tExpr [] RValue cond
         case ty of
-          PtrType{} ->
+          DirectType (TyIntegral TyBool) _ _ -> return ()
+          DirectType (TyIntegral TyInt) _ _ -> return ()
+          TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
+          -- TODO(iphydf): Clean these up and then disallow them.
+          TypeDefType (TypeDefRef (Ident "uint8_t" _ _) _ _) _ _ -> return ()
+          TypeDefType (TypeDefRef (Ident "uint16_t" _ _) _ _) _ _ -> return ()
+          TypeDefType (TypeDefRef (Ident "uint32_t" _ _) _ _) _ _ -> return ()
+          TypeDefType (TypeDefRef (Ident "uint64_t" _ _) _ _) _ _ -> return ()
+          _ ->
               let annot = (annotation cond, ty) in
-              recordError $ typeMismatch "implicit conversion from pointer to bool" annot annot
-          _ -> return ()
+              recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot
         checkExpr cond
         checkStmt t
         maybeM e checkStmt
@@ -88,6 +101,8 @@ checkTypes sysInclude =
         checkStmt b
     checkStmt (CBreak _) = return ()
     checkStmt (CCont _) = return ()
+    checkStmt (CGoto _ _) = return ()
+    checkStmt (CLabel _ e _ _) = checkStmt e
     checkStmt (CDefault b _) = checkStmt b
     checkStmt (CCase c b _) = do
         checkExpr c
@@ -113,21 +128,18 @@ defaultCppOpts sysInclude =
     , "-D__LITTLE_ENDIAN=0x4321"
     , "-D__BYTE_ORDER=__LITTLE_ENDIAN"
     , "-I" <> sysInclude
+    , "-I" <> sysInclude <> "/opus"
     ]
 
-processFile :: String -> CLanguage -> [String] -> FilePath -> IO ()
+processFile :: String -> CLanguage -> [String] -> FilePath -> IO (Bool, (String, [String]))
 processFile sysInclude lang cppOpts file = do
-    hPutStr stderr $ file ++ ": "
     result <- parseCFile (newGCC "gcc") Nothing (defaultCppOpts sysInclude ++ cppOpts) file
     case result of
-      Left err -> do
-          hPutStrLn stderr ('\n' : show err)
-          hPutStrLn stderr "Failed: Parse Error"
-          exitWith (ExitFailure 1)
+      Left err -> return (False, (file, ["Parse Error: " <> show err]))
       Right tu ->
           case runTrav_ (body tu) of
-            Left errs        -> mapM_ (hPutStrLn stderr) ("Error" : map show errs)
-            Right ((), errs) -> mapM_ (hPutStrLn stderr) ("Success" : map show errs)
+            Left errs        -> return (False, (file, "Error" : map show errs))
+            Right ((), errs) -> return (True, (file, "Success" : map show errs))
   where
     body tu = do
         modifyOptions (\opts -> opts { language = lang })
@@ -140,4 +152,10 @@ main = do
     args <- getArgs
     let (cppOpts, files) = partition (isPrefixOf "-") args
     let sysInclude = "/src/workspace/hs-tokstyle/include"
-    mapM_ (processFile sysInclude GNU99 cppOpts) files
+    result <- Par.mapM (processFile sysInclude GNU99 cppOpts) files
+    mapM_ (printResult . snd) result
+    unless (all fst result) $ exitWith (ExitFailure 1)
+  where
+    printResult (file, result) = do
+        hPutStr stderr $ file <> ": "
+        mapM_ (hPutStrLn stderr) result

@@ -87,7 +87,7 @@ executable check-c
       base < 5
     , containers
     , language-c
-    , text
+    , monad-parallel
 
 executable webservice
   main-is:             webservice.hs
