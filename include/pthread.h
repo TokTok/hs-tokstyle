@@ -3,12 +3,13 @@
 typedef struct pthread_mutexattr_t pthread_mutexattr_t;
 
 typedef enum {
-    PTHREAD_MUTEX_RECURSIVE,
+  PTHREAD_MUTEX_RECURSIVE,
 } __pthread_mutex_type;
 
 int pthread_mutexattr_init(pthread_mutexattr_t *mutex);
 void pthread_mutexattr_destroy(pthread_mutexattr_t *mutex);
-int pthread_mutexattr_settype(pthread_mutexattr_t *mutex, __pthread_mutex_type type);
+int pthread_mutexattr_settype(pthread_mutexattr_t *mutex,
+                              __pthread_mutex_type type);
 
 typedef struct pthread_mutex_t pthread_mutex_t;
 

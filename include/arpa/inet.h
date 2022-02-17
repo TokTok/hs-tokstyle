@@ -2,7 +2,8 @@
 
 #include "../types.h"
 
-const char *inet_ntop(int af, const void *restrict src, char *restrict dst, __socklen_t size);
+const char *inet_ntop(int af, const void *restrict src, char *restrict dst,
+                      __socklen_t size);
 int inet_pton(int af, const char *restrict src, void *restrict dst);
 
 __uint32_t htonl(__uint32_t hostlong);

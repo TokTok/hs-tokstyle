@@ -3,8 +3,8 @@
 #include "types.h"
 
 enum {
-    EAGAIN = 11,
-    EWOULDBLOCK = EAGAIN,
+  EAGAIN = 11,
+  EWOULDBLOCK = EAGAIN,
 };
 
 extern int errno;

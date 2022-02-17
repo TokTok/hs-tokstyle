@@ -5,34 +5,33 @@
 typedef __socklen_t socklen_t;
 
 enum {
-    AF_UNSPEC = 0,
-    AF_INET   = 2,
-    AF_INET6  = 10,
+  AF_UNSPEC = 0,
+  AF_INET = 2,
+  AF_INET6 = 10,
 };
 
 enum {
-    SOCK_STREAM = 1,
-    SOCK_DGRAM  = 2,
+  SOCK_STREAM = 1,
+  SOCK_DGRAM = 2,
 };
 
 enum {
-    SOL_SOCKET  = 1,
+  SOL_SOCKET = 1,
 };
 
 enum {
-    SO_REUSEADDR = 2,
-    SO_BROADCAST = 6,
-    SO_SNDBUF = 7,
-    SO_RCVBUF = 8,
+  SO_REUSEADDR = 2,
+  SO_BROADCAST = 6,
+  SO_SNDBUF = 7,
+  SO_RCVBUF = 8,
 };
 
-int getsockopt(int sockfd, int level, int optname,
-               void *restrict optval, socklen_t *restrict optlen);
-int setsockopt(int sockfd, int level, int optname,
-               const void *optval, socklen_t optlen);
+int getsockopt(int sockfd, int level, int optname, void *restrict optval,
+               socklen_t *restrict optlen);
+int setsockopt(int sockfd, int level, int optname, const void *optval,
+               socklen_t optlen);
 
-struct sockaddr {
-};
+struct sockaddr {};
 
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
