@@ -13,3 +13,10 @@ typedef signed int __int32_t;
 typedef unsigned int __uint32_t;
 typedef signed long long __int64_t;
 typedef unsigned long long __uint64_t;
+
+typedef enum {
+  __AF_UNSPEC = 0,
+  __AF_INET = 2,
+  __AF_INET6 = 10,
+} __sa_family_t;
+

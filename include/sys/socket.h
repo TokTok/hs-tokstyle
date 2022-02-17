@@ -4,11 +4,9 @@
 
 typedef __socklen_t socklen_t;
 
-enum {
-  AF_UNSPEC = 0,
-  AF_INET = 2,
-  AF_INET6 = 10,
-};
+#define AF_UNSPEC __AF_UNSPEC
+#define AF_INET   __AF_INET
+#define AF_INET6  __AF_INET6
 
 enum {
   SOCK_STREAM = 1,
