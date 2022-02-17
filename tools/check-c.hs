@@ -9,11 +9,45 @@ import           Language.C.Analysis.AstAnalysis
 import           Language.C.Analysis.SemError
 import           Language.C.Analysis.SemRep
 import           Language.C.Analysis.TravMonad
+import           Language.C.Analysis.TypeUtils
 import           Language.C.Data.Ident
 import           Language.C.System.GCC
 import           System.Environment              (getArgs)
 import           System.Exit                     (ExitCode (..), exitWith)
 import           System.IO                       (hPutStr, hPutStrLn, stderr)
+
+typeEq :: Type -> Type -> Bool
+typeEq a b = sameType (canon a) (canon b)
+  where
+    canon = typeQualsUpd (mergeTypeQuals noTypeQuals) . canonicalType
+
+checkAssign :: MonadTrav m => (CExpr, Type) -> (CExpr, Type) -> m ()
+checkAssign (_, PtrType{}) (_, ArrayType{}) = return ()
+checkAssign (_, lTy) (_, rTy)               | typeEq lTy rTy = return ()
+checkAssign _ (CConst{}, _)                 = return ()
+checkAssign _ (CCast{}, _)                  = return ()
+
+checkAssign (l, lTy) (r, rTy) =
+    case (show $ pretty lTy, show $ pretty rTy) of
+      ("const char *","const int *")  -> return ()
+      ("vpx_codec_er_flags_t", "int") -> return ()
+      ("bool", "int")                 -> return ()
+      ("void *", _)                   -> return ()
+      ("uint64_t","enum RTPFlags")    -> return ()
+
+      -- TODO(iphydf): Look into these.
+      ("uint8_t", _)                  -> return ()
+      ("uint16_t", _)                 -> return ()
+      ("uint32_t", _)                 -> return ()
+      ("size_t", _)                   -> return ()
+      ("unsigned int", _)             -> return ()
+      ("int", _)                      -> return ()
+      ("long", _)                     -> return ()
+      (lTyName, rTyName)  ->
+        recordError $ typeMismatch ("invalid conversion from `" <> rTyName <> "` to `" <> lTyName <> "` in assignment")
+            (annotation l, lTy)
+            (annotation r, rTy)
+
 
 checkTypes :: MonadTrav m => String -> GlobalDecls -> m ()
 checkTypes sysInclude =
@@ -62,6 +96,12 @@ checkTypes sysInclude =
     checkExpr (CBinary _ l r _) = do
         checkExpr l
         checkExpr r
+    checkExpr (CAssign CAssignOp l r _) = do
+        checkExpr l
+        checkExpr r
+        lTy <- tExpr [] LValue l
+        rTy <- tExpr [] RValue r
+        checkAssign (l, lTy) (r, rTy)
     checkExpr (CAssign _ l r _) = do
         checkExpr l
         checkExpr r

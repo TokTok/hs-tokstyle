@@ -3,7 +3,6 @@
 #include "../types.h"
 
 typedef __uint32_t in_addr_t;
-typedef __uint8_t __sa_family_t;
 
 enum {
   IPPROTO_TCP = 6,   /* Transmission Control Protocol    */
@@ -12,7 +11,7 @@ enum {
 };
 
 struct in_addr {
-  __uint8_t s_addr[4];
+  __uint32_t s_addr;
 };
 struct in6_addr {
   __uint8_t s6_addr[16];
