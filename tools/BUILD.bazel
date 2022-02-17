@@ -19,3 +19,16 @@ haskell_binary(
         hazel_library("text"),
     ],
 )
+
+haskell_binary(
+    name = "check-c",
+    srcs = ["check-c.hs"],
+    compiler_flags = ["-Wwarn"],
+    visibility = ["//visibility:public"],
+    deps = [
+        hazel_library("base"),
+        hazel_library("containers"),
+        hazel_library("language-c"),
+        hazel_library("text"),
+    ],
+)
