@@ -17,6 +17,7 @@ exemptions =
     [ "Family"
     , "IP4"
     , "Logger_Level"
+    , "Onion_Connection_Status"
     , "Packet"
     , "Packet_Direction"  -- this is an enum
     , "Socket"
