@@ -21,6 +21,23 @@ typeEq a b = sameType (canon a) (canon b)
   where
     canon = typeQualsUpd (mergeTypeQuals noTypeQuals) . canonicalType
 
+checkBoolConversion :: MonadTrav m => CExpr -> m ()
+checkBoolConversion expr = do
+    ty <- tExpr [] RValue expr
+    case ty of
+      DirectType (TyIntegral TyBool) _ _ -> return ()
+      DirectType (TyIntegral TyInt) _ _ -> return ()
+      TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
+      -- TODO(iphydf): Clean these up and then disallow them.
+      TypeDefType (TypeDefRef (Ident "uint8_t" _ _) _ _) _ _ -> return ()
+      TypeDefType (TypeDefRef (Ident "uint16_t" _ _) _ _) _ _ -> return ()
+      TypeDefType (TypeDefRef (Ident "uint32_t" _ _) _ _) _ _ -> return ()
+      TypeDefType (TypeDefRef (Ident "uint64_t" _ _) _ _) _ _ -> return ()
+      _ ->
+          let annot = (annotation expr, ty) in
+          recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot
+
+
 checkConversion :: (Annotated node, MonadTrav m) => (node NodeInfo, Type) -> (node NodeInfo, Type) -> m ()
 checkConversion (l, lTy) (r, rTy) =
     case (show $ pretty lTy, show $ pretty rTy) of
@@ -73,7 +90,33 @@ checkDecl (CDecl _ decls _) = forM_ decls $ \(_, i, e) -> do
 checkDecl CStaticAssert{} =
     throwTravError $ userErr $ "static_assert not allowed in functions"
 
+
 checkExpr :: MonadTrav m => Expr -> m ()
+checkExpr (CAssign CAssignOp l r _) = do
+    checkExpr l
+    checkExpr r
+    lTy <- tExpr [] LValue l
+    rTy <- tExpr [] RValue r
+    checkAssign (l, lTy) (r, rTy)
+checkExpr (CCond c t e _) = do
+    checkBoolConversion c
+    checkExpr c
+    maybeM t checkExpr
+    checkExpr e
+checkExpr (CUnary CNegOp e _) = do
+    checkBoolConversion e
+    checkExpr e
+checkExpr (CBinary CLorOp l r _) = do
+    checkBoolConversion l
+    checkBoolConversion r
+    checkExpr l
+    checkExpr r
+checkExpr (CBinary CLndOp l r _) = do
+    checkBoolConversion l
+    checkBoolConversion r
+    checkExpr l
+    checkExpr r
+
 checkExpr (CCast t e _) = do
     checkDecl t
     checkExpr e
@@ -85,20 +128,10 @@ checkExpr (CIndex e i _) = do
     checkExpr e
     checkExpr i
 checkExpr (CMember e _ _ _) = checkExpr e
-checkExpr (CCond c t e _) = do
-    checkExpr c
-    maybeM t checkExpr
-    checkExpr e
 checkExpr (CUnary _ e _) = checkExpr e
 checkExpr (CBinary _ l r _) = do
     checkExpr l
     checkExpr r
-checkExpr (CAssign CAssignOp l r _) = do
-    checkExpr l
-    checkExpr r
-    lTy <- tExpr [] LValue l
-    rTy <- tExpr [] RValue r
-    checkAssign (l, lTy) (r, rTy)
 checkExpr (CAssign _ l r _) = do
     checkExpr l
     checkExpr r
@@ -117,19 +150,7 @@ checkStmt (CIf CBinary{} t e _) = do
     checkStmt t
     maybeM e checkStmt
 checkStmt (CIf cond t e _) = do
-    ty <- tExpr [] RValue cond
-    case ty of
-      DirectType (TyIntegral TyBool) _ _ -> return ()
-      DirectType (TyIntegral TyInt) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
-      -- TODO(iphydf): Clean these up and then disallow them.
-      TypeDefType (TypeDefRef (Ident "uint8_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint16_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint32_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint64_t" _ _) _ _) _ _ -> return ()
-      _ ->
-          let annot = (annotation cond, ty) in
-          recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot
+    checkBoolConversion cond
     checkExpr cond
     checkStmt t
     maybeM e checkStmt
