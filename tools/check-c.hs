@@ -39,6 +39,15 @@ checkBoolConversion expr = do
 
 
 checkConversion :: (Annotated node, MonadTrav m) => (node NodeInfo, Type) -> (node NodeInfo, Type) -> m ()
+
+-- Allow int to enum conversion to cover ternary operator "?:". Only actual
+-- "int" is allowed, not "int32_t" or anything typedef'd. The latter would mean
+-- assignment from something that didn't undergo implicit int conversions.
+checkConversion (_, lTy) (_, rTy) | isEnumConversion (canonicalType lTy) rTy = return ()
+  where
+    isEnumConversion (DirectType TyEnum{} _ _) (DirectType (TyIntegral TyInt) _ _) = True
+    isEnumConversion _ _ = False
+
 checkConversion (l, lTy) (r, rTy) =
     case (show $ pretty lTy, show $ pretty rTy) of
       ("const char *","const int *")  -> return ()
@@ -56,7 +65,9 @@ checkConversion (l, lTy) (r, rTy) =
       ("int", _)                      -> return ()
       ("long", _)                     -> return ()
       (lTyName, rTyName) ->
-          recordError $ typeMismatch ("invalid conversion from `" <> rTyName <> "` to `" <> lTyName <> "` in assignment")
+          recordError $ typeMismatch
+              ("invalid conversion from `" <> rTyName <> "` to `" <>
+                  lTyName <> "` in assignment")
               (annotation l, lTy)
               (annotation r, rTy)
 
