@@ -3,9 +3,9 @@
 #include "types.h"
 
 enum {
-  EBADF = 9,
-  EAGAIN = 11,
-  EWOULDBLOCK = EAGAIN,
+    EBADF = 9,
+    EAGAIN = 11,
+    EWOULDBLOCK = EAGAIN,
 };
 
 extern int errno;
