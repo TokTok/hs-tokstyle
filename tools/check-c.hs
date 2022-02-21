@@ -157,9 +157,6 @@ checkExpr (CCompoundLit d i _) = do
 checkExpr expr = throwTravError $ userErr $ "expr: " <> show expr
 
 checkStmt :: MonadTrav m => Stmt -> m ()
-checkStmt (CIf CBinary{} t e _) = do
-    checkStmt t
-    maybeM e checkStmt
 checkStmt (CIf cond t e _) = do
     checkBoolConversion cond
     checkExpr cond
