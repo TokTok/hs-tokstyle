@@ -52,11 +52,6 @@ checkBoolConversion expr = do
       DirectType (TyIntegral TyBool) _ _ -> return ()
       DirectType (TyIntegral TyInt) _ _ -> return ()
       TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
-      -- TODO(iphydf): Clean these up and then disallow them.
-      TypeDefType (TypeDefRef (Ident "uint8_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint16_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint32_t" _ _) _ _) _ _ -> return ()
-      TypeDefType (TypeDefRef (Ident "uint64_t" _ _) _ _) _ _ -> return ()
       _ ->
           let annot = (annotation expr, ty) in
           recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot

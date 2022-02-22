@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -31,6 +32,10 @@ type TokstyleApi =
 tokstyleApi :: Proxy TokstyleApi
 tokstyleApi = Proxy
 
+webWarnings :: [Text]
+webWarnings = filter (not . (`elem` disabled)) allWarnings
+  where disabled = ["type-check"]
+
 -- Server-side handlers.
 --
 -- There's one handler per endpoint, which, just like in the type
@@ -48,7 +53,7 @@ server =
     parseH = return . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
 
     analyseH (file, Left  err) = return [Text.pack $ file <> ":" <> err]
-    analyseH (file, Right ast) = return $ analyse allWarnings (file, ast)
+    analyseH (file, Right ast) = return $ analyse webWarnings (file, ast)
 
 -- Turn the server into a WAI app. 'serve' is provided by servant,
 -- more precisely by the Servant.Server module.
