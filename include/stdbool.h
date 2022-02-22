@@ -2,5 +2,5 @@
 
 typedef _Bool bool;
 
-#define false ((bool)0)
-#define true ((bool)1)
+extern const bool false;
+extern const bool true;

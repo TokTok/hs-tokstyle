@@ -3,7 +3,7 @@
 struct addrinfo {
   int ai_family;
   int ai_socktype;
-  int ai_addr;
+  struct sockaddr *ai_addr;
   int ai_addrlen;
   struct addrinfo *ai_next;
 };

@@ -117,6 +117,7 @@ test-suite testsuite
   main-is: testsuite.hs
   other-modules:
       Tokstyle.LinterSpec
+    , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec
   ghc-options:
       -Wall
