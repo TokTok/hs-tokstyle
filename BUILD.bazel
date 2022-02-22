@@ -16,6 +16,7 @@ haskell_library(
     deps = [
         "//hs-cimple",
         hazel_library("aeson"),
+        hazel_library("ansi-wl-pprint"),
         hazel_library("base"),
         hazel_library("bytestring"),
         hazel_library("containers"),
