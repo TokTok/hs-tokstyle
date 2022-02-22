@@ -109,9 +109,9 @@ checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
               (annotation r, rTy)
 
 checkAssign :: MonadTrav m => String -> (CExpr, Type) -> (CExpr, Type) -> m ()
-checkAssign _ _ (CConst{}, _)                 = return ()
-checkAssign _ _ (CCast{}, _)                  = return ()
-checkAssign c l r                             = checkConversion c l r
+checkAssign _ _ (CConst{}, _) = return ()
+checkAssign _ _ (CCast{}, _)  = return ()
+checkAssign c l r             = checkConversion c l r
 
 sameEnum :: MonadTrav m => Type -> Type -> (Ident, Expr) -> (Ident, Expr) -> m ()
 sameEnum leftTy rightTy (leftId, leftExpr) (rightId, rightExpr) = do
@@ -209,7 +209,7 @@ checkCast castTy@PtrType{} exprTy e =
 checkCast _ _ e = error (show e)
 
 data Env = Env
-    { ctx :: [String]
+    { ctx   :: [String]
     , retTy :: Maybe Type
     }
 

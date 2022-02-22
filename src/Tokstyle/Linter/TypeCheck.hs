@@ -6,19 +6,20 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.TypeCheck where
 
-import           Control.Monad.State.Strict  (State)
-import qualified Control.Monad.State.Strict  as State
-import           Data.Fix                    (Fix (..), foldFixM)
-import           Data.Map                    (Map)
-import qualified Data.Map                    as Map
-import           Data.Text                   (Text)
-import qualified Data.Text                   as Text
-import           Language.Cimple             (BinaryOp, Lexeme (..),
-                                              LiteralType (..), Node,
-                                              NodeF (..))
-import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
-                                              traverseAst)
-import           Text.PrettyPrint.ANSI.Leijen (Pretty(..), (<+>), text, colon, vcat)
+import           Control.Monad.State.Strict   (State)
+import qualified Control.Monad.State.Strict   as State
+import           Data.Fix                     (Fix (..), foldFixM)
+import           Data.Map                     (Map)
+import qualified Data.Map                     as Map
+import           Data.Text                    (Text)
+import qualified Data.Text                    as Text
+import           Language.Cimple              (BinaryOp, Lexeme (..),
+                                               LiteralType (..), Node,
+                                               NodeF (..))
+import           Language.Cimple.TraverseAst  (AstActions, astActions, doNode,
+                                               traverseAst)
+import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, text, vcat,
+                                               (<+>))
 
 
 newtype Env = Env
