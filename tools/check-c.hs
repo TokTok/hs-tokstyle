@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns    #-}
 {-# OPTIONS_GHC -Wno-missing-pattern-synonym-signatures #-}
@@ -24,7 +25,10 @@ import           System.IO                       (hPutStr, hPutStrLn, stderr)
 typeEq :: Type -> Type -> Bool
 typeEq a b = sameType (canon a) (canon b)
   where
-    canon = typeQualsUpd (mergeTypeQuals noTypeQuals) . canonicalType
+    canon = removeQuals . canonicalType
+
+removeQuals :: Type -> Type
+removeQuals = typeQualsUpd (mergeTypeQuals noTypeQuals)
 
 isEnum :: Type -> Bool
 isEnum (canonicalType -> DirectType TyEnum{} _ _) = True
@@ -58,28 +62,37 @@ checkBoolConversion expr = do
           recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot
 
 
-checkConversion :: (Annotated node, MonadTrav m) => (node NodeInfo, Type) -> (node NodeInfo, Type) -> m ()
+checkConversion :: (Annotated node, MonadTrav m) => String -> (node NodeInfo, Type) -> (CExpr, Type) -> m ()
+checkConversion _ (_, PtrType{}) (_, TY_void_ptr) = return ()
+checkConversion _ (_, PtrType{}) (_, ArrayType{}) = return ()
+checkConversion _ (_, lTy) (_, rTy)               | typeEq lTy rTy = return ()
 
 -- Allow int to enum conversion to cover ternary operator "?:". Only actual
 -- "int" is allowed, not "int32_t" or anything typedef'd. The latter would mean
 -- assignment from something that didn't undergo implicit int conversions.
-checkConversion (_, lTy) (_, rTy) | isEnumConversion (canonicalType lTy) rTy = return ()
+checkConversion _ (_, lTy) (_, rTy) | isEnumConversion (canonicalType lTy) rTy = return ()
   where
     isEnumConversion (DirectType TyEnum{} _ _) (DirectType (TyIntegral TyInt) _ _) = True
     isEnumConversion _ _ = False
 
-checkConversion (l, lTy) (r, rTy) =
+checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
     case (show $ pretty lTy, show $ pretty rTy) of
+      ("const char *","char *")       -> return ()
       ("const char *","const int *")  -> return ()
       ("vpx_codec_er_flags_t", "int") -> return ()
-      ("bool", "int")                 -> return ()
+      ("bool", "int") | relaxed r     -> return ()
       ("void *", _)                   -> return ()
       ("uint64_t","enum RTPFlags")    -> return ()
 
       -- TODO(iphydf): Look into these.
+      ("int8_t", _)                   -> return ()
       ("uint8_t", _)                  -> return ()
+      ("int16_t", _)                  -> return ()
       ("uint16_t", _)                 -> return ()
+      ("int32_t", _)                  -> return ()
       ("uint32_t", _)                 -> return ()
+      ("int64_t", _)                  -> return ()
+      ("uint64_t", _)                 -> return ()
       ("size_t", _)                   -> return ()
       ("unsigned int", _)             -> return ()
       ("int", _)                      -> return ()
@@ -87,21 +100,23 @@ checkConversion (l, lTy) (r, rTy) =
       (lTyName, rTyName) ->
           recordError $ typeMismatch
               ("invalid conversion from `" <> rTyName <> "` to `" <>
-                  lTyName <> "` in assignment")
+                  lTyName <> "` in " <> context)
               (annotation l, lTy)
               (annotation r, rTy)
+  where
+      relaxed CUnary{}  = True
+      relaxed CBinary{} = True
+      relaxed _         = False
 
-checkAssign :: MonadTrav m => (CExpr, Type) -> (CExpr, Type) -> m ()
-checkAssign (_, PtrType{}) (_, ArrayType{}) = return ()
-checkAssign (_, lTy) (_, rTy)               | typeEq lTy rTy = return ()
-checkAssign _ (CConst{}, _)                 = return ()
-checkAssign _ (CCast{}, _)                  = return ()
-checkAssign l r                             = checkConversion l r
+checkAssign :: MonadTrav m => String -> (CExpr, Type) -> (CExpr, Type) -> m ()
+checkAssign _ _ (CConst{}, _) = return ()
+checkAssign _ _ (CCast{}, _)  = return ()
+checkAssign c l r             = checkConversion c l r
 
 sameEnum :: MonadTrav m => Type -> Type -> (Ident, Expr) -> (Ident, Expr) -> m ()
 sameEnum leftTy rightTy (leftId, leftExpr) (rightId, rightExpr) = do
-    leftVal  <- getJust =<< intValue <$> constEval defaultMD Map.empty leftExpr
-    rightVal <- getJust =<< intValue <$> constEval defaultMD Map.empty rightExpr
+    leftVal  <- getJust failMsg =<< intValue <$> constEval defaultMD Map.empty leftExpr
+    rightVal <- getJust failMsg =<< intValue <$> constEval defaultMD Map.empty rightExpr
     unless (leftVal == rightVal) $
         throwTravError $ typeMismatch
             ("invalid cast: enumerator value for `"
@@ -111,12 +126,12 @@ sameEnum leftTy rightTy (leftId, leftExpr) (rightId, rightExpr) = do
             (annotation leftExpr, leftTy)
             (annotation rightExpr, rightTy)
   where
-    getJust (Just ok) = return ok
-    getJust Nothing =
-        throwTravError $ typeMismatch
-            ("invalid cast: could not determine enumerator values")
-            (annotation leftExpr, leftTy)
-            (annotation rightExpr, rightTy)
+    failMsg = "invalid cast: could not determine enumerator values"
+
+getJust :: MonadTrav m => String -> Maybe a -> m a
+getJust _ (Just ok) = return ok
+getJust failMsg Nothing =
+    throwTravError $ userErr failMsg
 
 checkEnumCast :: MonadTrav m => Type -> Type -> Expr -> m ()
 checkEnumCast castTy exprTy _ = do
@@ -193,24 +208,43 @@ checkCast castTy@PtrType{} exprTy e =
 
 checkCast _ _ e = error (show e)
 
+data Env = Env
+    { ctx   :: [String]
+    , retTy :: Maybe Type
+    }
 
-checkFunc :: String -> IdentDecl -> Trav [String] ()
-checkFunc sysInclude (FunctionDef (FunDef _ stmt info))
+pushCtx :: String -> Env -> Env
+pushCtx s env@Env{ctx} = env{ctx = s:ctx}
+
+popCtx :: Env -> Env
+popCtx env@Env{ctx} = env{ctx = tail ctx}
+
+setRetTy :: Type -> Env -> Env
+setRetTy ty env = env{retTy = Just ty}
+
+unsetRetTy :: Env -> Env
+unsetRetTy env = env{retTy = Nothing}
+
+checkFunc :: String -> IdentDecl -> Trav Env ()
+checkFunc sysInclude (FunctionDef (FunDef (VarDecl _ _ (FunctionType (FunType ty _ _) _)) stmt info))
   | sysInclude `isPrefixOf` posFile (posOf info) = return ()
-  | otherwise = checkStmt stmt
+  | otherwise = do
+      modifyUserState (setRetTy ty)
+      checkStmt stmt
+      modifyUserState unsetRetTy
 checkFunc _ _ = return ()
 
-checkBlockItem :: CBlockItem -> Trav [String] ()
+checkBlockItem :: CBlockItem -> Trav Env ()
 checkBlockItem (CBlockDecl decl) = checkDecl decl
 checkBlockItem (CBlockStmt stmt) = checkStmt stmt
 checkBlockItem (CNestedFunDef _) =
     throwTravError $ userErr $ "nested functions are not supported"
 
-checkInit :: CInit -> Trav [String] ()
+checkInit :: CInit -> Trav Env ()
 checkInit (CInitExpr e _) = checkExpr e
 checkInit (CInitList e _) = mapM_ (checkInit . snd) e
 
-checkDecl :: CDecl -> Trav [String] ()
+checkDecl :: CDecl -> Trav Env ()
 checkDecl (CDecl _ decls _) = forM_ decls $ \(_, i, e) -> do
     maybeM i checkInit
     maybeM e checkExpr
@@ -218,13 +252,13 @@ checkDecl CStaticAssert{} =
     throwTravError $ userErr $ "static_assert not allowed in functions"
 
 
-checkExpr :: Expr -> Trav [String] ()
+checkExpr :: Expr -> Trav Env ()
 checkExpr (CAssign CAssignOp l r _) = do
     checkExpr l
     checkExpr r
     lTy <- tExpr [] LValue l
     rTy <- tExpr [] RValue r
-    checkAssign (l, lTy) (r, rTy)
+    checkAssign "assignment" (l, lTy) (r, rTy)
 checkExpr (CCond c t e _) = do
     checkBoolConversion c
     checkExpr c
@@ -247,9 +281,9 @@ checkExpr (CBinary CLndOp l r _) = do
 checkExpr cast@(CCast t e _) = do
     castTy <- tExpr [] RValue cast
     exprTy <- tExpr [] RValue e
-    s <- getUserState
+    Env{ctx} <- getUserState
     -- Some exemptions where weird casts like int* -> char* may happen.
-    unless (head s `elem` ["call:getsockopt", "call:setsockopt", "call:bs_list_add", "call:bs_list_remove", "call:bs_list_find", "call:random_bytes"]) $
+    unless (head ctx `elem` ["call:getsockopt", "call:setsockopt", "call:bs_list_add", "call:bs_list_remove", "call:bs_list_find", "call:random_bytes"]) $
         checkCast castTy exprTy e
     checkDecl t
     checkExpr e
@@ -269,9 +303,9 @@ checkExpr (CAssign _ l r _) = do
     checkExpr l
     checkExpr r
 checkExpr (CCall (CVar (Ident fname _ _) _) a _) = do
-    modifyUserState ("call:"<>fname:)
+    modifyUserState (pushCtx $ "call:"<>fname)
     mapM_ checkExpr a
-    modifyUserState tail
+    modifyUserState popCtx
 checkExpr (CCall f a _) = do
     checkExpr f
     mapM_ checkExpr a
@@ -282,7 +316,7 @@ checkExpr (CCompoundLit d i _) = do
     mapM_ (checkInit . snd) i
 checkExpr expr = throwTravError $ userErr $ "expr: " <> show expr
 
-checkStmt :: Stmt -> Trav [String] ()
+checkStmt :: Stmt -> Trav Env ()
 checkStmt (CIf cond t e _) = do
     checkBoolConversion cond
     checkExpr cond
@@ -308,12 +342,17 @@ checkStmt (CFor i c n b _) = do
     maybeM n checkExpr
     checkStmt b
 checkStmt (CExpr (Just expr) _) = checkExpr expr
-checkStmt (CReturn expr _) = maybeM expr checkExpr
+checkStmt (CReturn Nothing _) = return ()
+checkStmt (CReturn (Just expr) _) = do
+    ty <- getJust "not in function context" . retTy =<< getUserState
+    exprTy <- tExpr [] RValue expr
+    checkConversion "return" (expr, ty) (expr, exprTy)
+    checkExpr expr
 checkStmt (CCompound [] stmts _) = mapM_ checkBlockItem stmts
 checkStmt stmt = throwTravError $ userErr $ "stmt: " <> show stmt
 
 
-checkTypes :: String -> GlobalDecls -> Trav [String] ()
+checkTypes :: String -> GlobalDecls -> Trav Env ()
 checkTypes sysInclude = mapM_ (checkFunc sysInclude) . Map.elems . gObjs
 
 
@@ -333,7 +372,7 @@ processFile sysInclude lang cppOpts file = do
     case result of
       Left err -> return (False, (file, ["Parse Error: " <> show err]))
       Right tu ->
-          case runTrav [file] (body tu) of
+          case runTrav (Env [file] Nothing) (body tu) of
             Left errs     -> return (False, (file, "Error" : map show errs))
             Right ((), _) -> return (True, (file, ["Success"]))
   where
