@@ -16,5 +16,6 @@ isPointer x = case unFix x of
     TyConst ty      -> isPointer ty
     TyPointer{}     -> True
     TyStd{}         -> False
+    TyStruct{}      -> False
     TyUserDefined{} -> False
     _               -> error $ show x
