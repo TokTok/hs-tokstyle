@@ -63,16 +63,16 @@ constness = \case
         let var = Maybe.fromMaybe (Var Declare Nothing) $ Map.lookup "" t in
         Map.singleton name var{varDecl = Just l}
 
-    VarExpr (L _ _ name)    -> Map.singleton name $ Var Read Nothing
+    VarExpr (L _ _ name)    -> readDecl name
 
     -- If it was declared const, we're good.
     -- We left-union with vars which may contain a fake-write created below for
     -- pointers and `va_list`.
-    TyConst vars            -> Map.union vars $ Map.singleton "" (Var Const Nothing)
+    TyConst vars            -> Map.union vars constDecl
     -- Ignore `va_list` (by faking a write to pointer vars).
-    TyStd (L _ _ "va_list") -> Map.singleton "" (Var Write Nothing)
+    TyStd (L _ _ "va_list") -> writeDecl
     -- Ignore pointers for now.
-    TyPointer{}             -> Map.singleton "" (Var Write Nothing)
+    TyPointer{}             -> writeDecl
 
     -- The array index isn't written to, so remove it from the list unless it
     -- was already written to elsewhere.
@@ -88,8 +88,12 @@ constness = \case
     UnaryExpr uop expr | canWrite uop ->
         Map.map readToWrite expr
 
-    n -> foldr (Map.unionWith combine) Map.empty n
+    n -> Map.unionsWith combine n
   where
+    readDecl = flip Map.singleton (Var Read Nothing)
+    constDecl = Map.singleton "" (Var Const Nothing)
+    writeDecl = Map.singleton "" (Var Write Nothing)
+
     canWrite UopAddress = True
     canWrite UopDecr    = True
     canWrite UopIncr    = True
