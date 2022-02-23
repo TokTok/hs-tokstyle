@@ -162,6 +162,7 @@ pattern TY_sockaddr_storage_ptr <- TY_struct_ptr "sockaddr_storage"
 pattern TY_sockaddr_ptr         <- TY_struct_ptr "sockaddr"
 pattern TY_sockaddr_in_ptr      <- TY_struct_ptr "sockaddr_in"
 pattern TY_sockaddr_in6_ptr     <- TY_struct_ptr "sockaddr_in6"
+pattern TY_canon_bool           <- (canonicalType -> DirectType (TyIntegral TyBool) _ _)
 
 checkCast :: MonadTrav m => Type -> Type -> Expr -> m ()
 -- Cast to void: OK.
@@ -217,6 +218,15 @@ checkSizeof e ty
           ("disallowed sizeof argument of type `" <> show (pretty ty) <>
           "` - did you mean for `" <> show (pretty e) <> "` to be an array?") annot annot
 
+checkNotBool :: MonadTrav m => CExpr -> Type -> Type -> m ()
+checkNotBool _ TY_canon_bool TY_canon_bool = return ()
+checkNotBool e nbTy ty@TY_canon_bool =
+      let annot = (annotation e, ty) in
+      recordError $ typeMismatch
+          ("comparing `bool` value to `" <> show (pretty e)
+          <> "` of non-bool type `" <> show (pretty nbTy) <> "`") annot annot
+checkNotBool _ _ _ = return ()
+
 data Env = Env
     { ctx   :: [String]
     , retTy :: Maybe Type
@@ -261,6 +271,15 @@ checkDecl CStaticAssert{} =
     throwTravError $ userErr $ "static_assert not allowed in functions"
 
 
+checkEq :: Expr -> Expr -> Trav Env ()
+checkEq l r = do
+    tyL <- tExpr [] RValue l
+    tyR <- tExpr [] RValue r
+    checkNotBool l tyL tyR
+    checkNotBool r tyR tyL
+    checkExpr l
+    checkExpr r
+
 checkExpr :: Expr -> Trav Env ()
 checkExpr (CAssign CAssignOp l r _) = do
     checkExpr l
@@ -286,6 +305,8 @@ checkExpr (CBinary CLndOp l r _) = do
     checkBoolConversion r
     checkExpr l
     checkExpr r
+checkExpr (CBinary CEqOp l r _) = checkEq l r
+checkExpr (CBinary CNeqOp l r _) = checkEq l r
 
 checkExpr cast@(CCast t e _) = do
     castTy <- tExpr [] RValue cast
