@@ -13,6 +13,7 @@ import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
 import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
 import qualified Tokstyle.Linter.CompoundInit      as CompoundInit
+import qualified Tokstyle.Linter.Constness         as Constness
 import qualified Tokstyle.Linter.EnumNames         as EnumNames
 import qualified Tokstyle.Linter.FuncPrototypes    as FuncPrototypes
 import qualified Tokstyle.Linter.FuncScopes        as FuncScopes
@@ -51,6 +52,7 @@ localLinters =
     , ("calloc-args"        , CallocArgs.analyse       )
     , ("calloc-type"        , CallocType.analyse       )
     , ("compound-init"      , CompoundInit.analyse     )
+    , ("constness"          , Constness.analyse        )
     , ("enum-names"         , EnumNames.analyse        )
     , ("func-prototypes"    , FuncPrototypes.analyse   )
     , ("func-scopes"        , FuncScopes.analyse       )

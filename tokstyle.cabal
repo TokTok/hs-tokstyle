@@ -26,6 +26,7 @@ library
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
     , Tokstyle.Linter.CompoundInit
+    , Tokstyle.Linter.Constness
     , Tokstyle.Linter.DeclaredOnce
     , Tokstyle.Linter.DeclsHaveDefns
     , Tokstyle.Linter.DocComments
@@ -120,6 +121,7 @@ test-suite testsuite
   other-modules:
       Tokstyle.LinterSpec
     , Tokstyle.Linter.BoolReturnSpec
+    , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec
   ghc-options:
