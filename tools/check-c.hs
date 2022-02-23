@@ -156,7 +156,8 @@ pattern TY_uint8_t_arr          <- ArrayType (TY_typedef "uint8_t") _ _ _
 pattern TY_uint8_t_ptr          <- PtrType (TY_typedef "uint8_t") _ _
 pattern TY_char_arr             <- ArrayType (DirectType (TyIntegral TyChar) _ _) _ _ _
 pattern TY_char_ptr             <- PtrType (DirectType (TyIntegral TyChar) _ _) _ _
-pattern TY_struct_ptr name      <- PtrType (DirectType (TyComp (CompTypeRef (NamedRef (Ident name _ _)) _ _)) _ _) _ _
+pattern TY_struct name          <- DirectType (TyComp (CompTypeRef (NamedRef (Ident name _ _)) _ _)) _ _
+pattern TY_struct_ptr name      <- PtrType (TY_struct name) _ _
 pattern TY_sockaddr_storage_ptr <- TY_struct_ptr "sockaddr_storage"
 pattern TY_sockaddr_ptr         <- TY_struct_ptr "sockaddr"
 pattern TY_sockaddr_in_ptr      <- TY_struct_ptr "sockaddr_in"
@@ -202,6 +203,19 @@ checkCast castTy@PtrType{} exprTy e =
         show (pretty exprTy) <> " to " <> show (pretty castTy)) annot annot
 
 checkCast _ _ e = error (show e)
+
+-- | This catches `sizeof(buf)` where `buf` is a pointer instead of an array.
+checkSizeof :: MonadTrav m => CExpr -> Type -> m ()
+checkSizeof _ (canonicalType -> TY_struct _) = return ()
+checkSizeof _ (canonicalType -> TY_struct_ptr _) = return ()
+checkSizeof _ ArrayType{} = return ()
+checkSizeof e ty
+  | isIntegral ty = return ()
+  | otherwise =
+      let annot = (annotation e, ty) in
+      recordError $ typeMismatch
+          ("disallowed sizeof argument of type `" <> show (pretty ty) <>
+          "` - did you mean for `" <> show (pretty e) <> "` to be an array?") annot annot
 
 data Env = Env
     { ctx   :: [String]
@@ -285,7 +299,10 @@ checkExpr cast@(CCast t e _) = do
 checkExpr (CVar _ _) = return ()
 checkExpr (CConst _) = return ()
 checkExpr (CSizeofType t _) = checkDecl t
-checkExpr (CSizeofExpr e _) = checkExpr e
+checkExpr (CSizeofExpr e _) = do
+    ty <- tExpr [] RValue e
+    checkSizeof e ty
+    checkExpr e
 checkExpr (CIndex e i _) = do
     checkExpr e
     checkExpr i
