@@ -231,25 +231,25 @@ unify l r = -- trace ("unify: " <> show (l, r)) $
 
 
 inferBinaryExpr :: BinaryOp -> Type -> Type -> State Env Type
-inferBinaryExpr BopMinus T_Ptr{} T_Ptr{}  = return T_Int
-inferBinaryExpr BopAnd l r    = foldM unify T_Bool [l, r]
-inferBinaryExpr BopOr l r     = foldM unify T_Bool [l, r]
-inferBinaryExpr BopLe l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopLt l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopGe l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopGt l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopEq l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopNe l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopMul l r    = unify l r
-inferBinaryExpr BopMod l r    = unify l r
-inferBinaryExpr BopDiv l r    = unify l r
-inferBinaryExpr BopMinus l r  = unify l r
-inferBinaryExpr BopPlus l _   = return l
-inferBinaryExpr BopBitOr l r  = unify l r
-inferBinaryExpr BopBitAnd l r = unify l r
-inferBinaryExpr BopBitXor l r = unify l r
-inferBinaryExpr BopLsh l r    = unify l r
-inferBinaryExpr BopRsh l r    = unify l r
+inferBinaryExpr BopMinus T_Ptr{} T_Ptr{} = return T_Int
+inferBinaryExpr BopAnd l r               = foldM unify T_Bool [l, r]
+inferBinaryExpr BopOr l r                = foldM unify T_Bool [l, r]
+inferBinaryExpr BopLe l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopLt l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopGe l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopGt l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopEq l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopNe l r                = const T_Bool <$> unify l r
+inferBinaryExpr BopMul l r               = unify l r
+inferBinaryExpr BopMod l r               = unify l r
+inferBinaryExpr BopDiv l r               = unify l r
+inferBinaryExpr BopMinus l r             = unify l r
+inferBinaryExpr BopPlus l _              = return l
+inferBinaryExpr BopBitOr l r             = unify l r
+inferBinaryExpr BopBitAnd l r            = unify l r
+inferBinaryExpr BopBitXor l r            = unify l r
+inferBinaryExpr BopLsh l r               = unify l r
+inferBinaryExpr BopRsh l r               = unify l r
 
 
 inferUnaryExpr :: UnaryOp -> Type -> State Env Type
