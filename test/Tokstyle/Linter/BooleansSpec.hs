@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Tokstyle.Linter.BoolReturnSpec where
+module Tokstyle.Linter.BooleansSpec where
 
 import           Test.Hspec         (Spec, describe, it, shouldBe)
 

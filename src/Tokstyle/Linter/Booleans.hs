@@ -2,7 +2,7 @@
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
-module Tokstyle.Linter.BoolReturn (analyse) where
+module Tokstyle.Linter.Booleans (analyse) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
@@ -33,11 +33,17 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
+            BinaryExpr (Fix (LiteralExpr Bool _)) _ _ -> warnBool file node
+            BinaryExpr _ _ (Fix (LiteralExpr Bool _)) -> warnBool file node
             CompoundStmt stmts -> do
                 checkStmts file stmts
                 act
             _ -> act
     }
+  where
+      warnBool file node =
+          Diagnostics.warn file node
+              "boolean constants should not appear in binary expressions (use ! for negation)"
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
