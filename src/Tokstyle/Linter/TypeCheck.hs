@@ -13,8 +13,8 @@ import           Control.Monad                (foldM, void, zipWithM)
 import           Control.Monad.State.Strict   (State)
 import qualified Control.Monad.State.Strict   as State
 import           Data.Fix                     (Fix (..), foldFixM)
-import           Data.Map                     (Map)
-import qualified Data.Map                     as Map
+import           Data.Map.Strict              (Map)
+import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
 import           Debug.Trace                  (trace)
@@ -31,19 +31,24 @@ import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
 
 data Type
     -- C types
-    = T_Void
-    | T_Null
+    = T_Var {-# UNPACK #-} Int
+    | T_Union Type [Type]
+    | T_Bot
+    | T_Void
+    | T_Top
     | T_Bool
     | T_Char
     | T_Int
     | T_ArrDim
-    | T_Var {-# UNPACK #-} Int
     | T_Name Text
     | T_Arr Type
     | T_Ptr Type
     | T_Func Type [Type]
     | T_InitList [Type]
-    deriving (Show, Eq)
+    | T_Struct (Map Text Type)
+    | T_Add Type Type
+    | T_Sub Type Type
+    deriving (Show, Eq, Ord)
 
 stdTypes :: Map Text Type
 stdTypes = Map.fromList
@@ -69,6 +74,10 @@ stdTypes = Map.fromList
     , ("int64_t"            , T_Int)
     , ("uint64_t"           , T_Int)
     ]
+
+unionWithM :: (Monad m, Ord k) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
+unionWithM f mapA mapB =
+  sequence $ Map.unionWith (\a b -> do {x <- a; y <- b; f x y}) (Map.map return mapA) (Map.map return mapB)
 
 data Env = Env
     { envDiags   :: [Text]
@@ -111,7 +120,7 @@ empty = Env{..}
     envDiags = []
     envLocals = []
     envTypes = Map.fromList
-        [ ("nullptr"       , T_Ptr T_Null)
+        [ ("nullptr"       , T_Ptr T_Top)
         -- TODO(iphydf): Can't deal with variadic functions yet.
         , ("LOGGER_ASSERT" , T_Func T_Void [T_Ptr (T_Name "Logger"), T_Bool, T_Ptr T_Char])
         , ("LOGGER_DEBUG"  , T_Func T_Void [T_Ptr (T_Name "Logger"), T_Ptr T_Char])
@@ -121,7 +130,11 @@ empty = Env{..}
         , ("LOGGER_TRACE"  , T_Func T_Void [T_Ptr (T_Name "Logger"), T_Ptr T_Char])
         , ("LOGGER_WARNING", T_Func T_Void [T_Ptr (T_Name "Logger"), T_Ptr T_Char])
         , ("vpx_codec_control", T_Func T_Void [])
-        , ("memset", T_Func T_Void [])
+        , ("crypto_memzero", T_Func T_Void [T_Ptr T_Void, T_Int])
+        , ("ioctl", T_Func T_Void [T_Int, T_Int, T_Ptr T_Void])
+        , ("memset", T_Func T_Void [T_Ptr T_Void, T_Int, T_Int])
+        , ("memcpy", T_Func T_Void [T_Ptr T_Void, T_Ptr T_Void, T_Int])
+        , ("memmove", T_Func T_Void [T_Ptr T_Void, T_Ptr T_Void, T_Int])
         , ("snprintf", T_Func T_Void [])
         , ("strerror_r", T_Func T_Void [])
         ]
@@ -146,61 +159,92 @@ dropLocals :: State Env ()
 dropLocals = State.modify $ \env@Env{envLocals, envTypes} ->
     env{envTypes = foldr Map.delete envTypes envLocals, envLocals = []}
 
-addName :: HasCallStack => Text -> Type -> State Env ()
+addName :: HasCallStack => Text -> Type -> State Env Type
 addName n ty = do
-    trace ("addName: " <> show n) $ return ()
+    -- trace ("a: " <> show n) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
     case found of
-      Nothing -> State.modify $ \env@Env{envTypes} -> env{envTypes = Map.insert n ty envTypes}
-      Just ty' -> void $ unify ty ty'
+      Nothing ->do
+          State.modify $ \env@Env{envTypes} -> env{envTypes = Map.insert n ty envTypes}
+          return ty
+      Just ty' -> unify ty ty'
 
 getName :: Text -> State Env Type
 getName n = do
-    trace ("getName: " <> show n) $ return ()
+    -- trace ("g " <> show n) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Just ok -> return ok
-      Nothing -> do
-          ty <- newTyVar
-          addName n ty
-          return ty
+      Nothing -> addName n =<< newTyVar
 
 resolve :: Int -> State Env (Maybe Type)
 resolve v = Map.lookup v . envVars <$> State.get
 
 
-unify :: HasCallStack => Type -> Type -> State Env Type
-unify l r = -- trace ("unify: " <> show (l, r)) $
-    go l r
+unifyUnion :: Type -> [Type] -> State Env Type
+unifyUnion a bs = union =<< filter (/= T_Bot) <$> mapM (unify a) bs
   where
-    go a (T_Var b) = do
-        res <- resolve b
-        case res of
-          Nothing -> do
-              addTyVar b a
-              return a
-          Just resolved@T_Var{} ->
-              return resolved
-          Just resolved ->
-              unify a resolved
-    go a@T_Var{} b = unify b a
+    union []     = typeError T_Bot
+    union (r:rs) = return $ T_Union r rs
+
+
+unify :: HasCallStack => Type -> Type -> State Env Type
+unify a0 b0 = uncurry go $ order (a0, b0) -- trace ("unify: " <> show (l, r)) $
+  where
+    order (a, b)
+      | a < b = (a, b)
+      | otherwise = (b, a)
 
     -- Equal types unify trivially.
     go a b | a == b = return a
 
-    go a@T_Arr{} (T_Ptr T_Null) = return a
-    go (T_Ptr T_Null) b@T_Arr{} = return b
+    go (T_Struct a     ) (T_Struct b     ) = T_Struct   <$> unionWithM unify a b
+    go (T_InitList la  ) (T_InitList lb  ) = T_InitList <$> zipWithM unify la lb
+    go (T_Func ra argsa) (T_Func rb argsb) = T_Func     <$> unify ra rb <*> zipWithM unify argsa argsb
+    go (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> unify la ra <*> unify lb rb
+    go (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> unify la ra <*> unify lb rb
 
-    go a@T_Func{} (T_Ptr T_Null) = return a
-    go (T_Ptr T_Null) b@T_Func{} = return b
+    go (T_Union a as) b = unifyUnion b (a:as)
+
+    go (T_Var a) b = do
+        res <- resolve a
+        case res of
+          Nothing -> do
+              addTyVar a b
+              return b
+          Just resolved@T_Var{} ->
+              return resolved
+          Just resolved ->
+              unify b resolved
+
+    go a@T_Ptr{} (T_Add l r) = do
+        void $ unify r T_Int
+        unify l a
+    go a@T_Arr{} (T_Add l r) = do
+        void $ unify r T_Int
+        unify l a
+
+    go T_Int (T_Add l r) = unify l T_Int >>= unify r
+    go a@T_Add{} b@T_Sub{} = return $ T_Union a [b]
+
+    go (T_Sub l r) T_Int = unify l T_Int >>= unify r
+    go T_Int (T_Sub l r) = unify l T_Int >>= unify r
+
+    go a@T_Arr{} (T_Ptr T_Top) = return a
+    go (T_Ptr T_Top) b@T_Arr{} = return b
+
+    go a@T_Func{} (T_Ptr T_Top) = return a
+    go (T_Ptr T_Top) b@T_Func{} = return b
+
+    -- Array and pointer types can unify and turn into pointer.
+    go (T_Arr a) (T_Ptr b) = T_Ptr <$> unify a b
+    go (T_Ptr a) (T_Arr b) = T_Ptr <$> unify a b
+
+    go a@T_Struct{} T_InitList{} = return a
+    go T_InitList{} b@T_Struct{} = return b
 
     -- TODO(iphydf): Remove once all implicit bool conversions are fixed.
     go T_Bool T_Int = return T_Int
-    go T_Int T_Bool = return T_Int
-
-    -- Array and pointer types can unify.
-    go (T_Arr a) (T_Ptr b) = unify a b
-    go (T_Ptr a) (T_Arr b) = unify a b
 
     -- Arrays unify with all elements in their initialiser list.
     go (T_Arr a) (T_InitList b) = foldM unify a b
@@ -212,44 +256,42 @@ unify l r = -- trace ("unify: " <> show (l, r)) $
     go a@T_Func{} (T_Ptr b) = unify a b
     go (T_Ptr a) b@T_Func{} = unify a b
 
-    go (T_InitList la) (T_InitList lb) = do
-        T_InitList <$> zipWithM unify la lb
-
-    go (T_Func ra argsa) (T_Func rb argsb) =
-        T_Func <$> unify ra rb <*> zipWithM unify argsa argsb
-
-    -- `void` and null unify with anything.
-    go a T_Void = return a
-    go T_Void b = return b
     -- `void *` unifies with any pointer type.
     go a@T_Ptr{} (T_Ptr T_Void) = return a
     go (T_Ptr T_Void) b@T_Ptr{} = return b
     -- Incompatible pointers unify to `void *`.
     go T_Ptr{} T_Ptr{} = return $ T_Ptr T_Void
 
+    go T_Int T_Ptr{} = return T_Bot
+
+    -- `void` unifies with anything
+    go a T_Void = return a
+    go T_Void b = return b
+    go _ T_Bot = return T_Bot
+    go T_Bot _ = return T_Bot
+
     go a b = typeError (a, b)
 
 
 inferBinaryExpr :: BinaryOp -> Type -> Type -> State Env Type
-inferBinaryExpr BopMinus T_Ptr{} T_Ptr{} = return T_Int
-inferBinaryExpr BopAnd l r               = foldM unify T_Bool [l, r]
-inferBinaryExpr BopOr l r                = foldM unify T_Bool [l, r]
-inferBinaryExpr BopLe l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopLt l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopGe l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopGt l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopEq l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopNe l r                = const T_Bool <$> unify l r
-inferBinaryExpr BopMul l r               = unify l r
-inferBinaryExpr BopMod l r               = unify l r
-inferBinaryExpr BopDiv l r               = unify l r
-inferBinaryExpr BopMinus l r             = unify l r
-inferBinaryExpr BopPlus l _              = return l
-inferBinaryExpr BopBitOr l r             = unify l r
-inferBinaryExpr BopBitAnd l r            = unify l r
-inferBinaryExpr BopBitXor l r            = unify l r
-inferBinaryExpr BopLsh l r               = unify l r
-inferBinaryExpr BopRsh l r               = unify l r
+inferBinaryExpr BopAnd l r    = foldM unify T_Bool [l, r]
+inferBinaryExpr BopOr l r     = foldM unify T_Bool [l, r]
+inferBinaryExpr BopLe l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopLt l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopGe l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopGt l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopEq l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopNe l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopMul l r    = unify l r
+inferBinaryExpr BopMod l r    = unify l r
+inferBinaryExpr BopDiv l r    = unify l r
+inferBinaryExpr BopBitOr l r  = unify l r
+inferBinaryExpr BopBitAnd l r = unify l r
+inferBinaryExpr BopBitXor l r = unify l r
+inferBinaryExpr BopLsh l r    = unify l r
+inferBinaryExpr BopRsh l r    = unify l r
+inferBinaryExpr BopPlus l r   = return $ T_Add l r
+inferBinaryExpr BopMinus l r  = return $ T_Sub l r
 
 
 inferUnaryExpr :: UnaryOp -> Type -> State Env Type
@@ -289,20 +331,19 @@ inferTypes = \case
     VLA ty (L _ _ name) size -> do
         void $ unify T_Int size
         addLocal name
-        addName name $ T_Arr ty
+        void $ addName name $ T_Arr ty
         return T_Void
     DeclSpecArray{} -> return T_ArrDim
     VarDecl ty (L _ _ name) arrs -> do
         let ty' = foldr (const T_Arr) ty arrs
         addLocal name
         addName name ty'
-        return ty'
     VarDeclStmt _ Nothing -> return T_Void
     VarDeclStmt decl (Just initExpr) -> do
         void $ unify decl initExpr
         return T_Void
     PreprocDefineConst (L _ _ name) ty -> do
-        addName name ty
+        void $ addName name ty
         return T_Void
 
     VarExpr (L _ _ name) -> getName name
@@ -317,9 +358,7 @@ inferTypes = \case
         void $ unify c T_Bool
         unify t e
     IfStmt c t Nothing -> const t <$> unify c T_Bool
-    CompoundStmt body -> do
-        trace (show body) $ return ()
-        foldM unify T_Void body
+    CompoundStmt body -> foldM unify T_Void body
     Return (Just ty) -> return ty
     Return Nothing -> return T_Void
     ParenExpr e -> return e
@@ -335,7 +374,6 @@ inferTypes = \case
     FunctionPrototype retTy (L _ _ name) args -> do
         let ty = T_Func retTy args
         addName name ty
-        return ty
     FunctionCall callee args -> do
         retTy <- newTyVar
         funTy <- unify (T_Func retTy args) callee
@@ -377,9 +415,14 @@ inferTypes = \case
         void $ unify idx T_Int
         return memTy
 
-    -- TODO(iphydf): Implement.
-    MemberAccess{} -> return T_Void
-    PointerAccess{} -> return T_Void
+    MemberAccess e (L _ _ mem) -> do
+        ty <- newTyVar
+        void $ unify e (T_Struct (Map.singleton mem ty))
+        return ty
+    PointerAccess e (L _ _ mem) -> do
+        ty <- newTyVar
+        void $ unify e (T_Ptr (T_Struct (Map.singleton mem ty)))
+        return ty
 
     x -> typeError x
 
