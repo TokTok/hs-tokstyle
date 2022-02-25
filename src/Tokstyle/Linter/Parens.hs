@@ -42,6 +42,9 @@ linter = astActions
             VarDeclStmt _ (Just (Fix ParenExpr{})) -> do
                 warn file node "variable initialiser does not need parentheses"
                 act
+            AssignExpr _ _ (Fix ParenExpr{}) -> do
+                warn file node "the right hand side of assignments does not need parentheses"
+                act
             ParenExpr expr | not $ needsParens expr -> do
                 warn file node "expression does not need parentheses"
                 act
