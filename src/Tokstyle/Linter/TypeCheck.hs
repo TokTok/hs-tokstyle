@@ -13,6 +13,8 @@ import           Control.Monad                (foldM, void, zipWithM)
 import           Control.Monad.State.Strict   (State)
 import qualified Control.Monad.State.Strict   as State
 import           Data.Fix                     (Fix (..), foldFixM)
+import           Data.IntMap.Strict           (IntMap)
+import qualified Data.IntMap.Strict           as IntMap
 import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
@@ -83,7 +85,7 @@ data Env = Env
     { envDiags   :: [Text]
     , envLocals  :: [Text]
     , envTypes   :: Map Text Type
-    , envVars    :: Map Int Type
+    , envVars    :: IntMap Type
     , envNextVar :: Int
     }
     deriving (Show)
@@ -98,7 +100,7 @@ instance Pretty Env where
           $ resolved
         , vcat
           . map (\(k, v) -> int k <+> colon <+> text (show v))
-          . Map.assocs
+          . IntMap.assocs
           . envVars
           $ env
         ]
@@ -138,7 +140,7 @@ empty = Env{..}
         , ("snprintf", T_Func T_Void [])
         , ("strerror_r", T_Func T_Void [])
         ]
-    envVars = Map.empty
+    envVars = IntMap.empty
     envNextVar = 0
 
 newTyVar :: State Env Type
@@ -150,7 +152,7 @@ newTyVar = do
 addTyVar :: Int -> Type -> State Env ()
 addTyVar v ty =
     State.modify $ \env@Env{envVars} ->
-        env{envVars = Map.insert v ty envVars}
+        env{envVars = IntMap.insert v ty envVars}
 
 addLocal :: Text -> State Env ()
 addLocal n = State.modify $ \env@Env{envLocals} -> env{envLocals = n:envLocals}
@@ -178,7 +180,7 @@ getName n = do
       Nothing -> addName n =<< newTyVar
 
 resolve :: Int -> State Env (Maybe Type)
-resolve v = Map.lookup v . envVars <$> State.get
+resolve v = IntMap.lookup v . envVars <$> State.get
 
 
 unifyUnion :: Type -> [Type] -> State Env Type

@@ -49,5 +49,5 @@ main = do
     (flags, files) <- parseArgs . (defaultFlags ++) <$> getArgs
     parseFiles files >>= getRight >>= processAst flags
   where
-    getRight (Left err) = fail err
+    getRight (Left err) = putStrLn err >> fail "aborting after parse error"
     getRight (Right ok) = return ok

@@ -21,7 +21,7 @@ library
       Tokstyle.Linter
   other-modules:
       Tokstyle.Common
-    , Tokstyle.Linter.BoolReturn
+    , Tokstyle.Linter.Booleans
     , Tokstyle.Linter.CallbackNames
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
@@ -120,7 +120,7 @@ test-suite testsuite
   main-is: testsuite.hs
   other-modules:
       Tokstyle.LinterSpec
-    , Tokstyle.Linter.BoolReturnSpec
+    , Tokstyle.Linter.BooleansSpec
     , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec
