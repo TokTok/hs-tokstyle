@@ -22,6 +22,7 @@ library
   other-modules:
       Tokstyle.Common
     , Tokstyle.Linter.Booleans
+    , Tokstyle.Linter.BooleanReturn
     , Tokstyle.Linter.CallbackNames
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
@@ -121,6 +122,7 @@ test-suite testsuite
   other-modules:
       Tokstyle.LinterSpec
     , Tokstyle.Linter.BooleansSpec
+    , Tokstyle.Linter.BooleanReturnSpec
     , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec

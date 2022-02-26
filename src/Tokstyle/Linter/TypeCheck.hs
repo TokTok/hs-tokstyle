@@ -19,12 +19,11 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
-import           Debug.Trace                  (trace)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
                                                Node, NodeF (..), UnaryOp (..))
-import           Language.Cimple.Diagnostics  (HasDiagnostics (..), warn)
+import           Language.Cimple.Diagnostics  (HasDiagnostics (..))
 import           Language.Cimple.TraverseAst  (AstActions, astActions, doNode,
                                                traverseAst)
 import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
