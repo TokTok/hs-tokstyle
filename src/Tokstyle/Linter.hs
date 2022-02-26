@@ -8,8 +8,8 @@ module Tokstyle.Linter
 import           Data.Text                         (Text)
 import           Language.Cimple                   (Lexeme, Node)
 
-import qualified Tokstyle.Linter.Booleans          as Booleans
 import qualified Tokstyle.Linter.BooleanReturn     as BooleanReturn
+import qualified Tokstyle.Linter.Booleans          as Booleans
 import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
 import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
