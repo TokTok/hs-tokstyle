@@ -39,6 +39,9 @@ linter = astActions
                 mapM_ (checkArg file) args
                 act
 
+            Return (Just (Fix ParenExpr{})) -> do
+                warn file node "return expression does not need parentheses"
+                act
             VarDeclStmt _ (Just (Fix ParenExpr{})) -> do
                 warn file node "variable initialiser does not need parentheses"
                 act
