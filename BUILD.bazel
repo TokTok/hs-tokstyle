@@ -18,6 +18,7 @@ haskell_library(
         "//hs-cimple",
         hazel_library("aeson"),
         hazel_library("ansi-wl-pprint"),
+        hazel_library("array"),
         hazel_library("base"),
         hazel_library("bytestring"),
         hazel_library("containers"),

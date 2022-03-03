@@ -11,6 +11,7 @@ module Tokstyle.Linter.Callgraph where
 import           Control.Applicative         ((<|>))
 import           Control.Monad               (forM_, unless)
 import qualified Control.Monad.State.Strict  as State
+import qualified Data.Array                  as Array
 import           Data.Fix                    (foldFix)
 import           Data.Foldable               (fold)
 import           Data.Graph                  (SCC (..))
@@ -53,6 +54,9 @@ nameText = lexemeText . nameLexeme
 
 
 type Callgraph = Map (Name Text) (Set (Name Text))
+
+getSrcName :: (Name Text, Name Text, [Name Text]) -> Name Text
+getSrcName (node, _, _) = node
 
 cgToEdges :: Callgraph -> [(Name Text, Name Text, [Name Text])]
 cgToEdges = map toEdges . Map.assocs
@@ -103,6 +107,7 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
     go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
     go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
     go file (Enumerator         name env) = empty{funcs = Map.singleton (Name file name) (maybe Set.empty outgoing env)}
+    go _    (StaticAssert          env _) = empty{funcs = Map.singleton globalName (outgoing env)}
 
     go file (PreprocDefineMacro func params body) =
         let Env{outgoing, locals} = fold params <> body in
@@ -116,7 +121,6 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
 
     go _ AggregateDecl   {} = empty
     go _ FunctionDecl    {} = empty
-    go _ StaticAssert    {} = empty
     go _ Typedef         {} = empty
     go _ TypedefFunction {} = empty
 
@@ -128,18 +132,29 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
     go _ n = fold n
 
 
-linter :: Callgraph -> Diagnostics ()
-linter cg = do
+checkReferences :: Callgraph -> Diagnostics ()
+checkReferences cg =
     forM_ (Map.assocs cg) $ \(src, dsts) ->
         mapM_ (checkForward src) dsts
-    forM_ (Graph.stronglyConnCompR . cgToEdges $ cg) $ \case
+  where
+    checkForward src dst =
+        unless (dst `Map.member` cg) $
+            warn (nameFile dst) (nameLexeme dst) $ "function `" <> nameText src
+                <> "` references undefined global name `" <> nameText dst <> "`"
+
+
+checkCycles :: Callgraph -> Diagnostics ()
+checkCycles cg =
+    forM_ (Graph.stronglyConnCompR edgeList) $ \case
         AcyclicSCC{} -> return ()
         CyclicSCC [] -> return ()
         CyclicSCC vs@((src, _, _):_) ->
-            let funcs = map (nameText . \(node, _, _) -> node) vs in
+            let funcs = map (nameText . getSrcName) vs in
             unless (cycleIsOK funcs) $ warnCycle src funcs
 
   where
+    edgeList = cgToEdges cg
+
     cycleIsOK ["add_to_closest"] = True
     cycleIsOK ["add_to_list"] = True
     cycleIsOK ["dht_pk_callback","change_dht_pk","dht_ip_callback","friend_new_connection"] = True
@@ -153,10 +168,96 @@ linter cg = do
     warnCycle src funcs = warn (nameFile src) (nameLexeme src) $
         "function `" <> nameText src <> "` is part of a cycle: `" <> Text.pack (show funcs) <> "`"
 
-    checkForward src dst =
-        unless (dst `Map.member` cg) $
-            warn (nameFile dst) (nameLexeme dst) $ "function `" <> nameText src
-                <> "` references undefined global name `" <> nameText dst <> "`"
+
+checkUnused :: Callgraph -> Diagnostics ()
+checkUnused cg =
+    forM_ roots $ \src ->
+        warn (nameFile src) (nameLexeme src) $ "unused symbol `" <> nameText src <> "`"
+  where
+    (graph, nodeFromVertex, _) = Graph.graphFromEdges . cgToEdges $ cg
+
+    roots =
+        filter (not . isExempt . nameText)
+        . map (getSrcName . nodeFromVertex . fst)
+        . filter ((== 0) . snd)
+        . Array.assocs
+        . Graph.indegree
+        $ graph
+
+    isExempt name = or
+        [ "crypto_sign_" `Text.isPrefixOf` name
+        , "msgpack_" `Text.isPrefixOf` name
+        , "TOX_" `Text.isPrefixOf` name
+        , "TOXAV_" `Text.isPrefixOf` name
+        , "tox_" `Text.isPrefixOf` name
+        , "toxav_" `Text.isPrefixOf` name
+        , "max_" `Text.isPrefixOf` name
+        , "min_" `Text.isPrefixOf` name
+        , "::" `Text.isInfixOf` name
+        , name `elem`
+            [ "<global>"
+            -- Feature test macros.
+            , "__EXTENSIONS__"
+            , "_XOPEN_SOURCE"
+            , "_WIN32_WINNT"
+            , "WINVER"
+
+            , "NET_PACKET_MAX"  -- TODO(iphydf): Maybe some more general rule about this.
+            , "at_shutdown"  -- Actually #if-0'd.
+
+            -- TODO(iphydf): Maybe toxcore should have a bootstrap node API so DHT_bootstrap is
+            -- less special.
+            , "BOOTSTRAP_INFO_PACKET_ID"
+            -- TODO(iphydf): Clean these up.
+            , "dht_bootstrap_from_address"
+            , "dht_set_self_public_key"
+            , "dht_set_self_secret_key"
+            , "friend_conn_get_dht_ip_port"
+            , "friend_conn_get_onion_friendnum"
+            , "get_ip6_loopback"
+            , "ipport_self_copy"
+            , "mono_time_set_current_time_callback"
+            , "net_family_is_tcp_onion"
+            , "net_family_is_tox_tcp_ipv6"
+            , "onion_announce_entry_public_key"
+            , "onion_announce_entry_set_time"
+            , "onion_getfriendip"
+            , "rb_data"
+            , "rb_full"
+            , "send_announce_request"
+            , "send_data_request"
+            , "tcp_connections_public_key"
+            , "tcp_send_oob_packet_using_relay"
+            , "tcp_server_listen_count"
+
+            -- TODO(iphydf): Clean these up.
+            , "ARRAY_ENTRY_SIZE"
+            , "AUDIO_MAX_BUFFER_SIZE_BYTES"
+            , "FILEKIND_AVATAR"
+            , "FILEKIND_DATA"
+            , "FILE_PAUSE_BOTH"
+            , "MAX_TCP_CONNECTIONS"
+            , "MAX_TCP_RELAYS_PEER"
+            , "MESSAGE_NORMAL"
+            , "MSI_E_INVALID_PARAM"
+            , "ONION_DATA_FRIEND_REQ"
+            , "PACKET_ID_RANGE_LOSSLESS_NORMAL_END"
+            , "PACKET_ID_RANGE_LOSSLESS_NORMAL_START"
+            , "PACKET_ID_RANGE_LOSSY_CUSTOM_END"
+            , "PACKET_ID_RANGE_RESERVED_END"
+            , "PACKET_ID_RANGE_RESERVED_START"
+            , "TCP_CLIENT_NO_STATUS"
+            , "USERSTATUS_AWAY"
+            , "USERSTATUS_BUSY"
+            ]
+        ]
+
+
+linter :: Callgraph -> Diagnostics ()
+linter cg = do
+    checkReferences cg
+    checkCycles cg
+    checkUnused cg
 
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
@@ -167,7 +268,6 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "AF_INET6"
         , "AF_UNSPEC"
 
-        , "EAGAIN"
         , "EINPROGRESS"
         , "EWOULDBLOCK"
 
@@ -178,15 +278,21 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "crypto_box_keypair"
         , "crypto_box_NONCEBYTES"
         , "crypto_box_open_afternm"
+        , "crypto_box_PUBLICKEYBYTES"
+        , "crypto_box_SECRETKEYBYTES"
         , "crypto_box_ZEROBYTES"
         , "crypto_hash_sha256"
         , "crypto_hash_sha256_BYTES"
         , "crypto_hash_sha512"
+        , "crypto_hash_sha512_BYTES"
         , "crypto_pwhash_scryptsalsa208sha256"
         , "crypto_pwhash_scryptsalsa208sha256_MEMLIMIT_INTERACTIVE"
         , "crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_INTERACTIVE"
         , "crypto_pwhash_scryptsalsa208sha256_SALTBYTES"
         , "crypto_scalarmult_curve25519_base"
+        , "crypto_sign_BYTES"
+        , "crypto_sign_PUBLICKEYBYTES"
+        , "crypto_sign_SECRETKEYBYTES"
         , "crypto_sign_detached"
         , "crypto_sign_ed25519_pk_to_curve25519"
         , "crypto_sign_ed25519_sk_to_curve25519"
@@ -247,6 +353,8 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "FIONBIO"
         , "FIONREAD"
         , "INADDR_BROADCAST"
+        , "INET_ADDRSTRLEN"
+        , "INET6_ADDRSTRLEN"
         , "IPPROTO_IPV6"
         , "IPPROTO_TCP"
         , "IPPROTO_UDP"
@@ -408,7 +516,6 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "OPUS_SET_COMPLEXITY"
         , "OPUS_SET_INBAND_FEC"
         , "OPUS_SET_PACKET_LOSS_PERC"
-        , "opus_packet_get_bandwidth"
         , "opus_packet_get_nb_channels"
         , "opus_strerror"
         , "opus_decode"
