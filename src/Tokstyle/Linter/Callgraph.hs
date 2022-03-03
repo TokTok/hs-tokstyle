@@ -31,7 +31,7 @@ import           Language.Cimple.Diagnostics (Diagnostics, warn)
 
 
 data Name a = Name
-    { nameFile :: FilePath
+    { nameFile   :: FilePath
     , nameLexeme :: Lexeme a
     }
     deriving (Show, Functor)
