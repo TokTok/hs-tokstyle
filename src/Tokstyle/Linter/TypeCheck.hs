@@ -357,8 +357,7 @@ inferTypes = \case
 
     f@(FunctionPrototype retTy (L _ _ name) args) -> do
         trace ("f " <> show f) $ return ()
-        let ty = T_Func retTy args
-        addName name ty
+        addName name $ T_Func retTy args
     FunctionCall callee args -> do
         retTy <- newTyVar
         funTy <- unify (T_Func retTy args) callee

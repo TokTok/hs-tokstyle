@@ -24,6 +24,7 @@ library
     , Tokstyle.Linter.Booleans
     , Tokstyle.Linter.BooleanReturn
     , Tokstyle.Linter.CallbackNames
+    , Tokstyle.Linter.Callgraph
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
     , Tokstyle.Linter.CompoundInit

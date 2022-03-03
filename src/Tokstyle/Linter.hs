@@ -11,6 +11,7 @@ import           Language.Cimple                   (Lexeme, Node)
 import qualified Tokstyle.Linter.BooleanReturn     as BooleanReturn
 import qualified Tokstyle.Linter.Booleans          as Booleans
 import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
+import qualified Tokstyle.Linter.Callgraph         as Callgraph
 import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
 import qualified Tokstyle.Linter.CompoundInit      as CompoundInit
@@ -75,7 +76,8 @@ localLinters =
 
 globalLinters :: [(Text, [(FilePath, [Node (Lexeme Text)])] -> [Text])]
 globalLinters =
-    [ ("declared-once"      , DeclaredOnce.analyse     )
+    [ ("callgraph"          , Callgraph.analyse        )
+    , ("declared-once"      , DeclaredOnce.analyse     )
     , ("decls-have-defns"   , DeclsHaveDefns.analyse   )
     , ("doc-comments"       , DocComments.analyse      )
     , ("type-check"         , TypeCheck.analyse        )
