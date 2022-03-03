@@ -1,18 +1,20 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE Strict                     #-}
-{-# LANGUAGE StrictData                 #-}
-{-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
+{-# LANGUAGE StrictData        #-}
+{-# LANGUAGE TupleSections     #-}
 {-# OPTIONS_GHC -Wwarn #-}
 module Tokstyle.Linter.Callgraph where
 
 import           Control.Applicative         ((<|>))
-import           Control.Monad               (unless)
+import           Control.Monad               (forM_, unless)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (foldFix)
 import           Data.Foldable               (fold)
+import           Data.Graph                  (SCC (..))
+import qualified Data.Graph                  as Graph
 import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map
 import qualified Data.Maybe                  as Maybe
@@ -20,6 +22,7 @@ import           Data.Set                    (Set, (\\))
 import qualified Data.Set                    as Set
 import           Data.String                 (IsString (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (AlexPosn (..), Lexeme (..),
                                               LexemeClass (..),
                                               LiteralType (..), Node,
@@ -27,29 +30,40 @@ import           Language.Cimple             (AlexPosn (..), Lexeme (..),
 import           Language.Cimple.Diagnostics (Diagnostics, warn)
 
 
-newtype Name a = Name { unName :: Lexeme a }
+data Name a = Name
+    { nameFile :: FilePath
+    , nameLexeme :: Lexeme a
+    }
     deriving (Show, Functor)
 
 instance Ord a => Ord (Name a) where
-    (Name a) <= (Name b) = lexemeText a <= lexemeText b
+    (Name _ a) <= (Name _ b) = lexemeText a <= lexemeText b
 
 instance Eq a => Eq (Name a) where
-    (Name a) == (Name b) = lexemeText a == lexemeText b
+    (Name _ a) == (Name _ b) = lexemeText a == lexemeText b
 
 instance IsString a => IsString (Name a) where
-    fromString x = Name (L (AlexPn 0 0 0) IdVar (fromString x))
+    fromString x = Name "<builtins>" (L (AlexPn 0 0 0) IdVar (fromString x))
+
+globalName :: Name Text
+globalName = "<global>"
 
 nameText :: Name a -> a
-nameText = lexemeText . unName
+nameText = lexemeText . nameLexeme
 
 
-type CallGraph = Map (Name Text) (FilePath, Set (Name Text))
+type Callgraph = Map (Name Text) (Set (Name Text))
+
+cgToEdges :: Callgraph -> [(Name Text, Name Text, [Name Text])]
+cgToEdges = map toEdges . Map.assocs
+  where toEdges (src, dsts) = (src, src, Set.toList dsts)
+
 
 data Env = Env
     { outgoing :: Set (Name Text)
     , locals   :: Set (Name Text)
     , envFunc  :: Maybe (Name Text)
-    , funcs    :: CallGraph
+    , funcs    :: Callgraph
     }
     deriving (Show)
 
@@ -58,10 +72,8 @@ instance Semigroup Env where
         { outgoing = Set.union (outgoing a) (outgoing b)
         , locals = Set.union (locals a) (locals b)
         , envFunc = envFunc a <|> envFunc b
-        , funcs = Map.unionWith merge (funcs a) (funcs b)
+        , funcs = Map.unionWith (<>) (funcs a) (funcs b)
         }
-      where
-        merge (file, dstsA) (_, dstsB) = (file, dstsA <> dstsB)
 
 instance Monoid Env where
     mempty = empty
@@ -75,32 +87,32 @@ empty = Env
     }
 
 
-callgraph :: [(FilePath, [Node (Lexeme Text)])] -> Map (Name Text) (FilePath, Set (Name Text))
+callgraph :: [(FilePath, [Node (Lexeme Text)])] -> Callgraph
 callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
   where
     go :: FilePath -> NodeF (Lexeme Text) Env -> Env
-    go _ (LiteralExpr ConstId name) = empty{outgoing = Set.singleton (Name name)}
-    go _ (VarExpr name) = empty{outgoing = Set.singleton (Name name)}
+    go file (LiteralExpr ConstId name) = empty{outgoing = Set.singleton (Name file name)}
+    go file (VarExpr name) = empty{outgoing = Set.singleton (Name file name)}
 
-    go _ (MacroParam name) = empty{locals = Set.singleton (Name name)}
-    go _ (VarDecl _ name arrs) = foldr (<>) empty{locals = Set.singleton (Name name)} arrs
-    go _ (VLA _ name size) = empty{locals = Set.singleton (Name name)} <> size
+    go file (MacroParam name) = empty{locals = Set.singleton (Name file name)}
+    go file (VarDecl _ name arrs) = foldr (<>) empty{locals = Set.singleton (Name file name)} arrs
+    go file (VLA _ name size) = empty{locals = Set.singleton (Name file name)} <> size
 
-    go _ (FunctionPrototype _ name params) = foldr (<>) empty{envFunc = Just (Name name)} params
+    go file (FunctionPrototype _ name params) = foldr (<>) empty{envFunc = Just (Name file name)} params
 
-    go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name name) (file, outgoing env)}
-    go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name name) (file, outgoing env)}
-    go file (Enumerator         name env) = empty{funcs = Map.singleton (Name name) (file, maybe Set.empty outgoing env)}
+    go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
+    go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
+    go file (Enumerator         name env) = empty{funcs = Map.singleton (Name file name) (maybe Set.empty outgoing env)}
 
     go file (PreprocDefineMacro func params body) =
         let Env{outgoing, locals} = fold params <> body in
-        empty{funcs = Map.singleton (Name func) (file, Set.difference outgoing locals)}
-    go file (FunctionDefn _ proto body) =
+        empty{funcs = Map.singleton (Name file func) (Set.difference outgoing locals)}
+    go _ (FunctionDefn _ proto body) =
         let
            Env{outgoing, locals, envFunc, funcs} = proto <> body
-           func = Maybe.fromMaybe "<global>" envFunc
+           func = Maybe.fromMaybe globalName envFunc
         in
-        empty{funcs = Map.insert func (file, outgoing \\ locals \\ Map.keysSet funcs) $ Map.mapKeys (fmap (\k -> nameText func <> "::" <> k)) funcs}
+        empty{funcs = Map.insert func (outgoing \\ locals \\ Map.keysSet funcs) $ Map.mapKeys (fmap (\k -> nameText func <> "::" <> k)) funcs}
 
     go _ AggregateDecl   {} = empty
     go _ FunctionDecl    {} = empty
@@ -116,21 +128,41 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
     go _ n = fold n
 
 
-linter :: Map (Name Text) (FilePath, Set (Name Text)) -> Diagnostics ()
-linter cg =
-    mapM_ (\(src, (file, dsts)) -> mapM_ (checkForward file src) dsts) (Map.assocs cg)
+linter :: Callgraph -> Diagnostics ()
+linter cg = do
+    forM_ (Map.assocs cg) $ \(src, dsts) ->
+        mapM_ (checkForward src) dsts
+    forM_ (Graph.stronglyConnCompR . cgToEdges $ cg) $ \case
+        AcyclicSCC{} -> return ()
+        CyclicSCC [] -> return ()
+        CyclicSCC vs@((src, _, _):_) ->
+            let funcs = map (nameText . \(node, _, _) -> node) vs in
+            unless (cycleIsOK funcs) $ warnCycle src funcs
 
   where
-    checkForward file src dst =
+    cycleIsOK ["add_to_closest"] = True
+    cycleIsOK ["add_to_list"] = True
+    cycleIsOK ["dht_pk_callback","change_dht_pk","dht_ip_callback","friend_new_connection"] = True
+    cycleIsOK ["add_conn_to_groupchat","g_handle_packet","handle_message_packet_group","freeze_peer"
+              ,"try_send_rejoin","handle_packet_rejoin","g_handle_status","set_conns_status_groups"
+              ,"set_conns_type_connections","check_disconnected"] = True
+    cycleIsOK _ = False
+
+    warnCycle src [_] = warn (nameFile src) (nameLexeme src) $
+        "function `" <> nameText src <> "` is recursive; prefer loops instead"
+    warnCycle src funcs = warn (nameFile src) (nameLexeme src) $
+        "function `" <> nameText src <> "` is part of a cycle: `" <> Text.pack (show funcs) <> "`"
+
+    checkForward src dst =
         unless (dst `Map.member` cg) $
-            warn file (unName dst) $ "function `" <> nameText src
+            warn (nameFile dst) (nameLexeme dst) $ "function `" <> nameText src
                 <> "` references undefined global name `" <> nameText dst <> "`"
 
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
   where
-    builtins = Map.fromList . map (,("<builtin>", Set.empty)) $
+    builtins = Map.fromList . map (,Set.empty) $
         [ "AF_INET"
         , "AF_INET6"
         , "AF_UNSPEC"
@@ -155,6 +187,11 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "crypto_pwhash_scryptsalsa208sha256_OPSLIMIT_INTERACTIVE"
         , "crypto_pwhash_scryptsalsa208sha256_SALTBYTES"
         , "crypto_scalarmult_curve25519_base"
+        , "crypto_sign_detached"
+        , "crypto_sign_ed25519_pk_to_curve25519"
+        , "crypto_sign_ed25519_sk_to_curve25519"
+        , "crypto_sign_keypair"
+        , "crypto_sign_verify_detached"
         , "crypto_verify_32"
         , "crypto_verify_64"
         , "randombytes"
@@ -278,12 +315,13 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "msgpack_pack_array"
         , "msgpack_pack_bin"
         , "msgpack_pack_bin_body"
-        , "msgpack_packer_init"
         , "msgpack_pack_false"
         , "msgpack_pack_true"
+        , "msgpack_pack_uint8"
         , "msgpack_pack_uint16"
         , "msgpack_pack_uint32"
         , "msgpack_pack_uint64"
+        , "msgpack_packer_init"
         , "msgpack_sbuffer_destroy"
         , "msgpack_sbuffer_init"
         , "msgpack_sbuffer_write"
