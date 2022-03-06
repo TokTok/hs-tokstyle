@@ -34,7 +34,7 @@ import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
 data Type
     -- C types
     = T_Var {-# UNPACK #-} Int
-    | T_Union Type [Type]
+    | T_Intersect Type Type
     | T_Bot
     | T_Top
     | T_Void
@@ -183,13 +183,6 @@ resolve :: Int -> State Env (Maybe Type)
 resolve v = IntMap.lookup v . envVars <$> State.get
 
 
-unifyUnion :: Type -> [Type] -> State Env Type
-unifyUnion a bs = union =<< filter (/= T_Bot) <$> mapM (unify a) bs
-  where
-    union []     = typeError T_Bot
-    union (r:rs) = return $ T_Union r rs
-
-
 unify :: HasCallStack => Type -> Type -> State Env Type
 unify = go False -- trace ("unify: " <> show (l, r)) $
   where
@@ -202,7 +195,7 @@ unify = go False -- trace ("unify: " <> show (l, r)) $
     go _ (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> unify la ra <*> unify lb rb
     go _ (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> unify la ra <*> unify lb rb
 
-    go _ (T_Union a as) b = unifyUnion b (a:as)
+    go _ (T_Intersect a1 a2) b = foldM unify b [a1, a2]
 
     go _ (T_Name name) b = unify b =<< getName name
 
@@ -225,7 +218,7 @@ unify = go False -- trace ("unify: " <> show (l, r)) $
         unify l b
 
     go _ (T_Add l r) T_Int = unify l T_Int >>= unify r
-    go _ a@T_Add{} b@T_Sub{} = return $ T_Union a [b]
+    go _ a@T_Add{} b@T_Sub{} = return $ T_Intersect a b
 
     go _ (T_Sub l r) T_Int = unify l T_Int >>= unify r
 
