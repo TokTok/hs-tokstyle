@@ -246,6 +246,7 @@ checkUnused cg =
             , "PACKET_ID_RANGE_LOSSY_CUSTOM_END"
             , "PACKET_ID_RANGE_RESERVED_END"
             , "PACKET_ID_RANGE_RESERVED_START"
+            , "SELF_UDP_STATUS_LAN"
             , "TCP_CLIENT_NO_STATUS"
             , "USERSTATUS_AWAY"
             , "USERSTATUS_BUSY"
