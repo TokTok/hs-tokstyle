@@ -11,7 +11,7 @@ import           Data.Text                   (Text)
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (Diagnostics)
 import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.Pretty (showNode)
+import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 
