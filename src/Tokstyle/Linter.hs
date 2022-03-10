@@ -8,6 +8,7 @@ module Tokstyle.Linter
 import           Data.Text                         (Text)
 import           Language.Cimple                   (Lexeme, Node)
 
+import qualified Tokstyle.Linter.Assert            as Assert
 import qualified Tokstyle.Linter.BooleanReturn     as BooleanReturn
 import qualified Tokstyle.Linter.Booleans          as Booleans
 import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
@@ -49,7 +50,8 @@ run linters flags tu =
 
 localLinters :: [(Text, (FilePath, [Node (Lexeme Text)]) -> [Text])]
 localLinters =
-    [ ("booleans"           , Booleans.analyse         )
+    [ ("assert"             , Assert.analyse           )
+    , ("booleans"           , Booleans.analyse         )
     , ("boolean-return"     , BooleanReturn.analyse    )
     , ("callback-names"     , CallbackNames.analyse    )
     , ("calloc-args"        , CallocArgs.analyse       )

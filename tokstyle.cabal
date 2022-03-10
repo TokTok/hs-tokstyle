@@ -21,6 +21,7 @@ library
       Tokstyle.Linter
   other-modules:
       Tokstyle.Common
+    , Tokstyle.Linter.Assert
     , Tokstyle.Linter.Booleans
     , Tokstyle.Linter.BooleanReturn
     , Tokstyle.Linter.CallbackNames
