@@ -72,6 +72,7 @@ checkConversion _ (_, lTy) (_, rTy) | isEnumConversion (canonicalType lTy) rTy =
 
 checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
     case (show $ pretty lTy, show $ pretty rTy) of
+      (lTyName, rTyName) | lTyName == rTyName -> return ()
       ("const char *","char *")       -> return ()
       ("const char *","const int *")  -> return ()
       ("vpx_codec_er_flags_t", "int") -> return ()
