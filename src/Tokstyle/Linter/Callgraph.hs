@@ -185,7 +185,8 @@ checkUnused cg =
         $ graph
 
     isExempt name = or
-        [ "crypto_sign_" `Text.isPrefixOf` name
+        [ "crypto_auth" `Text.isPrefixOf` name
+        , "crypto_sign_" `Text.isPrefixOf` name
         , "msgpack_" `Text.isPrefixOf` name
         , "TOX_" `Text.isPrefixOf` name
         , "TOXAV_" `Text.isPrefixOf` name
@@ -272,6 +273,10 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "EINPROGRESS"
         , "EWOULDBLOCK"
 
+        , "crypto_auth_BYTES"
+        , "crypto_auth_KEYBYTES"
+        , "crypto_auth"
+        , "crypto_auth_verify"
         , "crypto_box_afternm"
         , "crypto_box_beforenm"
         , "crypto_box_BEFORENMBYTES"
