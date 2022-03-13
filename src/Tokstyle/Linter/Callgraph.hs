@@ -31,20 +31,32 @@ import           Language.Cimple             (AlexPosn (..), Lexeme (..),
 import           Language.Cimple.Diagnostics (Diagnostics, warn)
 
 
+data NameKind
+    = NKVal
+    | NKType
+    deriving (Show)
+
 data Name a = Name
-    { nameFile   :: FilePath
+    { nameKind   :: NameKind
+    , nameFile   :: FilePath
     , nameLexeme :: Lexeme a
     }
     deriving (Show, Functor)
 
+nameKindStr :: Name a -> Text
+nameKindStr = str . nameKind
+  where
+    str NKVal = "function/constant"
+    str NKType = "type name"
+
 instance Ord a => Ord (Name a) where
-    (Name _ a) <= (Name _ b) = lexemeText a <= lexemeText b
+    (Name _ _ a) <= (Name _ _ b) = lexemeText a <= lexemeText b
 
 instance Eq a => Eq (Name a) where
-    (Name _ a) == (Name _ b) = lexemeText a == lexemeText b
+    (Name _ _ a) == (Name _ _ b) = lexemeText a == lexemeText b
 
 instance IsString a => IsString (Name a) where
-    fromString x = Name "<builtins>" (L (AlexPn 0 0 0) IdVar (fromString x))
+    fromString x = Name NKVal "<builtins>" (L (AlexPn 0 0 0) IdVar (fromString x))
 
 globalName :: Name Text
 globalName = "<global>"
@@ -95,23 +107,26 @@ callgraph :: [(FilePath, [Node (Lexeme Text)])] -> Callgraph
 callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
   where
     go :: FilePath -> NodeF (Lexeme Text) Env -> Env
-    go file (LiteralExpr ConstId name) = empty{outgoing = Set.singleton (Name file name)}
-    go file (VarExpr name) = empty{outgoing = Set.singleton (Name file name)}
+    go file (TyUserDefined name) = empty{outgoing = Set.singleton (Name NKType file name)}
+    go file (TyStruct name) = empty{outgoing = Set.singleton (Name NKType file name)}
 
-    go file (MacroParam name) = empty{locals = Set.singleton (Name file name)}
-    go file (VarDecl _ name arrs) = foldr (<>) empty{locals = Set.singleton (Name file name)} arrs
-    go file (VLA _ name size) = empty{locals = Set.singleton (Name file name)} <> size
+    go file (LiteralExpr ConstId name) = empty{outgoing = Set.singleton (Name NKVal file name)}
+    go file (VarExpr name) = empty{outgoing = Set.singleton (Name NKVal file name)}
 
-    go file (FunctionPrototype _ name params) = foldr (<>) empty{envFunc = Just (Name file name)} params
+    go file (MacroParam name) = empty{locals = Set.singleton (Name NKVal file name)}
+    go file (VarDecl ty name arrs) = foldr (<>) empty{locals = Set.singleton (Name NKVal file name)} (ty:arrs)
+    go file (VLA _ name size) = empty{locals = Set.singleton (Name NKVal file name)} <> size
 
-    go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
-    go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name file name) (outgoing env)}
-    go file (Enumerator         name env) = empty{funcs = Map.singleton (Name file name) (maybe Set.empty outgoing env)}
+    go file (FunctionPrototype _ name params) = foldr (<>) empty{envFunc = Just (Name NKVal file name)} params
+
+    go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name NKVal file name) (outgoing env)}
+    go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name NKVal file name) (outgoing env)}
+    go file (Enumerator         name env) = empty{funcs = Map.singleton (Name NKVal file name) (maybe Set.empty outgoing env)}
     go _    (StaticAssert          env _) = empty{funcs = Map.singleton globalName (outgoing env)}
 
     go file (PreprocDefineMacro func params body) =
         let Env{outgoing, locals} = fold params <> body in
-        empty{funcs = Map.singleton (Name file func) (Set.difference outgoing locals)}
+        empty{funcs = Map.singleton (Name NKVal file func) (Set.difference outgoing locals)}
     go _ (FunctionDefn _ proto body) =
         let
            Env{outgoing, locals, envFunc, funcs} = proto <> body
@@ -119,9 +134,13 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
         in
         empty{funcs = Map.insert func (outgoing \\ locals \\ Map.keysSet funcs) $ Map.mapKeys (fmap (\k -> nameText func <> "::" <> k)) funcs}
 
-    go _ AggregateDecl   {} = empty
+    go file (Union  name envs) = empty{funcs = Map.singleton (Name NKType file name) (outgoing $ fold envs)}
+    go file (Struct name envs) = empty{funcs = Map.singleton (Name NKType file name) (outgoing $ fold envs)}
+    go file (EnumDecl name envs _) =
+        let Env{outgoing, funcs} = fold envs in
+        empty{funcs = Map.insert (Name NKType file name) outgoing funcs}
+
     go _ FunctionDecl    {} = empty
-    go _ Typedef         {} = empty
     go _ TypedefFunction {} = empty
 
     go _ (PreprocIf     _ t e) = fold $ e:t
@@ -139,8 +158,9 @@ checkReferences cg =
   where
     checkForward src dst =
         unless (dst `Map.member` cg) $
-            warn (nameFile dst) (nameLexeme dst) $ "function `" <> nameText src
-                <> "` references undefined global name `" <> nameText dst <> "`"
+            warn (nameFile dst) (nameLexeme dst) $ "definition of `" <> nameText src
+                <> "` references undefined global " <> nameKindStr dst
+                <> " `" <> nameText dst <> "`"
 
 
 checkCycles :: Callgraph -> Diagnostics ()
@@ -163,6 +183,7 @@ checkCycles cg =
               ,"set_conns_type_connections","check_disconnected"] = True
     cycleIsOK _ = False
 
+    warnCycle (Name NKType _ _) _ = return ()
     warnCycle src [_] = warn (nameFile src) (nameLexeme src) $
         "function `" <> nameText src <> "` is recursive; prefer loops instead"
     warnCycle src funcs = warn (nameFile src) (nameLexeme src) $
@@ -171,18 +192,23 @@ checkCycles cg =
 
 checkUnused :: Callgraph -> Diagnostics ()
 checkUnused cg =
-    forM_ roots $ \src ->
-        warn (nameFile src) (nameLexeme src) $ "unused symbol `" <> nameText src <> "`"
+    forM_ roots $ \case
+        Name NKType _ _ -> return ()
+        src -> warn (nameFile src) (nameLexeme src) $ "unused symbol `" <> nameText src <> "`"
   where
     (graph, nodeFromVertex, _) = Graph.graphFromEdges . cgToEdges $ cg
 
     roots =
-        filter (not . isExempt . nameText)
+        filter (not . isExemptFile . nameFile)
+        . filter (not . isExempt . nameText)
         . map (getSrcName . nodeFromVertex . fst)
         . filter ((== 0) . snd)
         . Array.assocs
         . Graph.indegree
         $ graph
+
+    isExemptFile "<builtins>" = True
+    isExemptFile _ = False
 
     isExempt name = or
         [ "crypto_auth" `Text.isPrefixOf` name
@@ -197,6 +223,7 @@ checkUnused cg =
         , "::" `Text.isInfixOf` name
         , name `elem`
             [ "<global>"
+            , "main"
             -- Feature test macros.
             , "__EXTENSIONS__"
             , "_XOPEN_SOURCE"
@@ -354,6 +381,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "CLOCK_MONOTONIC"
         , "clock_get_time"
         , "clock_gettime"
+        , "timespec"
 
         , "F_SETFL"
         , "FIONBIO"
@@ -377,6 +405,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "SO_REUSEADDR"
         , "SO_SNDBUF"
         , "accept"
+        , "addrinfo"
         , "bind"
         , "close"
         , "closesocket"
@@ -387,9 +416,14 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "getsockopt"
         , "htonl"
         , "htons"
+        , "ifconf"
+        , "ifreq"
+        , "in_addr"
+        , "in6_addr"
         , "in6addr_loopback"
         , "inet_ntop"
         , "inet_pton"
+        , "ipv6_mreq"
         , "ioctl"
         , "ioctlsocket"
         , "listen"
@@ -401,6 +435,10 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "sendto"
         , "setsockopt"
         , "socket"
+        , "sockaddr"
+        , "sockaddr_in"
+        , "sockaddr_in6"
+        , "sockaddr_storage"
 
         , "EPOLL_CTL_ADD"
         , "EPOLL_CTL_MOD"
@@ -410,6 +448,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "EPOLLIN"
         , "epoll_create"
         , "epoll_ctl"
+        , "epoll_event"
         , "epoll_wait"
 
         , "__FILE__"
@@ -424,6 +463,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "MSGPACK_OBJECT_POSITIVE_INTEGER"
         , "MSGPACK_UNPACK_SUCCESS"
         , "NO_ERROR"
+        , "msgpack_object"
         , "msgpack_object_equal"
         , "msgpack_object_print"
         , "msgpack_pack_array"
@@ -435,13 +475,17 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "msgpack_pack_uint16"
         , "msgpack_pack_uint32"
         , "msgpack_pack_uint64"
+        , "msgpack_packer"
         , "msgpack_packer_init"
+        , "msgpack_sbuffer"
         , "msgpack_sbuffer_destroy"
         , "msgpack_sbuffer_init"
         , "msgpack_sbuffer_write"
+        , "msgpack_unpacked"
         , "msgpack_unpacked_destroy"
         , "msgpack_unpacked_init"
         , "msgpack_unpack_next"
+        , "msgpack_unpack_return"
 
         , "FORMAT_MESSAGE_ALLOCATE_BUFFER"
         , "FORMAT_MESSAGE_FROM_SYSTEM"
@@ -522,6 +566,8 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "OPUS_SET_COMPLEXITY"
         , "OPUS_SET_INBAND_FEC"
         , "OPUS_SET_PACKET_LOSS_PERC"
+        , "OpusDecoder"
+        , "OpusEncoder"
         , "opus_packet_get_nb_channels"
         , "opus_strerror"
         , "opus_decode"
