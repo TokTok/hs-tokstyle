@@ -50,16 +50,16 @@ MyType foo = {0};
 We'll start by writing the test first, in a classical Test-Driven Development style. Create a new
 file called `test/Tokstyle/Linter/CompoundInitSpec.hs`.
 
-* First, some boilerplate: we need `OverloadedStrings` because we'll use string literals for code
+- First, some boilerplate: we need `OverloadedStrings` because we'll use string literals for code
   and expected diagnostics (which are `Text` instead of `String`).
-* We name our module according to what we'll be calling our linter module, suffixed with `Spec`.
-* Then we import a few `Hspec` functions used in the spec below.
-* Then, we need the `analyse` function which dispatches over all linters (we'll add our linter to
+- We name our module according to what we'll be calling our linter module, suffixed with `Spec`.
+- Then we import a few `Hspec` functions used in the spec below.
+- Then, we need the `analyse` function which dispatches over all linters (we'll add our linter to
   it, later).
-* Our last import is the `mustParse` function from `LinterSpec`, which fails the test when parsing
+- Our last import is the `mustParse` function from `LinterSpec`, which fails the test when parsing
   fails, so we don't need to deal with parse errors. We don't expect parse errors, because we write
   the C code ourselves and it should be parseable.
-* Finally, the start of our executable specification: `spec`, which is automatically called by
+- Finally, the start of our executable specification: `spec`, which is automatically called by
   `hspec-discover` and hooked up to the test runner.
 
 ```hs
@@ -79,12 +79,12 @@ Now, for our first test, we write one with a piece of code containing the patter
 In this case, a function containing the above variable declaration. We write this in the `Spec`
 monad (using `it` and `shouldBe`).
 
-* First, we parse a piece of code given as `[Text]` into an AST. If that fails, the test stops.
-* Otherwise, we continue by calling `analyse` with only the linter we want to test in the allowed
+- First, we parse a piece of code given as `[Text]` into an AST. If that fails, the test stops.
+- Otherwise, we continue by calling `analyse` with only the linter we want to test in the allowed
   linter lint. We pass it the `(file path, ast)` tuple. For most linters, the file path won't
   matter, but some (like the logger related ones) may want to exempt some files. This way, you can
   test that the exemption works.
-* Finally, we check that the linter gives the diagnostic we expect. We can leave this empty if we
+- Finally, we check that the linter gives the diagnostic we expect. We can leave this empty if we
   don't know what the diagnostic will be, yet, or put an empty string in it to make sure it fails
   (TDD: we start with a failing test and make it pass by writing code later).
 
@@ -301,19 +301,19 @@ request or to run these with `stack` or `cabal`, you'll need to add your new mod
 
 ### Some useful tips
 
-* Have a look at other linters to see how they work with diagnostics. E.g. the
+- Have a look at other linters to see how they work with diagnostics. E.g. the
   `Language.Cimple.Pretty` module can be useful for pretty printing nodes as C code.
-* As a performance optimisation, stop recursive traversals whenever you've hit your pattern. If you
+- As a performance optimisation, stop recursive traversals whenever you've hit your pattern. If you
   know there are large subtrees you will never match in, write a pattern to avoid recursing into
   them (this can save a lot of time if you, for example, only look at top level declarations and
   don't need to inspect `FunctionDefn`s).
-* The above is also useful if you have a pattern that's always OK in certain contexts, but not in
+- The above is also useful if you have a pattern that's always OK in certain contexts, but not in
   others. You can skip the entire subtree for a node in which it's OK. Example: `LoggerConst.hs`.
-* Use `PatternSynonyms` if you need to match the same pattern many times (for an example, look at
+- Use `PatternSynonyms` if you need to match the same pattern many times (for an example, look at
   `Booleans.hs`).
-* If you need to keep more state during your linter execution, make a `data Linter` with a
+- If you need to keep more state during your linter execution, make a `data Linter` with a
   `HasDiagnostics` instance that tells `warn` how to add diagnostics to your data type. See
   `DeclaredOnce.hs` for an example.
-* If you write a linter that you don't want to enable by default, add it to the `defaultFlags` list
+- If you write a linter that you don't want to enable by default, add it to the `defaultFlags` list
   in `tools/check-cimple.hs` as `-Wno-my-linter`. Users can still run it explicitly with
- `-Wmy-linter`.
+  `-Wmy-linter`.
