@@ -7,7 +7,7 @@ import           Data.Text          (Text)
 import qualified Data.Text          as Text
 import           Language.Cimple    (Lexeme, Node)
 import           Language.Cimple.IO (parseText)
-import           Tokstyle.Linter    (analyse, allWarnings)
+import           Tokstyle.Linter    (allWarnings, analyse)
 
 
 mustParse :: MonadFail m => [Text] -> m [Node (Lexeme Text)]
