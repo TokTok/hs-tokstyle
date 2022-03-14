@@ -59,7 +59,7 @@ library
     , ansi-wl-pprint
     , array
     , bytestring
-    , cimple            >= 0.0.15
+    , cimple            >= 0.0.16
     , containers
     , data-fix
     , deepseq
@@ -126,6 +126,8 @@ test-suite testsuite
       Tokstyle.LinterSpec
     , Tokstyle.Linter.BooleansSpec
     , Tokstyle.Linter.BooleanReturnSpec
+    , Tokstyle.Linter.CallocTypeSpec
+    , Tokstyle.Linter.CompoundInitSpec
     , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec
