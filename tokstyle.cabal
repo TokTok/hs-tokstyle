@@ -126,6 +126,8 @@ test-suite testsuite
       Tokstyle.LinterSpec
     , Tokstyle.Linter.BooleansSpec
     , Tokstyle.Linter.BooleanReturnSpec
+    , Tokstyle.Linter.CallocTypeSpec
+    , Tokstyle.Linter.CompoundInitSpec
     , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec

@@ -7,6 +7,7 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
                                               NodeF (..), removeSloc)
 import           Language.Cimple.Diagnostics (warn)
@@ -17,6 +18,10 @@ import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
 
 checkTypes :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()
 checkTypes file castTy sizeofTy = case unFix castTy of
+    TyPointer (Fix (TyStd (L _ _ tyName))) | not ("pthread_" `Text.isPrefixOf` tyName) ->
+        warn file castTy $
+            "`calloc` should not be used for `" <> showNode castTy
+            <> "`; use `malloc` instead"
     TyPointer ty1 | removeSloc ty1 == removeSloc sizeofTy -> return ()
     _ -> warn file castTy $
         "`calloc` result is cast to `" <> showNode castTy
