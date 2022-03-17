@@ -1,20 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Linter.CallocTypeSpec where
 
-import           Test.Hspec         (Spec, it, shouldBe)
+import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Data.Text          (Text)
-import qualified Data.Text          as Text
-import           Language.Cimple    (Lexeme, Node)
-import           Language.Cimple.IO (parseText)
-import           Tokstyle.Linter    (allWarnings, analyse)
-
-
-mustParse :: MonadFail m => [Text] -> m [Node (Lexeme Text)]
-mustParse code =
-    case parseText $ Text.unlines code of
-        Left err -> fail err
-        Right ok -> return ok
+import           Tokstyle.Linter     (allWarnings, analyse)
+import           Tokstyle.LinterSpec (mustParse)
 
 
 spec :: Spec
