@@ -16,7 +16,7 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            VarDeclStmt _ (Just (Fix CompoundLiteral{})) -> do
+            VarDeclStmt _ (Just (Fix CompoundLiteral{})) ->
                 warn file node "don't use compound literals in initialisations; use simple `Type var = {0};`"
 
             _ -> act

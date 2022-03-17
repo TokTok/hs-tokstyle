@@ -46,7 +46,7 @@ run :: [(Text, t -> [Text])] -> [Text] -> t -> [Text]
 run linters flags tu =
     concatMap (apply tu) $ filter ((`elem` flags) . fst) linters
   where
-    apply tus = (\(flag, f) -> map (<> " [-W" <> flag <> "]") $ f tus)
+    apply tus (flag, f) = map (<> " [-W" <> flag <> "]") $ f tus
 
 localLinters :: [(Text, (FilePath, [Node (Lexeme Text)]) -> [Text])]
 localLinters =

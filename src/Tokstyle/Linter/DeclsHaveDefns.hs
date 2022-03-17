@@ -63,17 +63,10 @@ collectPairs :: AstActions (State Env) Text
 collectPairs = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionDecl _ (Fix (FunctionPrototype _ fname _)) -> do
-                addDecl file fname
-
-            FunctionDefn _ (Fix (FunctionPrototype _ fname _)) _ -> do
-                addDefn file fname
-
-            TyStruct sname -> do
-                addDecl file sname
-
-            Struct sname _ -> do
-                addDefn file sname
+            FunctionDecl _ (Fix (FunctionPrototype _ fname _))   -> addDecl file fname
+            FunctionDefn _ (Fix (FunctionPrototype _ fname _)) _ -> addDefn file fname
+            TyStruct sname -> addDecl file sname
+            Struct sname _ -> addDefn file sname
 
             _ -> act
     }

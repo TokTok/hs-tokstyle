@@ -32,13 +32,13 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (BinaryExpr (Fix (SizeofType sizeofTy)) BopPlus _)])) -> do
+            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (BinaryExpr (Fix (SizeofType sizeofTy)) BopPlus _)])) ->
                 checkTypes file castTy sizeofTy
 
-            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (SizeofType sizeofTy)])) -> do
+            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (SizeofType sizeofTy)])) ->
                 checkTypes file castTy sizeofTy
 
-            FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ -> do
+            FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ ->
                 warn file node "the result of `calloc` must be cast to its member type"
 
             _ -> act

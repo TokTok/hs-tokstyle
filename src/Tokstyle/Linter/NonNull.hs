@@ -49,7 +49,7 @@ checkParams file (indices -> nonnull) (indices -> nullable) params = do
         (ix, l):_ -> warn file l $ "parameter " <> lexemeText l <> " (" <> showParam ix <> ") does not have a pointer type; nullability has no effect"
   where
     ptrParams = paramMap params
-    unmarked = filter (not . (`elem` (map fst nonnull) ++ (map fst nullable)) . fst)
+    unmarked = filter (not . (`elem` map fst nonnull ++ map fst nullable) . fst)
     superfluous = filter (not . (`elem` map fst ptrParams) . fst)
 
     showParam :: Int -> Text
@@ -73,14 +73,14 @@ linter = astActions
                     Nothing -> return ()
                     Just prev -> do
                        warn file name "static function must have nullability attribute on its declaration if it has one"
-                       warn file prev $ "  declaration was here"
+                       warn file prev "  declaration was here"
 
-            NonNull _ _ (Fix (FunctionDefn _ (Fix (FunctionPrototype _ name params)) _)) | not $ any isPointer params -> do
+            NonNull _ _ (Fix (FunctionDefn _ (Fix (FunctionPrototype _ name params)) _)) | not $ any isPointer params ->
                warn file name "function definition has no pointer-type parameters, nullability has no effect"
-            NonNull _ _ (Fix (FunctionDecl _ (Fix (FunctionPrototype _ name params)))) | not $ any isPointer params -> do
+            NonNull _ _ (Fix (FunctionDecl _ (Fix (FunctionPrototype _ name params)))) | not $ any isPointer params ->
                warn file name "function declaration has no pointer-type parameters, nullability has no effect"
 
-            NonNull _ _ (Fix (FunctionDefn Global (Fix (FunctionPrototype _ name _)) _)) -> do
+            NonNull _ _ (Fix (FunctionDefn Global (Fix (FunctionPrototype _ name _)) _)) ->
                warn file name "global function must only have nullability attribute on its declaration, not on its definition"
 
             NonNull nonnull nullable (Fix (FunctionDecl _ (Fix (FunctionPrototype _ _ params)))) ->

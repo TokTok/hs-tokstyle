@@ -42,7 +42,7 @@ checkSize file castTy@(Fix (TyPointer objTy)) size = case unFix size of
                 <> "but result is cast to `" <> showNode castTy <> "`"
     _ ->
         unless (isByteSize objTy) $
-            warn file size $ "`malloc` result must be cast to a byte-sized type if `sizeof` is omitted"
+            warn file size "`malloc` result must be cast to a byte-sized type if `sizeof` is omitted"
 checkSize file castTy _ =
     warn file castTy "`malloc` result must be cast to a pointer type"
 
@@ -58,7 +58,7 @@ linter = astActions
                 checkType file castTy
                 checkSize file castTy size
 
-            FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _ -> do
+            FunctionCall (Fix (VarExpr (L _ _ "malloc"))) _ ->
                 warn file node "the result of `malloc` must be cast; plain `void *` is not supported"
 
             _ -> act

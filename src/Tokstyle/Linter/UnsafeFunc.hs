@@ -8,7 +8,6 @@ module Tokstyle.Linter.UnsafeFunc (analyse) where
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
-import           Data.Maybe                  (fromMaybe)
 import           Data.Text                   (Text)
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
@@ -40,9 +39,9 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionCall (Fix (VarExpr (L _ _ (checkName -> Just (name, (msg, replacement)))))) _ -> do
+            FunctionCall (Fix (VarExpr (L _ _ (checkName -> Just (name, (msg, replacement)))))) _ ->
                 warn file node $ "function `" <> name <> "` should not be used, because it " <> msg
-                    <> fromMaybe "" ((\r -> "; use " <> r <> " instead") <$> replacement)
+                    <> maybe "" (\r -> "; use " <> r <> " instead") replacement
 
             _ -> act
     }

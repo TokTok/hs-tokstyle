@@ -4,6 +4,7 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.DocComments (analyse) where
 
+import           Control.Monad               (forM_)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
@@ -45,9 +46,8 @@ linter = astActions
     { doNode = \file node act ->
         case unFix node of
             Commented doc entity -> do
-                case functionName entity of
-                  Nothing   -> return ()
-                  Just name -> checkCommentEquals file doc name
+                forM_ (functionName entity) $
+                    checkCommentEquals file doc
                 act
 
             FunctionDefn{} -> return ()
