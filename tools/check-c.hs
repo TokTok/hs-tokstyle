@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -Wno-missing-pattern-synonym-signatures #-}
 module Main (main) where
 
-import           Control.Monad                   (forM_, unless)
+import           Control.Monad                   (forM_, unless, zipWithM_)
 import qualified Control.Monad.Parallel          as Par
 import           Data.List                       (isPrefixOf, partition)
 import qualified Data.Map                        as Map
@@ -137,7 +137,7 @@ checkEnumCast castTy exprTy _ = do
         throwTravError $ userErr $
             "enum types `" <> show (pretty castTy) <> "` and `"
             <> show (pretty exprTy) <> "` have different a number of enumerators"
-    sequence_ (zipWith (sameEnum castTy exprTy) castEnums exprEnums)
+    zipWithM_ (sameEnum castTy exprTy) castEnums exprEnums
 
 enumerators :: MonadTrav m => Type -> m [(Ident, Expr)]
 enumerators (DirectType (TyEnum (EnumTypeRef name _)) _ _) = do
@@ -258,7 +258,7 @@ checkBlockItem :: CBlockItem -> Trav Env ()
 checkBlockItem (CBlockDecl decl) = checkDecl decl
 checkBlockItem (CBlockStmt stmt) = checkStmt stmt
 checkBlockItem (CNestedFunDef _) =
-    throwTravError $ userErr $ "nested functions are not supported"
+    throwTravError $ userErr "nested functions are not supported"
 
 checkInit :: CInit -> Trav Env ()
 checkInit (CInitExpr e _) = checkExpr e
@@ -269,7 +269,7 @@ checkDecl (CDecl _ decls _) = forM_ decls $ \(_, i, e) -> do
     maybeM i checkInit
     maybeM e checkExpr
 checkDecl CStaticAssert{} =
-    throwTravError $ userErr $ "static_assert not allowed in functions"
+    throwTravError $ userErr "static_assert not allowed in functions"
 
 
 checkEq :: Expr -> Expr -> Trav Env ()
@@ -371,7 +371,7 @@ checkStmt (CSwitch c b _) = do
     checkExpr c
     checkStmt b
 checkStmt (CFor i c n b _) = do
-    either (flip maybeM checkExpr) checkDecl i
+    either (`maybeM` checkExpr) checkDecl i
     maybeM c checkExpr
     maybeM n checkExpr
     checkStmt b

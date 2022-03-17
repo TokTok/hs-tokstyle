@@ -22,7 +22,7 @@ exemptions =
 
 checkSize :: Text -> Text -> FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkSize fname instead file size = case unFix size of
-    SizeofType ty@(Fix (TyUserDefined (L _ _ name))) | not $ name `elem` exemptions ->
+    SizeofType ty@(Fix (TyUserDefined (L _ _ name))) | name `notElem` exemptions ->
         warn file size $
             "`" <> fname <> "` should not be used for structs like `"
             <> showNode ty <> "`; use " <> instead <> " instead"
@@ -34,9 +34,9 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionCall (Fix (VarExpr (L _ _ "memset"))) [_, _, size] -> do
+            FunctionCall (Fix (VarExpr (L _ _ "memset"))) [_, _, size] ->
                 checkSize "memset" "`(Type) {0}`" file size
-            FunctionCall (Fix (VarExpr (L _ _ "memcpy"))) [_, _, size] -> do
+            FunctionCall (Fix (VarExpr (L _ _ "memcpy"))) [_, _, size] ->
                 checkSize "memcpy" "assignment" file size
 
             _ -> act

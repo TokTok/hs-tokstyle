@@ -40,7 +40,7 @@ linter = astActions
                 Linter{decls} <- State.get
                 case lookup (lexemeText name) decls of
                     Nothing -> return ()
-                    Just (decl, declScope) -> do
+                    Just (decl, declScope) ->
                         when (declScope /= defnScope) $ warn file name $
                             warning decl declScope defnScope
 

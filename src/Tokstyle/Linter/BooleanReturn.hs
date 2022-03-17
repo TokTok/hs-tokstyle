@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
@@ -56,7 +55,7 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionDefn _ (Fix (FunctionPrototype _ name _)) _ | isEligible name -> do
+            FunctionDefn _ (Fix (FunctionPrototype _ name _)) _ | isEligible name ->
                 case returnedConstValues node of
                   [v1, v2] -> warn file name $
                       "function `" <> lexemeText name <> "` only ever returns two values `"

@@ -17,7 +17,7 @@ import           Tokstyle.Linter             (allWarnings, analyse,
 
 
 processAst :: [Text] -> [(FilePath, [Node (Lexeme Text)])] -> IO ()
-processAst ignore tus = report $ concat $ (analyseGlobal ignore) tus : parMap rpar (analyse ignore) tus
+processAst ignore tus = report $ concat $ analyseGlobal ignore tus : parMap rpar (analyse ignore) tus
   where
     report = \case
         [] -> return ()

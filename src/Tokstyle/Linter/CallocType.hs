@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.CallocType (analyse) where
@@ -28,20 +29,22 @@ checkTypes file castTy sizeofTy = case unFix castTy of
         <> "` but allocated type is `" <> showNode sizeofTy <> "`"
 
 
+pattern Calloc :: [Node (Lexeme Text)] -> Node (Lexeme Text)
+pattern Calloc args <- Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) args)
+
 linter :: AstActions (State [Text]) Text
 linter = astActions
-    { doNode = \file node act ->
-        case unFix node of
-            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (BinaryExpr (Fix (SizeofType sizeofTy)) BopPlus _)])) -> do
-                checkTypes file castTy sizeofTy
+    { doNode = \file node act -> case node of
+        Fix (CastExpr castTy (Calloc [_, Fix (BinaryExpr (Fix (SizeofType sizeofTy)) BopPlus _)])) ->
+            checkTypes file castTy sizeofTy
 
-            CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) [_, Fix (SizeofType sizeofTy)])) -> do
-                checkTypes file castTy sizeofTy
+        Fix (CastExpr castTy (Calloc [_, Fix (SizeofType sizeofTy)])) ->
+            checkTypes file castTy sizeofTy
 
-            FunctionCall (Fix (VarExpr (L _ _ "calloc"))) _ -> do
-                warn file node "the result of `calloc` must be cast to its member type"
+        Calloc _ ->
+            warn file node "the result of `calloc` must be cast to its member type"
 
-            _ -> act
+        _ -> act
     }
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]

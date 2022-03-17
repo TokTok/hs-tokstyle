@@ -18,13 +18,13 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            Typedef (Fix (TyStruct sname)) tname | lexemeText sname /= lexemeText tname -> do
+            Typedef (Fix (TyStruct sname)) tname | lexemeText sname /= lexemeText tname ->
                 warn file sname $ warning "struct" tname sname
-            Typedef (Fix (Struct sname _)) tname | lexemeText sname /= lexemeText tname -> do
+            Typedef (Fix (Struct sname _)) tname | lexemeText sname /= lexemeText tname ->
                 warn file sname $ warning "struct" tname sname
-            Typedef (Fix (Union uname _)) tname | lexemeText uname /= lexemeText tname -> do
+            Typedef (Fix (Union uname _)) tname | lexemeText uname /= lexemeText tname ->
                 warn file uname $ warning "union" tname uname
-            EnumDecl ename _ tname | lexemeText ename /= lexemeText tname -> do
+            EnumDecl ename _ tname | lexemeText ename /= lexemeText tname ->
                 warn file ename $ warning "union" tname ename
 
             FunctionDefn{} -> return ()

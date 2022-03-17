@@ -24,9 +24,8 @@ linter = astActions
             Struct{} -> return ()
             VarDeclStmt{} -> return ()
 
-            VarDecl (Fix (TyPointer (Fix (TyUserDefined (L _ _ "Logger"))))) name _ -> do
-                warn file name $ "Logger parameter should be pointer-to-const"
-                act
+            VarDecl (Fix (TyPointer (Fix (TyUserDefined (L _ _ "Logger"))))) name _ ->
+                warn file name "Logger parameter should be pointer-to-const"
 
             _ -> act
     }

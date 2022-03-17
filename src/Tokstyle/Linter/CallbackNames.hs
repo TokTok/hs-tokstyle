@@ -29,12 +29,12 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            VarDecl (Fix (TyPointer (Fix TyFunc{}))) (L _ _ varName) _ -> do
-                unless (isValid varName) $ do
+            VarDecl (Fix (TyPointer (Fix TyFunc{}))) (L _ _ varName) _ ->
+                unless (isValid varName) $
                     warn file node $ "function pointer `" <> varName <> "` should end in `callback`"
 
-            VarDecl (Fix TyFunc{}) (L _ _ varName) _ -> do
-                unless (isValid varName) $ do
+            VarDecl (Fix TyFunc{}) (L _ _ varName) _ ->
+                unless (isValid varName) $
                     warn file node $ "function pointer parameter `" <> varName <> "` should end in `callback`"
 
             _ -> act

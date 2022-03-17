@@ -44,11 +44,11 @@ type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
 run :: [(Text, t -> [Text])] -> [Text] -> t -> [Text]
 run linters flags tu =
-    concatMap (apply tu) $ filter ((`elem` flags) . fst) linters
+    concatMap apply $ filter ((`elem` flags) . fst) linters
   where
-    apply tus = (\(flag, f) -> map (<> " [-W" <> flag <> "]") $ f tus)
+    apply (flag, f) = map (<> " [-W" <> flag <> "]") $ f tu
 
-localLinters :: [(Text, (FilePath, [Node (Lexeme Text)]) -> [Text])]
+localLinters :: [(Text, TranslationUnit -> [Text])]
 localLinters =
     [ ("assert"             , Assert.analyse           )
     , ("booleans"           , Booleans.analyse         )
@@ -76,7 +76,7 @@ localLinters =
     , ("var-unused-in-scope", VarUnusedInScope.analyse )
     ]
 
-globalLinters :: [(Text, [(FilePath, [Node (Lexeme Text)])] -> [Text])]
+globalLinters :: [(Text, [TranslationUnit] -> [Text])]
 globalLinters =
     [ ("callgraph"          , Callgraph.analyse        )
     , ("declared-once"      , DeclaredOnce.analyse     )

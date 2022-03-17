@@ -6,7 +6,6 @@
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE StrictData        #-}
 {-# LANGUAGE TupleSections     #-}
-{-# OPTIONS_GHC -Wwarn #-}
 module Tokstyle.Linter.TypeCheck where
 
 import           Control.Monad                (foldM, void, zipWithM)
@@ -31,6 +30,7 @@ import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
                                                vcat, (<+>))
 
 
+{-# ANN module ("HLint: ignore Use camelCase"::String) #-}
 data Type
     -- C types
     = T_Var {-# UNPACK #-} Int
@@ -253,12 +253,12 @@ unify = go False -- trace ("unify: " <> show (l, r)) $
 inferBinaryExpr :: BinaryOp -> Type -> Type -> State Env Type
 inferBinaryExpr BopAnd l r    = foldM unify T_Bool [l, r]
 inferBinaryExpr BopOr l r     = foldM unify T_Bool [l, r]
-inferBinaryExpr BopLe l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopLt l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopGe l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopGt l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopEq l r     = const T_Bool <$> unify l r
-inferBinaryExpr BopNe l r     = const T_Bool <$> unify l r
+inferBinaryExpr BopLe l r     = T_Bool <$ unify l r
+inferBinaryExpr BopLt l r     = T_Bool <$ unify l r
+inferBinaryExpr BopGe l r     = T_Bool <$ unify l r
+inferBinaryExpr BopGt l r     = T_Bool <$ unify l r
+inferBinaryExpr BopEq l r     = T_Bool <$ unify l r
+inferBinaryExpr BopNe l r     = T_Bool <$ unify l r
 inferBinaryExpr BopMul l r    = unify l r
 inferBinaryExpr BopMod l r    = unify l r
 inferBinaryExpr BopDiv l r    = unify l r
@@ -327,14 +327,14 @@ inferTypes = \case
     LiteralExpr ConstId (L _ _ name) -> getName name
     CastExpr ty _ -> return ty
     CompoundLiteral ty _ -> return ty
-    DoWhileStmt body c -> const body <$> unify c T_Bool
-    WhileStmt c body -> const body <$> unify c T_Bool
-    ForStmt _ c _ body -> const body <$> unify c T_Bool
+    DoWhileStmt body c -> body <$ unify c T_Bool
+    WhileStmt c body -> body <$ unify c T_Bool
+    ForStmt _ c _ body -> body <$ unify c T_Bool
     SwitchStmt _ body -> foldM unify T_Void body
     IfStmt c t (Just e) -> do
         void $ unify c T_Bool
         unify t e
-    IfStmt c t Nothing -> const t <$> unify c T_Bool
+    IfStmt c t Nothing -> t <$ unify c T_Bool
     CompoundStmt body -> foldM unify T_Void body
     Return (Just ty) -> return ty
     Return Nothing -> return T_Void

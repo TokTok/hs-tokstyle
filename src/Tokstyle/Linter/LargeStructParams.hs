@@ -48,7 +48,7 @@ linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionPrototype _ _ params -> do
+            FunctionPrototype _ _ params ->
                 mapM_ (checkParam file) params
 
             _ -> act

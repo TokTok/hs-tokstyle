@@ -27,6 +27,8 @@ haskell_library(
         hazel_library("edit-distance"),
         hazel_library("filepath"),
         hazel_library("groom"),
+        hazel_library("microlens"),
+        hazel_library("microlens-th"),
         hazel_library("mtl"),
         hazel_library("text"),
     ],
