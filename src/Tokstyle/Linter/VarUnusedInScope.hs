@@ -162,34 +162,34 @@ combineAnd (Var op1 decl1 use1) (Var op2 decl2 use2) =
     combineOp (Operation act1 flg1) (Operation act2 flg2) =
         Operation (combineAction act1 act2) (flg1 `andFlags` flg2)
 
-    combineAction Reduce Reduce = Reduce
-    combineAction Reduce NoReduce = Reduce
-    combineAction NoReduce NoReduce = NoReduce
+    combineAction Reduce Reduce       = Reduce
+    combineAction Reduce NoReduce     = Reduce
+    combineAction NoReduce NoReduce   = NoReduce
 
     -- We can reduce the scope of first one, and then we can copy the declaration for the second
     -- one. Example: `int i; for (i = 0; ...){} for (i = 0; ...){}`.
-    combineAction Reduce Write = Reduce
-    combineAction Reduce ReadWrite = Reduce
+    combineAction Reduce Write        = Reduce
+    combineAction Reduce ReadWrite    = Reduce
 
     -- We thought we can reduce the scope, but then the result is actually read in the current
     -- scope, so we flip the decision to 'NoReduce'.
-    combineAction Reduce Read = NoReduce
+    combineAction Reduce Read         = NoReduce
 
     -- Write, then read => keep the (possibly conditional) write.
-    combineAction Write Read = Write
-    combineAction Write Write = Write
-    combineAction Write ReadWrite = Write
+    combineAction Write Read          = Write
+    combineAction Write Write         = Write
+    combineAction Write ReadWrite     = Write
 
     -- Two reads combine into a read.
-    combineAction Read Read = Read
+    combineAction Read Read           = Read
 
     -- Read or read/write then write: record as read/write.
-    combineAction Read Write = ReadWrite
-    combineAction ReadWrite Write = ReadWrite
-    combineAction ReadWrite Read = ReadWrite
-    combineAction Read ReadWrite = ReadWrite
+    combineAction Read Write          = ReadWrite
+    combineAction ReadWrite Write     = ReadWrite
+    combineAction ReadWrite Read      = ReadWrite
+    combineAction Read ReadWrite      = ReadWrite
     combineAction ReadWrite ReadWrite = ReadWrite
-    combineAction _ _ = error (groom (op1, op2))
+    combineAction _ _                 = error (groom (op1, op2))
 
 -- | Combine 2 elements of a choice of operations.
 --
