@@ -120,7 +120,7 @@ combineAnd (Var (Operation NoReduce flg) _ _) v2 | flg^.flgNested > 0 = v2
 combineAnd v1 (Var (Operation NoReduce flg) _ _) | flg^.flgNested > 0 = v1
 -- All other situations are handled by the combineOp function below.
 combineAnd (Var op1 decl1 use1) (Var op2 decl2 use2) =
---  trace (groom ((Var op1 decl1 use1), "AND", (Var op2 decl2 use2), "EQUALS", result) <> "\n") $
+--  trace (groom (Var op1 decl1 use1, "AND", Var op2 decl2 use2, "EQUALS", result) <> "\n") $
     result
   where
     result = Var (combineOp op1 op2) (decl1 <|> decl2) (use1 <|> use2)
@@ -199,7 +199,7 @@ combineOr v1@(Var (Operation NoReduce _) _ _) (Var (Operation NoReduce _) _ _) =
 combineOr v1@(Var (Operation Declare _) _ _) (Var (Operation Declare _) _ _) = v1
 
 combineOr (Var (Operation act1 flg1) decl1 use1) (Var (Operation act2 flg2) decl2 use2) =
---  trace (groom ((Var op1 decl1 use1), "OR", (Var op2 decl2 use2), "EQUALS", result) <> "\n") $
+--  trace (groom ((Var (Operation act1 flg1) decl1 use1), "OR", (Var (Operation act2 flg2) decl2 use2), "EQUALS", result) <> "\n") $
     result
   where
     result = Var combinedOp (select decl1 decl2) (select use1 use2)
@@ -223,9 +223,11 @@ varScopes = \case
     IfStmt c t Nothing       -> Map.unionWith combineAnd c $ markConditional t
     IfStmt c t (Just e)      -> Map.unionWith combineAnd c $ Map.unionWith combineOr (markConditional t) (markConditional e)
 
-    VarDeclStmt var iexpr    -> maybe var (\e -> Map.unionWith combineAnd (if Map.null e then var else Map.map (set (varOp.opFlags.flgNonConst) True) var) e) iexpr
+    -- Only non-array variables are recorded. Arrays are tricky because of implicit pointer
+    -- conversion and the way we use them. See the "ignores array-typed variables" test cases for
+    -- examples that are non-trivial to statically analyse with the method we're using here.
     VarDecl t var []         -> Map.insert (lexemeText var) (Var (op Declare) (Just var) Nothing) t
---  VarDecl t var a          -> Map.insert (lexemeText var) (Var Declare (Just var) Nothing) (Map.unionsWith combine (t : a))
+    VarDeclStmt var iexpr    -> maybe var (\e -> Map.unionWith combineAnd (propagateNonConst e var) e) iexpr
 
     VarExpr var              -> Map.singleton (lexemeText var) (Var (op Read) Nothing (Just var))
     AssignExpr lhs AopEq rhs -> Map.unionWith combineAnd (Map.map (readTo Write) lhs) rhs
@@ -257,6 +259,7 @@ varScopes = \case
 
     node                     -> Map.unionsWith combineAnd node
   where
+    propagateNonConst e = if Map.null e then id else Map.map (set (varOp.opFlags.flgNonConst) True)
     indirect = Map.map (set (varOp.opFlags.flgIndirect) True)
     nested n = Map.map (over (varOp.opFlags.flgNested) (+n))
     inLoop = Map.map (set (varOp.opFlags.flgLoop) True)

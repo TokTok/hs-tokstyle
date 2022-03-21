@@ -30,6 +30,7 @@ haskell_library(
         hazel_library("microlens"),
         hazel_library("microlens-th"),
         hazel_library("mtl"),
+        hazel_library("parallel"),
         hazel_library("text"),
     ],
 )

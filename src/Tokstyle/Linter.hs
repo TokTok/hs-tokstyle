@@ -5,6 +5,7 @@ module Tokstyle.Linter
     , allWarnings
     ) where
 
+import           Control.Parallel.Strategies       (parMap, rpar)
 import           Data.Text                         (Text)
 import           Language.Cimple                   (Lexeme, Node)
 
@@ -44,7 +45,7 @@ type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
 run :: [(Text, t -> [Text])] -> [Text] -> t -> [Text]
 run linters flags tu =
-    concatMap apply $ filter ((`elem` flags) . fst) linters
+    concat . parMap rpar apply . filter ((`elem` flags) . fst) $ linters
   where
     apply (flag, f) = map (<> " [-W" <> flag <> "]") $ f tu
 

@@ -45,9 +45,9 @@ parseArgs = first (processFlags . map (drop 2)) . partition ("-W" `isPrefixOf`)
 
 defaultFlags :: [String]
 defaultFlags =
-  [ "-Wno-callback-names"
-  , "-Wno-enum-names"
-  ]
+    [ "-Wno-callback-names"
+    , "-Wno-enum-names"
+    ]
 
 
 main :: IO ()

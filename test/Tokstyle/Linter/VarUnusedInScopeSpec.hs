@@ -24,6 +24,47 @@ spec = do
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
             ]
 
+    it "ignores variables that escape the inner scope through pointers" $ do
+        ast <- mustParse
+            [ "int a(void) {"
+            , "  int foo;"
+            , "  int *foo_ptr;"
+            , "  if (true) {"
+            , "    foo_ptr = &foo;"
+            , "  }"
+            , "  print_int(*foo_ptr);"
+            , "}"
+            ]
+        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+
+    it "ignores array-typed variables that escape the inner scope through assignment" $ do
+        ast <- mustParse
+            [ "int a(char *p) {"
+            , "  char foo[3] = {0};"
+            , "  if (p == nullptr) {"
+            , "    p = foo;"
+                    -- ^^^ We don't know that `foo` here is actually `&foo[0]`.
+            , "  }"
+            , "  print(p);"
+            , "}"
+            ]
+        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+
+    it "ignores array-typed variables assigned in a loop" $ do
+        ast <- mustParse
+            [ "int a(void) {"
+            , "  int foo[2] = {0, 0};"
+            , "  for (int i = 0; i < 10; ++i) {"
+            , "    if (foo[0] == foo[1]) {"
+            , "      print_int(foo[0]);"
+            , "    }"
+            , "    foo[0] = i % 2;"
+            , "    foo[1] = i % 3;"
+            , "  }"
+            , "}"
+            ]
+        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+
     it "keeps conditional variable initialisation out of the `if` statement if it's used after" $ do
         ast <- mustParse
             [ "int a(void) {"
