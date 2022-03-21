@@ -83,6 +83,7 @@ executable check-cimple
     , cimple
     , parallel
     , text
+    , time
     , tokstyle
 
 executable check-c

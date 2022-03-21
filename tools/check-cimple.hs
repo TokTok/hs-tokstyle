@@ -8,16 +8,22 @@ import           Data.List                   (isPrefixOf, partition)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import qualified Data.Text.IO                as Text
+import           Data.Time.Clock             (UTCTime, diffUTCTime,
+                                              getCurrentTime)
 import           Language.Cimple             (Lexeme, Node)
 import           Language.Cimple.IO          (parseFiles)
 import           System.Environment          (getArgs)
+import           System.IO                   (hPutStrLn, stderr)
 
 import           Tokstyle.Linter             (allWarnings, analyse,
                                               analyseGlobal)
 
 
-processAst :: [Text] -> [(FilePath, [Node (Lexeme Text)])] -> IO ()
-processAst ignore tus = report $ concat $ analyseGlobal ignore tus : parMap rpar (analyse ignore) tus
+processAst :: [Text] -> (UTCTime, [(FilePath, [Node (Lexeme Text)])]) -> IO ()
+processAst ignore (start, tus) = do
+    report $ concat $ analyseGlobal ignore tus : parMap rpar (analyse ignore) tus
+    end <- getCurrentTime
+    hPutStrLn stderr $ "Linting: " <> show (diffUTCTime end start)
   where
     report = \case
         [] -> return ()
@@ -47,7 +53,13 @@ defaultFlags =
 main :: IO ()
 main = do
     (flags, files) <- parseArgs . (defaultFlags ++) <$> getArgs
-    parseFiles files >>= getRight >>= processAst flags
-  where
-    getRight (Left err) = putStrLn err >> fail "aborting after parse error"
-    getRight (Right ok) = return ok
+    start <- getCurrentTime
+    hPutStrLn stderr $ "Parsing " <> show (length files) <> " files..."
+    parseFiles files >>= getRight start >>= processAst flags
+
+getRight :: UTCTime -> Either String a -> IO (UTCTime, a)
+getRight _ (Left err) = putStrLn err >> fail "aborting after parse error"
+getRight start (Right ok) = do
+    end <- getCurrentTime
+    hPutStrLn stderr $ "Parsing: " <> show (diffUTCTime end start)
+    return (end, ok)

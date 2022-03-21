@@ -17,6 +17,7 @@ haskell_binary(
         hazel_library("base"),
         hazel_library("parallel"),
         hazel_library("text"),
+        hazel_library("time"),
     ],
 )
 
