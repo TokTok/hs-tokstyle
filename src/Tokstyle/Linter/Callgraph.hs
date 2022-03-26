@@ -211,7 +211,9 @@ checkUnused cg =
     isExemptFile _            = False
 
     isExempt name = or
-        [ "crypto_auth" `Text.isPrefixOf` name
+        [ "bin_pack_" `Text.isPrefixOf` name
+        , "bin_unpack_" `Text.isPrefixOf` name
+        , "crypto_auth" `Text.isPrefixOf` name
         , "crypto_sign_" `Text.isPrefixOf` name
         , "msgpack_" `Text.isPrefixOf` name
         , "TOX_" `Text.isPrefixOf` name
