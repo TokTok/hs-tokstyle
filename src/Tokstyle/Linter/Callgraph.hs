@@ -369,6 +369,8 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "va_start"
         , "vsnprintf"
 
+        , "ERROR_BUFFER_OVERFLOW"
+        , "NO_ERROR"
         , "WSAAddressToString"
         , "WSACleanup"
         , "WSAECONNRESET"
@@ -456,13 +458,12 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "__VA_ARGS__"
         , "__func__"
 
-        , "ERROR_BUFFER_OVERFLOW"
+
         , "MSGPACK_OBJECT_ARRAY"
         , "MSGPACK_OBJECT_BIN"
         , "MSGPACK_OBJECT_BOOLEAN"
         , "MSGPACK_OBJECT_POSITIVE_INTEGER"
         , "MSGPACK_UNPACK_SUCCESS"
-        , "NO_ERROR"
         , "msgpack_object"
         , "msgpack_object_equal"
         , "msgpack_object_print"
@@ -486,6 +487,19 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "msgpack_unpacked_init"
         , "msgpack_unpack_next"
         , "msgpack_unpack_return"
+
+        , "cmp_init"
+        , "cmp_read_array"
+        , "cmp_read_bin_size"
+        , "cmp_read_bool"
+        , "cmp_read_uchar"
+        , "cmp_read_uint"
+        , "cmp_read_ulong"
+        , "cmp_read_ushort"
+        , "cmp_write_array"
+        , "cmp_write_bin"
+        , "cmp_write_bool"
+        , "cmp_write_uinteger"
 
         , "FORMAT_MESSAGE_ALLOCATE_BUFFER"
         , "FORMAT_MESSAGE_FROM_SYSTEM"
