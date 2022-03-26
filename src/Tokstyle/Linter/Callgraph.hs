@@ -46,7 +46,7 @@ data Name a = Name
 nameKindStr :: Name a -> Text
 nameKindStr = str . nameKind
   where
-    str NKVal = "function/constant"
+    str NKVal  = "function/constant"
     str NKType = "type name"
 
 instance Ord a => Ord (Name a) where
@@ -208,7 +208,7 @@ checkUnused cg =
         $ graph
 
     isExemptFile "<builtins>" = True
-    isExemptFile _ = False
+    isExemptFile _            = False
 
     isExempt name = or
         [ "crypto_auth" `Text.isPrefixOf` name
