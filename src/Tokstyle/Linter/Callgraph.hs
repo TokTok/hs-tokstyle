@@ -500,6 +500,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "cmp_read_ushort"
         , "cmp_write_array"
         , "cmp_write_bin"
+        , "cmp_write_bin_marker"
         , "cmp_write_bool"
         , "cmp_write_uinteger"
 
