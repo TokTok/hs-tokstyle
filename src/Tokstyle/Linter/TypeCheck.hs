@@ -188,7 +188,7 @@ unifyRecursive stack ty1 ty2 = do
     res <- go False ty1 ty2
     case res of -- trace ("unify: " <> show (l, r)) $
       T_Bot -> typeError $ (ty1, ty2):stack
-      ok -> return ok
+      ok    -> return ok
   where
     -- Equal types unify trivially.
     go _ a b | a == b = return a
