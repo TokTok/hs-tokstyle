@@ -536,6 +536,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "tox_options_get_local_discovery_enabled"
         , "tox_options_get_log_callback"
         , "tox_options_get_log_user_data"
+        , "tox_options_get_operating_system"
         , "tox_options_get_proxy_host"
         , "tox_options_get_proxy_port"
         , "tox_options_get_proxy_type"
@@ -548,6 +549,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "tox_options_set_hole_punching_enabled"
         , "tox_options_set_ipv6_enabled"
         , "tox_options_set_local_discovery_enabled"
+        , "tox_options_set_operating_system"
         , "tox_options_set_proxy_type"
         , "tox_options_set_udp_enabled"
 
