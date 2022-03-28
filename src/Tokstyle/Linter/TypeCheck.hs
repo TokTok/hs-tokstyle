@@ -18,7 +18,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
-import           Debug.Trace                  (trace)
+--import           Debug.Trace                  (trace)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -111,10 +111,10 @@ instance Pretty Env where
             mapM (\(n, ty) -> (n,) <$> unify ty ty) tys
 
 
-typeError :: (HasCallStack, Show a) => a -> State Env b
+typeError :: (HasCallStack, Show a) => [a] -> State Env b
 typeError x = do
     env <- State.get
-    error (show $ vcat [text (show x), pretty env])
+    error $ show $ vcat $ map (text . show) x ++ [pretty env]
 
 empty :: Env
 empty = Env{..}
@@ -163,7 +163,7 @@ dropLocals = State.modify $ \env@Env{envLocals, envTypes} ->
 
 addName :: HasCallStack => Text -> Type -> State Env Type
 addName n ty = do
-    -- trace ("a: " <> show n) $ return ()
+    -- trace ("a: " <> show n <> " = " <> show ty) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Nothing ->do
@@ -171,7 +171,7 @@ addName n ty = do
           return ty
       Just ty' -> unify ty ty'
 
-getName :: Text -> State Env Type
+getName :: HasCallStack => Text -> State Env Type
 getName n = do
     -- trace ("g " <> show n) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
@@ -183,21 +183,25 @@ resolve :: Int -> State Env (Maybe Type)
 resolve v = IntMap.lookup v . envVars <$> State.get
 
 
-unify :: HasCallStack => Type -> Type -> State Env Type
-unify = go False -- trace ("unify: " <> show (l, r)) $
+unifyRecursive :: HasCallStack => [(Type, Type)] -> Type -> Type -> State Env Type
+unifyRecursive stack ty1 ty2 = do
+    res <- go False ty1 ty2
+    case res of -- trace ("unify: " <> show (l, r)) $
+      T_Bot -> typeError $ (ty1, ty2):stack
+      ok    -> return ok
   where
     -- Equal types unify trivially.
     go _ a b | a == b = return a
 
-    go _ (T_Struct a     ) (T_Struct b     ) = T_Struct   <$> unionWithM unify a b
-    go _ (T_InitList la  ) (T_InitList lb  ) = T_InitList <$> zipWithM unify la lb
-    go _ (T_Func ra argsa) (T_Func rb argsb) = T_Func     <$> unify ra rb <*> zipWithM unify argsa argsb
-    go _ (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> unify la ra <*> unify lb rb
-    go _ (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> unify la ra <*> unify lb rb
+    go _ (T_Struct a     ) (T_Struct b     ) = T_Struct   <$> unionWithM recurse a b
+    go _ (T_InitList la  ) (T_InitList lb  ) = T_InitList <$> zipWithM recurse la lb
+    go _ (T_Func ra argsa) (T_Func rb argsb) = T_Func     <$> recurse ra rb <*> zipWithM recurse argsa argsb
+    go _ (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> recurse la ra <*> recurse lb rb
+    go _ (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> recurse la ra <*> recurse lb rb
 
-    go _ (T_Intersect a1 a2) b = foldM unify b [a1, a2]
+    go _ (T_Intersect a1 a2) b = foldM recurse b [a1, a2]
 
-    go _ (T_Name name) b = unify b =<< getName name
+    go _ (T_Name name) b = recurse b =<< getName name
 
     go _ (T_Var a) b = do
         res <- resolve a
@@ -208,30 +212,32 @@ unify = go False -- trace ("unify: " <> show (l, r)) $
           Just resolved@T_Var{} ->
               return resolved
           Just resolved ->
-              unify b resolved
+              recurse b resolved
 
     go _ (T_Add l r) b@T_Ptr{} = do
-        void $ unify r T_Int
-        unify l b
+        void $ recurse r T_Int
+        recurse l b
     go _ (T_Add l r) b@T_Arr{} = do
-        void $ unify r T_Int
-        unify l b
+        void $ recurse r T_Int
+        recurse l b
 
-    go _ (T_Add l r) T_Int = unify l T_Int >>= unify r
+    go _ (T_Add l r) T_Int = recurse l T_Int >>= recurse r
     go _ a@T_Add{} b@T_Sub{} = return $ T_Intersect a b
 
-    go _ (T_Sub l r) T_Int = unify l T_Int >>= unify r
+    go _ (T_Sub (T_Ptr l) (T_Ptr r)) b = recurse l r >> recurse b T_Int
+    go _ (T_Sub (T_Ptr l) (T_Arr r)) b = recurse l r >> recurse b T_Int
+    go _ (T_Sub l r) T_Int = recurse l T_Int >>= recurse r
 
     -- Dereference function pointers for unification.
-    go _ a@T_Func{} (T_Ptr b) = unify a b
+    go _ a@T_Func{} (T_Ptr b) = recurse a b
 
     -- Array and pointer types can unify and turn into pointer.
-    go _ (T_Arr a) (T_Ptr b) = T_Ptr <$> unify a b
+    go _ (T_Arr a) (T_Ptr b) = T_Ptr <$> recurse a b
 
     go _ a@T_Struct{} T_InitList{} = return a
 
     -- Arrays unify with all elements in their initialiser list.
-    go _ (T_Arr a) (T_InitList b) = foldM unify a b
+    go _ (T_Arr a) (T_InitList b) = foldM recurse a b
 
     -- `void *` unifies with any pointer type.
     go _ (T_Ptr T_Void) b@T_Ptr{} = return b
@@ -247,7 +253,13 @@ unify = go False -- trace ("unify: " <> show (l, r)) $
     go _ T_Bot _ = return T_Bot
 
     go False a b = go True b a
-    go True a b = typeError (a, b)
+    go True a b = typeError [(a, b)]
+
+    recurse = unifyRecursive ((ty1, ty2):stack)
+
+
+unify :: HasCallStack => Type -> Type -> State Env Type
+unify = unifyRecursive []
 
 
 inferBinaryExpr :: BinaryOp -> Type -> Type -> State Env Type
@@ -298,7 +310,7 @@ inferTypes = \case
     TyFunc (L _ _ name) -> return $ T_Name name
     TyStd (L _ _ name) ->
         case Map.lookup name stdTypes of
-          Nothing -> return $ T_Name name -- typeError name
+          Nothing -> return $ T_Name name -- typeError [name]
           Just ty -> return ty
     TyUserDefined (L _ _ name) -> return $ T_Name name
     TyPointer ty -> return $ T_Ptr ty
@@ -348,15 +360,19 @@ inferTypes = \case
         void $ unify T_Bool c
         unify t e
 
-    f@(FunctionPrototype retTy (L _ _ name) args) -> do
-        trace ("f " <> show f) $ return ()
+    FunctionPrototype retTy (L _ _ name) args -> do
+        -- trace ("f " <> show f) $ return ()
         addName name $ T_Func retTy args
     FunctionCall callee args -> do
         retTy <- newTyVar
+        -- trace ">>>>" $ return ()
+        -- trace (show (T_Func retTy args)) $ return ()
+        -- trace (show callee) $ return ()
+        -- trace "<<<<" $ return ()
         funTy <- unify (T_Func retTy args) callee
         case funTy of
           T_Func result _ -> return result
-          _               -> typeError funTy
+          _               -> typeError [funTy]
     FunctionDefn _ (T_Func r _) body -> do
         dropLocals
         -- trace (show r) $ return ()
@@ -373,7 +389,9 @@ inferTypes = \case
     Comment{} -> return T_Void
     CommentExpr _ e -> return e
 
-    PreprocDefineMacro{} -> return T_Void
+    PreprocDefineMacro (L _ _ name) _ _ -> do
+        addLocal name
+        return T_Void
     PreprocUndef{} -> return T_Void
     PreprocScopedDefine _ body _ -> foldM unify T_Void body
     MacroParam{} -> return T_Void
@@ -403,7 +421,7 @@ inferTypes = \case
         void $ unify e (T_Ptr (T_Struct (Map.singleton mem ty)))
         return ty
 
-    x -> typeError x
+    x -> typeError [x]
 
 linter :: AstActions (State Env) Text
 linter = astActions
