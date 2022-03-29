@@ -13,11 +13,11 @@ typedef __uint64_t uint64_t;
 
 typedef unsigned int uint_fast16_t;
 
-#define UINT8_MAX 0xff
-#define INT8_MAX 0x7f
-#define UINT16_MAX 0xffff
-#define INT16_MAX 0x7fff
-#define UINT32_MAX 0xffffffff
-#define INT32_MAX 0x7fffffff
-#define UINT64_MAX 0xffffffffffffffffL
-#define INT64_MAX 0x7fffffffffffffffL
+extern const uint8_t UINT8_MAX;
+extern const int8_t INT8_MAX;
+extern const uint16_t UINT16_MAX;
+extern const int16_t INT16_MAX;
+extern const uint32_t UINT32_MAX;
+extern const int32_t INT32_MAX;
+extern const uint64_t UINT64_MAX;
+extern const int64_t INT64_MAX;

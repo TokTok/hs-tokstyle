@@ -78,6 +78,13 @@ checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
       ("vpx_codec_er_flags_t", "int") -> return ()
       ("bool", "int") | relaxed r     -> return ()
       ("void *", _)                   -> return ()
+
+      -- int literals.
+      ("uint32_t","int")              -> return ()
+      ("int64_t","int")               -> return ()
+      ("uint64_t","int")              -> return ()
+
+      ("int64_t","uint32_t")          -> return ()
       ("uint64_t","enum RTPFlags")    -> return ()
 
       -- TODO(iphydf): Look into these.
@@ -87,8 +94,6 @@ checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
       ("uint16_t", _)                 -> return ()
       ("int32_t", _)                  -> return ()
       ("uint32_t", _)                 -> return ()
-      ("int64_t", _)                  -> return ()
-      ("uint64_t", _)                 -> return ()
       ("size_t", _)                   -> return ()
       ("unsigned int", _)             -> return ()
       ("int", _)                      -> return ()
@@ -402,7 +407,7 @@ defaultCppOpts sysInclude =
 
 processFile :: String -> CLanguage -> [String] -> FilePath -> IO (Bool, (String, [String]))
 processFile sysInclude lang cppOpts file = do
-    result <- parseCFile (newGCC "gcc") Nothing (defaultCppOpts sysInclude ++ cppOpts) file
+    result <- parseCFile (newGCC "clang") Nothing (defaultCppOpts sysInclude ++ cppOpts) file
     case result of
       Left err -> return (False, (file, ["Parse Error: " <> show err]))
       Right tu ->
