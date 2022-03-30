@@ -78,7 +78,7 @@ analyse =
     . Map.elems
     . flip State.execState empty
     . traverseAst collectPairs
-    . filter (not . (`elem` ["ccompat.h", "tox.h"]) . takeFileName . fst)
+    . filter (not . (`elem` ["tox.h", "tox_private.h"]) . takeFileName . fst)
   where
     lacksDefn DeclDefn{decl, defn = Nothing} = decl
     lacksDefn _                              = Nothing
