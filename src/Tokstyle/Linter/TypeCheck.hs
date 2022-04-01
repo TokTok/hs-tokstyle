@@ -193,15 +193,15 @@ unifyRecursive stack ty1 ty2 = do
     -- Equal types unify trivially.
     go _ a b | a == b = return a
 
-    go _ (T_Struct a     ) (T_Struct b     ) = T_Struct   <$> unionWithM recurse a b
-    go _ (T_InitList la  ) (T_InitList lb  ) = T_InitList <$> zipWithM recurse la lb
-    go _ (T_Func ra argsa) (T_Func rb argsb) = T_Func     <$> recurse ra rb <*> zipWithM recurse argsa argsb
-    go _ (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> recurse la ra <*> recurse lb rb
-    go _ (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> recurse la ra <*> recurse lb rb
+    go _ (T_Struct a     ) (T_Struct b     ) = T_Struct   <$> unionWithM unifyRec a b
+    go _ (T_InitList la  ) (T_InitList lb  ) = T_InitList <$> zipWithM unifyRec la lb
+    go _ (T_Func ra argsa) (T_Func rb argsb) = T_Func     <$> unifyRec ra rb <*> zipWithM unifyRec argsa argsb
+    go _ (T_Add la lb    ) (T_Add ra rb    ) = T_Add      <$> unifyRec la ra <*> unifyRec lb rb
+    go _ (T_Sub la lb    ) (T_Sub ra rb    ) = T_Sub      <$> unifyRec la ra <*> unifyRec lb rb
 
-    go _ (T_Intersect a1 a2) b = foldM recurse b [a1, a2]
+    go _ (T_Intersect a1 a2) b = foldM unifyRec b [a1, a2]
 
-    go _ (T_Name name) b = recurse b =<< getName name
+    go _ (T_Name name) b = unifyRec b =<< getName name
 
     go _ (T_Var a) b = do
         res <- resolve a
@@ -212,32 +212,32 @@ unifyRecursive stack ty1 ty2 = do
           Just resolved@T_Var{} ->
               return resolved
           Just resolved ->
-              recurse b resolved
+              unifyRec b resolved
 
     go _ (T_Add l r) b@T_Ptr{} = do
-        void $ recurse r T_Int
-        recurse l b
+        void $ unifyRec r T_Int
+        unifyRec l b
     go _ (T_Add l r) b@T_Arr{} = do
-        void $ recurse r T_Int
-        recurse l b
+        void $ unifyRec r T_Int
+        unifyRec l b
 
-    go _ (T_Add l r) T_Int = recurse l T_Int >>= recurse r
+    go _ (T_Add l r) T_Int = unifyRec l T_Int >>= unifyRec r
     go _ a@T_Add{} b@T_Sub{} = return $ T_Intersect a b
 
-    go _ (T_Sub (T_Ptr l) (T_Ptr r)) b = recurse l r >> recurse b T_Int
-    go _ (T_Sub (T_Ptr l) (T_Arr r)) b = recurse l r >> recurse b T_Int
-    go _ (T_Sub l r) T_Int = recurse l T_Int >>= recurse r
+    go _ (T_Sub (T_Ptr l) (T_Ptr r)) b = unifyRec l r >> unifyRec b T_Int
+    go _ (T_Sub (T_Ptr l) (T_Arr r)) b = unifyRec l r >> unifyRec b T_Int
+    go _ (T_Sub l r) T_Int = unifyRec l T_Int >>= unifyRec r
 
     -- Dereference function pointers for unification.
-    go _ a@T_Func{} (T_Ptr b) = recurse a b
+    go _ a@T_Func{} (T_Ptr b) = unifyRec a b
 
     -- Array and pointer types can unify and turn into pointer.
-    go _ (T_Arr a) (T_Ptr b) = T_Ptr <$> recurse a b
+    go _ (T_Arr a) (T_Ptr b) = T_Ptr <$> unifyRec a b
 
     go _ a@T_Struct{} T_InitList{} = return a
 
     -- Arrays unify with all elements in their initialiser list.
-    go _ (T_Arr a) (T_InitList b) = foldM recurse a b
+    go _ (T_Arr a) (T_InitList b) = foldM unifyRec a b
 
     -- `void *` unifies with any pointer type.
     go _ (T_Ptr T_Void) b@T_Ptr{} = return b
@@ -255,7 +255,7 @@ unifyRecursive stack ty1 ty2 = do
     go False a b = go True b a
     go True a b = typeError [(a, b)]
 
-    recurse = unifyRecursive ((ty1, ty2):stack)
+    unifyRec = unifyRecursive ((ty1, ty2):stack)
 
 
 unify :: HasCallStack => Type -> Type -> State Env Type
