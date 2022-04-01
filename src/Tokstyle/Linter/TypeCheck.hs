@@ -18,7 +18,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
---import           Debug.Trace                  (trace)
+-- import           Debug.Trace                  (trace)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -226,6 +226,7 @@ unifyRecursive stack ty1 ty2 = do
 
     go _ (T_Sub (T_Ptr l) (T_Ptr r)) b = unifyRec l r >> unifyRec b T_Int
     go _ (T_Sub (T_Ptr l) (T_Arr r)) b = unifyRec l r >> unifyRec b T_Int
+    go _ (T_Sub l T_Int) r@T_Ptr{} = unifyRec l r
     go _ (T_Sub l r) T_Int = unifyRec l T_Int >>= unifyRec r
 
     -- Dereference function pointers for unification.
