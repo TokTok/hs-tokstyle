@@ -399,6 +399,8 @@ defaultCppOpts :: String -> [String]
 defaultCppOpts sysInclude =
     [ "-nostdinc"
     , "-undef"
+    , "-DDISABLE_VLA=1"
+    , "-D__COMPCERT__=1"
     , "-D__LITTLE_ENDIAN=0x4321"
     , "-D__BYTE_ORDER=__LITTLE_ENDIAN"
     , "-I" <> sysInclude
