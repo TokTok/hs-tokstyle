@@ -214,7 +214,7 @@ checkCast _ _ e = error (show e)
 -- | This catches `sizeof(buf)` where `buf` is a pointer instead of an array.
 checkSizeof :: MonadTrav m => CExpr -> Type -> m ()
 checkSizeof _ (canonicalType -> TY_struct _) = return ()
-checkSizeof _ (canonicalType -> TY_struct_ptr _) = return ()
+checkSizeof _ (canonicalType -> TY_struct_ptr "IPPTsPng") = return ()
 checkSizeof _ ArrayType{} = return ()
 checkSizeof e ty
   | isIntegral ty = return ()
