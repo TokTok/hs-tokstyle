@@ -22,7 +22,7 @@ pattern EqualsConst lhs <- Fix (BinaryExpr (Fix (VarExpr lhs)) BopEq (Fix (Liter
 
 
 data IfInfo = IfInfo
-    { ifConds    :: Maybe [(Text, Lexeme Text)]
+    { ifConds    :: Maybe [Lexeme Text]
     , ifBranches :: [Node (Lexeme Text)]
     } deriving (Show)
 
@@ -32,9 +32,9 @@ instance Semigroup IfInfo where
 
 collectInfo :: Node (Lexeme Text) -> IfInfo
 collectInfo (Fix (IfStmt (EqualsConst lhs) t Nothing)) =
-    IfInfo (Just [(lexemeText lhs, lhs)]) [t]
+    IfInfo (Just [lhs]) [t]
 collectInfo (Fix (IfStmt (EqualsConst lhs) t (Just e))) =
-    IfInfo (Just [(lexemeText lhs, lhs)]) [t] <> collectInfo e
+    IfInfo (Just [lhs]) [t] <> collectInfo e
 collectInfo (Fix (IfStmt _ t Nothing)) =
     IfInfo Nothing [t]
 collectInfo (Fix (IfStmt _ t (Just e))) =
@@ -43,9 +43,13 @@ collectInfo e =
     IfInfo (Just []) [e]
 
 
-shouldDiagnose :: [(Text, Lexeme Text)] -> [Node (Lexeme Text)] -> Bool
+-- | Returns 'True' if there are at least 2 if conditions comparing a variable
+-- to a constant and all variable names are the same. Additionally checks
+-- whether all branches are single statements, in which case it returns
+-- 'False'.
+shouldDiagnose :: [Lexeme Text] -> [Node (Lexeme Text)] -> Bool
 shouldDiagnose cs branches =
-    length cs >= 2 && length (nub $ map fst cs) == 1 && not (all singleStatement branches)
+    length cs >= 2 && length (nub $ map lexemeText cs) == 1 && not (all singleStatement branches)
   where
     singleStatement (Fix (CompoundStmt [_])) = True
     singleStatement _                        = False
@@ -58,7 +62,7 @@ linter = astActions
             IfStmt{} -> do
                 let info = collectInfo node
                 case ifConds info of
-                  Just cs@((_, c):_) | shouldDiagnose cs (ifBranches info) ->
+                  Just cs@(c:_) | shouldDiagnose cs (ifBranches info) ->
                       warn file c "if-statement could be a switch"
                   _ -> return ()
                 traverseAst linter (file, ifBranches info)
