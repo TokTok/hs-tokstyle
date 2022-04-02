@@ -59,12 +59,22 @@ checkParams file (indices -> nonnull) (indices -> nullable) params = do
           p:_ -> "`" <> showNode p <> "`"
 
 
+isDestructor :: Lexeme Text -> Bool
+isDestructor name =
+    "_free" `Text.isSuffixOf` lexemeText name ||
+    "_kill" `Text.isSuffixOf` lexemeText name ||
+    "kill_" `Text.isPrefixOf` lexemeText name
+
+
 linter :: AstActions (State Linter) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
             FunctionDecl Static (Fix (FunctionPrototype _ name _)) ->
                 State.modify $ \l@Linter{statics} -> l{statics = (lexemeText name, name) : statics}
+
+            NonNull _ [] (Fix (FunctionDecl _ (Fix (FunctionPrototype _ name [_])))) | isDestructor name ->
+                warn file name $ "destructor function `" <> lexemeText name <> "` must accept nullable arguments"
 
             NonNull nonnull nullable (Fix (FunctionDefn Static (Fix (FunctionPrototype _ name params)) _)) -> do
                 checkParams file nonnull nullable params
