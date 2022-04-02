@@ -31,6 +31,7 @@ import qualified Tokstyle.Linter.MemcpyStructs     as MemcpyStructs
 import qualified Tokstyle.Linter.MissingNonNull    as MissingNonNull
 import qualified Tokstyle.Linter.NonNull           as NonNull
 import qualified Tokstyle.Linter.Parens            as Parens
+import qualified Tokstyle.Linter.SwitchIf          as SwitchIf
 import qualified Tokstyle.Linter.TypedefName       as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc        as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope  as VarUnusedInScope
@@ -72,6 +73,7 @@ localLinters =
     , ("missing-non-null"   , MissingNonNull.analyse   )
     , ("non-null"           , NonNull.analyse          )
     , ("parens"             , Parens.analyse           )
+    , ("switch-if"          , SwitchIf.analyse         )
     , ("typedef-name"       , TypedefName.analyse      )
     , ("unsafe-func"        , UnsafeFunc.analyse       )
     , ("var-unused-in-scope", VarUnusedInScope.analyse )

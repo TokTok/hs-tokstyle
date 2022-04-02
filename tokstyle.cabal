@@ -46,6 +46,7 @@ library
     , Tokstyle.Linter.MissingNonNull
     , Tokstyle.Linter.NonNull
     , Tokstyle.Linter.Parens
+    , Tokstyle.Linter.SwitchIf
     , Tokstyle.Linter.TypeCheck
     , Tokstyle.Linter.TypedefName
     , Tokstyle.Linter.UnsafeFunc
@@ -130,9 +131,11 @@ test-suite testsuite
       Tokstyle.LinterSpec
     , Tokstyle.Linter.BooleansSpec
     , Tokstyle.Linter.BooleanReturnSpec
+    , Tokstyle.Linter.CallgraphSpec
     , Tokstyle.Linter.CallocTypeSpec
     , Tokstyle.Linter.CompoundInitSpec
     , Tokstyle.Linter.ConstnessSpec
+    , Tokstyle.Linter.SwitchIfSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec
   ghc-options:
