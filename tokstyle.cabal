@@ -135,6 +135,7 @@ test-suite testsuite
     , Tokstyle.Linter.CallocTypeSpec
     , Tokstyle.Linter.CompoundInitSpec
     , Tokstyle.Linter.ConstnessSpec
+    , Tokstyle.Linter.ParensSpec
     , Tokstyle.Linter.SwitchIfSpec
     , Tokstyle.Linter.TypeCheckSpec
     , Tokstyle.Linter.VarUnusedInScopeSpec

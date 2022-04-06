@@ -6,6 +6,7 @@ module Tokstyle.Linter.Parens (analyse) where
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
+import           Data.Maybe                  (maybeToList)
 import           Data.Text                   (Text)
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
@@ -38,6 +39,9 @@ linter = astActions
             FunctionCall _ args -> do
                 mapM_ (checkArg file) args
                 act
+
+            IfStmt (Fix (ParenExpr c)) t e ->
+                traverseAst linter (file, [c, t] ++ maybeToList e)
 
             Return (Just (Fix ParenExpr{})) -> do
                 warn file node "return expression does not need parentheses"
