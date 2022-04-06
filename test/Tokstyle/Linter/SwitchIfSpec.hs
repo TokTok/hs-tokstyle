@@ -22,6 +22,22 @@ spec = do
             ]
         analyse ["switch-if"] ("test.c", ast) `shouldBe` []
 
+    it "accepts a if/else with only 2 comparisons" $ do
+        ast <- mustParse
+            [ "bool a(int b) {"
+            , "  if (b == THE_FOO) {"
+            , "    print_int(b);"
+            , "    return true;"
+            , "  } else if (b == THE_BAR) {"
+            , "    print_int(b);"
+            , "    return true;"
+            , "  } else {"
+            , "    return false;"
+            , "  }"
+            , "}"
+            ]
+        analyse ["switch-if"] ("test.c", ast) `shouldBe` []
+
     it "ignores candidates where all branches are single statements" $ do
         ast <- mustParse
             [ "int a(int b) {"
@@ -29,6 +45,8 @@ spec = do
             , "    return 0;"
             , "  } else if (b == THE_BAR) {"
             , "    return 1;"
+            , "  } else if (b == THE_BAZ) {"
+            , "    return 2;"
             , "  }"
             , "}"
             ]
@@ -42,6 +60,8 @@ spec = do
             , "    return 0;"
             , "  } else if (b == THE_BAR) {"
             , "    return 1;"
+            , "  } else if (b == THE_BAZ) {"
+            , "    return 2;"
             , "  }"
             , "}"
             ]
@@ -58,8 +78,10 @@ spec = do
             , "    return 0;"
             , "  } else if (b == THE_BAR) {"
             , "    return 1;"
-            , "  } else {"
+            , "  } else if (b == THE_BAZ) {"
             , "    return 2;"
+            , "  } else {"
+            , "    return 3;"
             , "  }"
             , "}"
             ]
@@ -77,8 +99,10 @@ spec = do
             , "      return 0;"
             , "    } else if (b == THE_BAR) {"
             , "      return 1;"
-            , "    } else {"
+            , "    } else if (b == THE_BAZ) {"
             , "      return 2;"
+            , "    } else {"
+            , "      return 3;"
             , "    }"
             , "  }"
             , "}"
@@ -99,8 +123,10 @@ spec = do
             , "      return 0;"
             , "    } else if (b == THE_BAR) {"
             , "      return 1;"
-            , "    } else {"
+            , "    } else if (b == THE_BAZ) {"
             , "      return 2;"
+            , "    } else {"
+            , "      return 3;"
             , "    }"
             , "  }"
             , "}"
@@ -118,6 +144,8 @@ spec = do
             , "    return 0;"
             , "  } else if (c == THE_BAR) {"
             , "    return 1;"
+            , "  } else if (c == THE_BAZ) {"
+            , "    return 2;"
             , "  } else {"
             , "    return 2;"
             , "  }"

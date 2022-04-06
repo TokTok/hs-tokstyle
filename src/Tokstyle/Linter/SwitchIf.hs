@@ -43,13 +43,13 @@ collectInfo e =
     IfInfo (Just []) [e]
 
 
--- | Returns 'True' if there are at least 2 if conditions comparing a variable
+-- | Returns 'True' if there are at least 3 if conditions comparing a variable
 -- to a constant and all variable names are the same. Additionally checks
 -- whether all branches are single statements, in which case it returns
 -- 'False'.
 shouldDiagnose :: [Lexeme Text] -> [Node (Lexeme Text)] -> Bool
 shouldDiagnose cs branches =
-    length cs >= 2 && length (nub $ map lexemeText cs) == 1 && not (all singleStatement branches)
+    length cs >= 3 && length (nub $ map lexemeText cs) == 1 && not (all singleStatement branches)
   where
     singleStatement (Fix (CompoundStmt [_])) = True
     singleStatement _                        = False
