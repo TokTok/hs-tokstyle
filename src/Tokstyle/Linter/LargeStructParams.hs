@@ -16,12 +16,13 @@ exemptions :: [Text]
 exemptions =
     [ "Family"
     , "IP4"
-    , "Logger_Level"
-    , "Onion_Connection_Status"
+    , "Logger_Level"  -- enum
+    , "Net_Packet_Type"  -- enum
+    , "Onion_Connection_Status"  -- enum
     , "Packet"
     , "Packet_Direction"  -- this is an enum
     , "Socket"
-    , "State_Type"
+    , "State_Type"  -- enum
     ]
 
 exemptionPrefixes :: [Text]
