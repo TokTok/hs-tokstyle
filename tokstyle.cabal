@@ -28,6 +28,7 @@ library
     , Tokstyle.Linter.Callgraph
     , Tokstyle.Linter.CallocArgs
     , Tokstyle.Linter.CallocType
+    , Tokstyle.Linter.Comments
     , Tokstyle.Linter.CompoundInit
     , Tokstyle.Linter.Constness
     , Tokstyle.Linter.DeclaredOnce
@@ -133,6 +134,7 @@ test-suite testsuite
     , Tokstyle.Linter.BooleanReturnSpec
     , Tokstyle.Linter.CallgraphSpec
     , Tokstyle.Linter.CallocTypeSpec
+    , Tokstyle.Linter.CommentsSpec
     , Tokstyle.Linter.CompoundInitSpec
     , Tokstyle.Linter.ConstnessSpec
     , Tokstyle.Linter.ParensSpec
