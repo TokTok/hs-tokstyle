@@ -9,10 +9,11 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (Lexeme (..), Node, CommentF (..), NodeF (..), lexemeText)
+import           Language.Cimple             (CommentF (..), Lexeme (..), Node,
+                                              NodeF (..), lexemeText)
 import           Language.Cimple.Diagnostics (Diagnostics, warn)
-import           Language.Cimple.TraverseAst (AstActions, astActions, doComment, doNode,
-                                              traverseAst)
+import           Language.Cimple.TraverseAst (AstActions, astActions, doComment,
+                                              doNode, traverseAst)
 
 
 isGendered :: Text -> Bool
@@ -36,12 +37,12 @@ linter = astActions
     { doComment = \file comment act ->
         case unFix comment of
             DocWord w -> checkCommentLexeme file w
-            _ -> act
+            _         -> act
     , doNode = \file node act ->
         case unFix node of
             Comment _ _ ws _ -> mapM_ (checkCommentLexeme file) ws
-            _ -> act
-            
+            _                -> act
+
     }
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
