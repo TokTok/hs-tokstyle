@@ -47,6 +47,7 @@ checkAssertArg file name expr =
     exemptions =
         [ "make_family"
         , "memcmp"
+        , "shared_key_is_empty"
         ]
 
 
