@@ -8,55 +8,50 @@ import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
-import           Language.Cimple             (BinaryOp (..), Lexeme (..),
-                                              LiteralType (..), Node,
-                                              NodeF (..))
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 
 
-checkSize, checkNmemb, checkFlexibleCalloc :: FilePath -> Node (Lexeme Text) -> State [Text] ()
-checkSize file size = case unFix size of
+checkSize, checkNmemb :: Text -> FilePath -> Node (Lexeme Text) -> State [Text] ()
+checkSize funName file size = case unFix size of
     SizeofType{} -> return ()
-    _ -> warn file size "`size` argument in call to `calloc` must be a sizeof expression"
+    _ -> warn file size $ "`size` argument in call to `" <> funName <> "` must be a sizeof expression"
 
-checkNmemb file nmemb = case unFix nmemb of
+checkNmemb funName file nmemb = case unFix nmemb of
     LiteralExpr{} -> return ()
     VarExpr{} -> return ()
-    PointerAccess e _ -> checkNmemb file e
+    PointerAccess e _ -> checkNmemb funName file e
     BinaryExpr l _ r -> do
-        checkNmemb file l
-        checkNmemb file r
+        checkNmemb funName file l
+        checkNmemb funName file r
 
     SizeofType{} ->
-        warn file nmemb "`sizeof` should not appear in the first argument to `calloc`"
+        warn file nmemb $ "`sizeof` should not appear in the `nmemb` argument to `" <> funName <> "`"
 
     _ ->
-        warn file nmemb "invalid expression in `nmemb` argument to `calloc`"
-
-checkFlexibleCalloc file nmemb = case unFix nmemb of
-    LiteralExpr Int (L _ _ "1") -> return ()
-    _ -> warn file nmemb "in call to `calloc`: `nmemb` must be 1 if `size` is not a pure sizeof expression"
+        warn file nmemb $ "invalid expression in `nmemb` argument to `" <> funName <> "`"
 
 
-pattern Calloc :: [Node (Lexeme Text)] -> Node (Lexeme Text)
-pattern Calloc args <- Fix (FunctionCall (Fix (VarExpr (L _ _ "calloc"))) args)
+pattern Calloc :: Text -> [Node (Lexeme Text)] -> Node (Lexeme Text)
+pattern Calloc funName args <- Fix (FunctionCall (Fix (VarExpr (L _ _ funName))) args)
 
 linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act -> case node of
-        -- Special support for flexible array member. We should get rid of
-        -- this, but for now it's allowed.
-        Calloc [nmemb, Fix (BinaryExpr (Fix SizeofType{}) BopPlus _)] ->
-            checkFlexibleCalloc file nmemb
+        Calloc funName@"mem_alloc" [_, size] -> do
+            checkSize funName file size
+        Calloc funName@"mem_valloc" [_, nmemb, size] -> do
+            checkNmemb funName file nmemb
+            checkSize funName file size
+        Calloc funName@"mem_vrealloc" [_, _, nmemb, size] -> do
+            checkNmemb funName file nmemb
+            checkSize funName file size
 
-        Calloc [nmemb, size] -> do
-            checkNmemb file nmemb
-            checkSize file size
-
-        Calloc _ ->
-            warn file node "invalid `calloc` invocation: 2 arguments expected"
+        Calloc "mem_alloc"    _ -> warn file node $ "invalid `mem_alloc` invocation: 1 arguments after `mem` expected"
+        Calloc "mem_valloc"   _ -> warn file node $ "invalid `mem_valloc` invocation: 2 arguments after `mem` expected"
+        Calloc "mem_vrealloc" _ -> warn file node $ "invalid `mem_vrealloc` invocation: 3 argument after `mem` expected"
 
         _ -> act
     }
