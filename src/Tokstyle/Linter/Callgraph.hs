@@ -122,7 +122,9 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
     go file (PreprocDefineConst name env) = empty{funcs = Map.singleton (Name NKVal file name) (outgoing env)}
     go file (ConstDefn _ _      name env) = empty{funcs = Map.singleton (Name NKVal file name) (outgoing env)}
     go file (Enumerator         name env) = empty{funcs = Map.singleton (Name NKVal file name) (maybe Set.empty outgoing env)}
-    go _    (StaticAssert          env _) = empty{funcs = Map.singleton globalName (outgoing env)}
+--  TODO(iphydf): Fix static_assert.
+--  go _    (StaticAssert          env _) = empty{funcs = Map.singleton globalName (outgoing env)}
+    go _    (StaticAssert            _ _) = empty
 
     go file (PreprocDefineMacro func params body) =
         let Env{outgoing, locals} = fold params <> body in
@@ -239,23 +241,35 @@ checkUnused cg =
             -- less special.
             , "BOOTSTRAP_INFO_PACKET_ID"
             -- TODO(iphydf): Clean these up.
+            , "announce_on_stored"
+            , "announce_set_synch_offset"
             , "dht_bootstrap_from_address"
             , "dht_set_self_public_key"
             , "dht_set_self_secret_key"
             , "friend_conn_get_dht_ip_port"
             , "friend_conn_get_onion_friendnum"
+            , "gca_pack_announces_list_size"
             , "get_ip6_loopback"
+            , "get_random_tcp_conn_ip_port"
             , "ipport_self_copy"
             , "mono_time_set_current_time_callback"
             , "net_family_is_tcp_onion"
             , "net_family_is_tox_tcp_ipv6"
+            , "net_family_tox_tcp_ipv4"
+            , "net_family_tox_tcp_ipv6"
             , "onion_announce_entry_public_key"
             , "onion_announce_entry_set_time"
             , "onion_getfriendip"
             , "rb_data"
             , "rb_full"
+            , "sanctions_list_packed_size"
             , "send_announce_request"
             , "send_data_request"
+            , "send_forward_request"
+            , "send_tcp_forward_request"
+            , "set_callback_forwarded_response"
+            , "set_forwarding_packet_tcp_connection_callback"
+            , "system_network_deinit"
             , "tcp_connections_public_key"
             , "tcp_send_oob_packet_using_relay"
             , "tcp_server_listen_count"
@@ -494,6 +508,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "cmp_read_array"
         , "cmp_read_bin_size"
         , "cmp_read_bool"
+        , "cmp_read_nil"
         , "cmp_read_uchar"
         , "cmp_read_uint"
         , "cmp_read_ulong"
@@ -502,6 +517,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "cmp_write_bin"
         , "cmp_write_bin_marker"
         , "cmp_write_bool"
+        , "cmp_write_nil"
         , "cmp_write_uinteger"
 
         , "FORMAT_MESSAGE_ALLOCATE_BUFFER"
@@ -529,6 +545,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "at_startup_ran"
 
         , "TOX_VERSION_IS_API_COMPATIBLE"
+        , "tox_options_get_dht_announcements_enabled"
         , "tox_options_get_end_port"
         , "tox_options_get_experimental_thread_safety"
         , "tox_options_get_hole_punching_enabled"
@@ -545,6 +562,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "tox_options_get_start_port"
         , "tox_options_get_tcp_port"
         , "tox_options_get_udp_enabled"
+        , "tox_options_set_dht_announcements_enabled"
         , "tox_options_set_experimental_thread_safety"
         , "tox_options_set_hole_punching_enabled"
         , "tox_options_set_ipv6_enabled"
@@ -575,6 +593,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "UINT32_MAX"
         , "UINT64_MAX"
         , "SIZE_MAX"
+        , "UINT32_C"
         , "UINT64_C"
 
         , "OPUS_APPLICATION_AUDIO"
