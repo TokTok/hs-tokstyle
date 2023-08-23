@@ -8,6 +8,7 @@ import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
+import qualified Data.Maybe                  as Maybe
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
@@ -34,12 +35,10 @@ linter = astActions
     { doNode = \file node act ->
         case unFix node of
             EnumConsts (Just (L _ _ enumName)) _ -> do
-                let prefix = Text.toUpper enumName <> "_"
-                State.withState (\s -> s{enumName, prefix}) act
+                State.withState (\s -> s{enumName, prefix = makePrefix enumName}) act
 
             EnumDecl (L _ _ enumName) _ _ -> do
-                let prefix = Text.toUpper enumName <> "_"
-                State.withState (\s -> s{enumName, prefix}) act
+                State.withState (\s -> s{enumName, prefix = makePrefix enumName}) act
 
             Enumerator (L _ _ name) _ -> do
                 Linter{enumName, prefix} <- State.get
@@ -50,6 +49,10 @@ linter = astActions
 
             _ -> act
     }
+
+    where
+        makePrefix enumName =
+            Text.toUpper (Maybe.fromMaybe enumName (Text.stripSuffix "_Type" enumName)) <> "_"
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter
