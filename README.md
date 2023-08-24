@@ -14,7 +14,7 @@ Using the built docker image (only contains binaries, so you need an OS around i
 
 ```dockerfile
 FROM toxchat/haskell:hs-tokstyle AS tokstyle
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 COPY --from=tokstyle /bin/check-cimple /bin/
 WORKDIR /work
