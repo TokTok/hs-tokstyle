@@ -60,7 +60,7 @@ library
     , ansi-wl-pprint
     , array
     , bytestring
-    , cimple            >= 0.0.16
+    , cimple            >= 0.0.17
     , containers
     , data-fix
     , deepseq
