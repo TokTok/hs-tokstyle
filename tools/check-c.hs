@@ -78,6 +78,7 @@ checkConversion context (l, removeQuals -> lTy) (r, removeQuals -> rTy) =
       ("vpx_codec_er_flags_t", "int") -> return ()
       ("bool", "int") | relaxed r     -> return ()
       ("void *", _)                   -> return ()
+      ("const void *", _)             -> return ()
 
       -- int literals.
       ("uint32_t","int")              -> return ()
