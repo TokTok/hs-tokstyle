@@ -1,66 +1,65 @@
-name:                tokstyle
-version:             0.0.9
-synopsis:            TokTok C code style checker
-description:         TokTok C code style checker
-homepage:            https://toktok.github.io/tokstyle
-license:             GPL-3
-license-file:        LICENSE
-author:              iphydf
-maintainer:          iphydf@users.noreply.github.com
-category:            Development
-build-type:          Simple
-cabal-version:       >=1.10
+name:          tokstyle
+version:       0.0.9
+synopsis:      TokTok C code style checker
+description:   TokTok C code style checker
+homepage:      https://toktok.github.io/tokstyle
+license:       GPL-3
+license-file:  LICENSE
+author:        iphydf
+maintainer:    iphydf@users.noreply.github.com
+category:      Development
+build-type:    Simple
+cabal-version: >=1.10
 
 source-repository head
-  type: git
+  type:     git
   location: https://github.com/TokTok/tokstyle
 
 library
-  default-language:    Haskell2010
-  exposed-modules:
-      Tokstyle.Linter
+  default-language: Haskell2010
+  exposed-modules:  Tokstyle.Linter
   other-modules:
-      Tokstyle.Common
-    , Tokstyle.Linter.Assert
-    , Tokstyle.Linter.Booleans
-    , Tokstyle.Linter.BooleanReturn
-    , Tokstyle.Linter.CallbackNames
-    , Tokstyle.Linter.Callgraph
-    , Tokstyle.Linter.CallocArgs
-    , Tokstyle.Linter.CallocType
-    , Tokstyle.Linter.CompoundInit
-    , Tokstyle.Linter.Constness
-    , Tokstyle.Linter.DeclaredOnce
-    , Tokstyle.Linter.DeclsHaveDefns
-    , Tokstyle.Linter.DocComments
-    , Tokstyle.Linter.EnumNames
-    , Tokstyle.Linter.FuncPrototypes
-    , Tokstyle.Linter.FuncScopes
-    , Tokstyle.Linter.GlobalFuncs
-    , Tokstyle.Linter.LargeStructParams
-    , Tokstyle.Linter.LoggerCalls
-    , Tokstyle.Linter.LoggerConst
-    , Tokstyle.Linter.LoggerNoEscapes
-    , Tokstyle.Linter.MallocType
-    , Tokstyle.Linter.MemcpyStructs
-    , Tokstyle.Linter.MissingNonNull
-    , Tokstyle.Linter.NonNull
-    , Tokstyle.Linter.Parens
-    , Tokstyle.Linter.SwitchIf
-    , Tokstyle.Linter.TypeCheck
-    , Tokstyle.Linter.TypedefName
-    , Tokstyle.Linter.UnsafeFunc
-    , Tokstyle.Linter.VarUnusedInScope
-  ghc-options:
-      -Wall
-  hs-source-dirs:      src
+    Tokstyle.Common
+    Tokstyle.Linter.Assert
+    Tokstyle.Linter.BooleanReturn
+    Tokstyle.Linter.Booleans
+    Tokstyle.Linter.CallbackNames
+    Tokstyle.Linter.Callgraph
+    Tokstyle.Linter.CallocArgs
+    Tokstyle.Linter.CallocType
+    Tokstyle.Linter.CompoundInit
+    Tokstyle.Linter.Constness
+    Tokstyle.Linter.DeclaredOnce
+    Tokstyle.Linter.DeclsHaveDefns
+    Tokstyle.Linter.DocComments
+    Tokstyle.Linter.EnumNames
+    Tokstyle.Linter.FuncPrototypes
+    Tokstyle.Linter.FuncScopes
+    Tokstyle.Linter.GlobalFuncs
+    Tokstyle.Linter.LargeStructParams
+    Tokstyle.Linter.LoggerCalls
+    Tokstyle.Linter.LoggerConst
+    Tokstyle.Linter.LoggerNoEscapes
+    Tokstyle.Linter.MallocType
+    Tokstyle.Linter.MemcpyStructs
+    Tokstyle.Linter.MissingNonNull
+    Tokstyle.Linter.NonNull
+    Tokstyle.Linter.Parens
+    Tokstyle.Linter.SwitchIf
+    Tokstyle.Linter.TypeCheck
+    Tokstyle.Linter.TypedefName
+    Tokstyle.Linter.UnsafeFunc
+    Tokstyle.Linter.VarUnusedInScope
+
+  ghc-options:      -Wall
+  hs-source-dirs:   src
   build-depends:
-      base              >= 4 && < 5
-    , aeson             >= 0.8.1.0
-    , ansi-wl-pprint    <= 0.6.9
+      aeson           >=0.8.1.0
+    , ansi-wl-pprint  <0.6.9.0
     , array
+    , base            >=4       && <5
     , bytestring
-    , cimple            >= 0.0.17
+    , cimple          >=0.0.17
     , containers
     , data-fix
     , deepseq
@@ -75,13 +74,11 @@ library
 
 executable check-cimple
   default-language: Haskell2010
-  hs-source-dirs:
-      tools
-  ghc-options:
-      -Wall
-  main-is: check-cimple.hs
+  hs-source-dirs:   tools
+  ghc-options:      -Wall
+  main-is:          check-cimple.hs
   build-depends:
-      base < 5
+      base      <5
     , cimple
     , parallel
     , text
@@ -90,31 +87,27 @@ executable check-cimple
 
 executable check-c
   default-language: Haskell2010
-  hs-source-dirs:
-      tools
-  ghc-options:
-      -Wall
-  main-is: check-c.hs
+  hs-source-dirs:   tools
+  ghc-options:      -Wall
+  main-is:          check-c.hs
   build-depends:
-      base < 5
+      base            <5
     , containers
     , language-c
     , monad-parallel
 
 executable webservice
-  main-is:             webservice.hs
-  ghc-options:
-      -Wall
-  hs-source-dirs:      web
-  default-language:    Haskell2010
-  other-modules:
-      Tokstyle.App
+  main-is:          webservice.hs
+  ghc-options:      -Wall
+  hs-source-dirs:   web
+  default-language: Haskell2010
+  other-modules:    Tokstyle.App
   build-depends:
-      base >= 4 && < 5
+      base            >=4   && <5
     , bytestring
     , cimple
-    , servant           >= 0.5
-    , servant-server    >= 0.5
+    , servant         >=0.5
+    , servant-server  >=0.5
     , text
     , tokstyle
     , wai
@@ -123,29 +116,27 @@ executable webservice
     , warp
 
 test-suite testsuite
-  type: exitcode-stdio-1.0
-  default-language: Haskell2010
-  hs-source-dirs: test
-  main-is: testsuite.hs
+  type:               exitcode-stdio-1.0
+  default-language:   Haskell2010
+  hs-source-dirs:     test
+  main-is:            testsuite.hs
   other-modules:
-      Tokstyle.LinterSpec
-    , Tokstyle.Linter.BooleansSpec
-    , Tokstyle.Linter.BooleanReturnSpec
-    , Tokstyle.Linter.CallgraphSpec
-    , Tokstyle.Linter.CallocTypeSpec
-    , Tokstyle.Linter.CompoundInitSpec
-    , Tokstyle.Linter.ConstnessSpec
-    , Tokstyle.Linter.ParensSpec
-    , Tokstyle.Linter.SwitchIfSpec
-    , Tokstyle.Linter.TypeCheckSpec
-    , Tokstyle.Linter.VarUnusedInScopeSpec
-  ghc-options:
-      -Wall
-      -Wno-unused-imports
-  build-tool-depends:
-      hspec-discover:hspec-discover
+    Tokstyle.Linter.BooleanReturnSpec
+    Tokstyle.Linter.BooleansSpec
+    Tokstyle.Linter.CallgraphSpec
+    Tokstyle.Linter.CallocTypeSpec
+    Tokstyle.Linter.CompoundInitSpec
+    Tokstyle.Linter.ConstnessSpec
+    Tokstyle.Linter.ParensSpec
+    Tokstyle.Linter.SwitchIfSpec
+    Tokstyle.Linter.TypeCheckSpec
+    Tokstyle.Linter.VarUnusedInScopeSpec
+    Tokstyle.LinterSpec
+
+  ghc-options:        -Wall -Wno-unused-imports
+  build-tool-depends: hspec-discover:hspec-discover
   build-depends:
-      base < 5
+      base      <5
     , cimple
     , hspec
     , text
