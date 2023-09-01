@@ -1,5 +1,5 @@
 ---
 packages: [.]
-resolver: lts-18.18
+resolver: lts-21.9
 extra-deps:
   - cimple-0.0.17

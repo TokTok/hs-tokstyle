@@ -141,7 +141,7 @@ test-suite testsuite
     , Tokstyle.Linter.VarUnusedInScopeSpec
   ghc-options:
       -Wall
-      -fno-warn-unused-imports
+      -Wno-unused-imports
   build-tool-depends:
       hspec-discover:hspec-discover
   build-depends:
