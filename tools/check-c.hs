@@ -320,7 +320,7 @@ checkExpr cast@(CCast t e _) = do
     exprTy <- tExpr [] RValue e
     Env{ctx} <- getUserState
     -- Some exemptions where weird casts like int* -> char* may happen.
-    unless (head ctx `elem` ["call:getsockopt", "call:setsockopt", "call:bs_list_add", "call:bs_list_remove", "call:bs_list_find", "call:random_bytes"]) $
+    unless (head ctx `elem` ["call:getsockopt", "call:setsockopt", "call:bs_list_add", "call:bs_list_remove", "call:bs_list_find", "call:random_bytes", "call:randombytes"]) $
         checkCast castTy exprTy e
     checkDecl t
     checkExpr e

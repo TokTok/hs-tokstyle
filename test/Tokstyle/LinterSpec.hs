@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.LinterSpec (mustParse, spec) where
 
