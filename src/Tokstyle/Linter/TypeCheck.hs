@@ -18,7 +18,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
--- import           Debug.Trace                  (trace)
+import           Debug.Trace                  (trace)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -173,7 +173,7 @@ addName n ty = do
 
 getName :: HasCallStack => Text -> State Env Type
 getName n = do
-    -- trace ("g " <> show n) $ return ()
+    trace ("g " <> show n) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Just ok -> return ok
