@@ -1,4 +1,3 @@
-load("@ai_formation_hazel//tools:mangling.bzl", "hazel_library")
 load("@rules_haskell//haskell:defs.bzl", "haskell_library")
 load("//third_party/haskell/hspec-discover:build_defs.bzl", "hspec_test")
 load("//tools/project:build_defs.bzl", "project")
@@ -16,22 +15,22 @@ haskell_library(
     visibility = ["//visibility:public"],
     deps = [
         "//hs-cimple",
-        hazel_library("aeson"),
-        hazel_library("ansi-wl-pprint"),
-        hazel_library("array"),
-        hazel_library("base"),
-        hazel_library("bytestring"),
-        hazel_library("containers"),
-        hazel_library("data-fix"),
-        hazel_library("deepseq"),
-        hazel_library("edit-distance"),
-        hazel_library("filepath"),
-        hazel_library("groom"),
-        hazel_library("microlens"),
-        hazel_library("microlens-th"),
-        hazel_library("mtl"),
-        hazel_library("parallel"),
-        hazel_library("text"),
+        "//third_party/haskell:aeson",
+        "//third_party/haskell:ansi-wl-pprint",
+        "//third_party/haskell:array",
+        "//third_party/haskell:base",
+        "//third_party/haskell:bytestring",
+        "//third_party/haskell:containers",
+        "//third_party/haskell:data-fix",
+        "//third_party/haskell:deepseq",
+        "//third_party/haskell:edit-distance",
+        "//third_party/haskell:filepath",
+        "//third_party/haskell:groom",
+        "//third_party/haskell:microlens",
+        "//third_party/haskell:microlens-th",
+        "//third_party/haskell:mtl",
+        "//third_party/haskell:parallel",
+        "//third_party/haskell:text",
     ],
 )
 
@@ -41,8 +40,8 @@ hspec_test(
     deps = [
         ":hs-tokstyle",
         "//hs-cimple",
-        hazel_library("base"),
-        hazel_library("hspec"),
-        hazel_library("text"),
+        "//third_party/haskell:base",
+        "//third_party/haskell:hspec",
+        "//third_party/haskell:text",
     ],
 )
