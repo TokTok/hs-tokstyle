@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import           Control.Arrow               (first)
+import           Control.Arrow               (first, second)
 import           Control.Parallel.Strategies (parMap, rpar)
 import           Data.List                   (isPrefixOf, partition)
 import           Data.Text                   (Text)
@@ -11,7 +11,8 @@ import qualified Data.Text.IO                as Text
 import           Data.Time.Clock             (UTCTime, diffUTCTime,
                                               getCurrentTime)
 import           Language.Cimple             (Lexeme, Node)
-import           Language.Cimple.IO          (parseFiles)
+import           Language.Cimple.IO          (parseProgram)
+import qualified Language.Cimple.Program     as Program
 import           System.Environment          (getArgs)
 import           System.IO                   (hPutStrLn, stderr)
 
@@ -55,7 +56,7 @@ main = do
     (flags, files) <- parseArgs . (defaultFlags ++) <$> getArgs
     start <- getCurrentTime
     hPutStrLn stderr $ "Parsing " <> show (length files) <> " files..."
-    parseFiles files >>= getRight start >>= processAst flags
+    parseProgram files >>= getRight start >>= (processAst flags . second Program.toList)
 
 getRight :: UTCTime -> Either String a -> IO (UTCTime, a)
 getRight _ (Left err) = putStrLn err >> fail "aborting after parse error"

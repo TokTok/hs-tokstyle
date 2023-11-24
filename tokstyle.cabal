@@ -17,9 +17,9 @@ source-repository head
 
 library
   default-language: Haskell2010
-  exposed-modules:  Tokstyle.Linter
-  other-modules:
+  exposed-modules:
     Tokstyle.Common
+    Tokstyle.Linter
     Tokstyle.Linter.Assert
     Tokstyle.Linter.BooleanReturn
     Tokstyle.Linter.Booleans
@@ -54,23 +54,23 @@ library
   ghc-options:      -Wall
   hs-source-dirs:   src
   build-depends:
-      aeson           >=0.8.1.0
+      aeson           >=0.8.1.0 && <3
     , ansi-wl-pprint  <0.6.9.0
-    , array
+    , array           <0.6
     , base            >=4       && <5
-    , bytestring
+    , bytestring      <0.13
     , cimple          >=0.0.17
-    , containers
-    , data-fix
-    , deepseq
-    , edit-distance
-    , filepath
-    , groom
-    , microlens
-    , microlens-th
-    , mtl
-    , parallel
-    , text
+    , containers      <0.8
+    , data-fix        <0.4
+    , deepseq         <2
+    , edit-distance   <0.3
+    , filepath        <2
+    , groom           <0.2
+    , microlens       <0.5
+    , microlens-th    <0.5
+    , mtl             <3
+    , parallel        <4
+    , text            <3
 
 executable check-cimple
   default-language: Haskell2010
@@ -80,9 +80,9 @@ executable check-cimple
   build-depends:
       base      <5
     , cimple
-    , parallel
+    , parallel  <4
     , text
-    , time
+    , time      <2
     , tokstyle
 
 executable check-c
@@ -93,8 +93,8 @@ executable check-c
   build-depends:
       base            <5
     , containers
-    , language-c
-    , monad-parallel
+    , language-c      <0.10
+    , monad-parallel  <0.9
 
 executable webservice
   main-is:          webservice.hs
@@ -110,10 +110,10 @@ executable webservice
     , servant-server  >=0.5
     , text
     , tokstyle
-    , wai
-    , wai-cors
-    , wai-extra
-    , warp
+    , wai             <4
+    , wai-cors        <0.3
+    , wai-extra       <4
+    , warp            <4
 
 test-suite testsuite
   type:               exitcode-stdio-1.0
@@ -138,6 +138,6 @@ test-suite testsuite
   build-depends:
       base      <5
     , cimple
-    , hspec
+    , hspec     <3
     , text
     , tokstyle
