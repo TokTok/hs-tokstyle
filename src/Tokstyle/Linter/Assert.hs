@@ -33,6 +33,10 @@ checkAssertArg file name expr =
       BinaryExpr lhs _ rhs -> do
           checkAssertArg file name lhs
           checkAssertArg file name rhs
+      TernaryExpr cond thenB elseB -> do
+          checkAssertArg file name cond
+          checkAssertArg file name thenB
+          checkAssertArg file name elseB
       FunctionCall _ [] -> return ()  -- no arguments = constant function
       FunctionCall (Fix (VarExpr (L _ _ func))) args -> do
           mapM_ (checkAssertArg file name) args
