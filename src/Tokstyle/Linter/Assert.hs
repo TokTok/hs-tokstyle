@@ -26,6 +26,7 @@ checkAssertArg file name expr =
       CastExpr _ e      -> checkAssertArg file name e
       ParenExpr e       -> checkAssertArg file name e
       PointerAccess e _ -> checkAssertArg file name e
+      MemberAccess e _  -> checkAssertArg file name e
       UnaryExpr _ e     -> checkAssertArg file name e
       ArrayAccess e i   -> do
           checkAssertArg file name e
