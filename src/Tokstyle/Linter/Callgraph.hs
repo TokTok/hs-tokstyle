@@ -316,9 +316,12 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "EINPROGRESS"
         , "EWOULDBLOCK"
 
+        , "crypto_aead_xchacha20poly1305_ietf_decrypt"
+        , "crypto_aead_xchacha20poly1305_ietf_encrypt"
         , "crypto_auth_BYTES"
         , "crypto_auth_KEYBYTES"
         , "crypto_auth"
+        , "crypto_auth_hmacsha512"
         , "crypto_auth_verify"
         , "crypto_box_afternm"
         , "crypto_box_beforenm"
