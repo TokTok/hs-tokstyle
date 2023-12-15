@@ -43,3 +43,9 @@ hspec_test(
         "//third_party/haskell:text",
     ],
 )
+
+filegroup(
+    name = "headers",
+    srcs = glob(["include/**/*.h"]),
+    visibility = ["//visibility:public"],
+)

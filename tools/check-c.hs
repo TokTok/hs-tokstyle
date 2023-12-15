@@ -7,8 +7,9 @@ module Main (main) where
 
 import           Control.Monad                   (forM_, unless, zipWithM_)
 import qualified Control.Monad.Parallel          as Par
-import           Data.List                       (isPrefixOf, partition)
+import           Data.List                       (find, isPrefixOf, partition)
 import qualified Data.Map                        as Map
+import qualified Data.Maybe                      as Maybe
 import           Language.C
 import           Language.C.Analysis.AstAnalysis
 import           Language.C.Analysis.ConstEval
@@ -409,9 +410,9 @@ defaultCppOpts sysInclude =
     , "-I" <> sysInclude <> "/opus"
     ]
 
-processFile :: String -> CLanguage -> [String] -> FilePath -> IO (Bool, (String, [String]))
-processFile sysInclude lang cppOpts file = do
-    result <- parseCFile (newGCC "clang") Nothing (defaultCppOpts sysInclude ++ cppOpts) file
+processFile :: String -> String -> CLanguage -> [String] -> FilePath -> IO (Bool, (String, [String]))
+processFile cc sysInclude lang cppOpts file = do
+    result <- parseCFile (newGCC cc) Nothing (defaultCppOpts sysInclude ++ cppOpts) file
     case result of
       Left err -> return (False, (file, ["Parse Error: " <> show err]))
       Right tu ->
@@ -428,12 +429,16 @@ processFile sysInclude lang cppOpts file = do
 main :: IO ()
 main = do
     args <- getArgs
-    let (cppOpts, files) = partition (isPrefixOf "-") args
+    let (opts, rest) = partition (isPrefixOf "--") args
+    let (cppOpts, files) = partition (isPrefixOf "-") rest
+    let cc = Maybe.fromMaybe "clang" $ getFlag "--cc=" opts
     let sysInclude = "/src/workspace/hs-tokstyle/include"
-    result <- Par.mapM (processFile sysInclude GNU99 cppOpts) files
+    result <- Par.mapM (processFile cc sysInclude GNU99 cppOpts) files
     mapM_ (printResult . snd) result
     unless (all fst result) $ exitWith (ExitFailure 1)
   where
     printResult (file, result) = do
         hPutStr stderr $ file <> ": "
         mapM_ (hPutStrLn stderr) result
+
+    getFlag flag = fmap (drop $ length flag) . find (isPrefixOf flag)
