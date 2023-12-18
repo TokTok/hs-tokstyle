@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.EnumNames (analyse) where
 
 import           Control.Monad               (unless)

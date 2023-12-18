@@ -23,4 +23,4 @@ main = do
     args <- getArgs
     case args of
         [port] -> runTestServer $ read port
-        _      -> runTestServer =<< read <$> getEnv "PORT"
+        _      -> runTestServer . read =<< getEnv "PORT"

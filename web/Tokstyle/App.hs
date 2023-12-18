@@ -15,7 +15,7 @@ import           Servant
 
 import           Language.Cimple          (Lexeme, Node)
 import qualified Language.Cimple.IO       as Cimple
-import           Tokstyle.Linter          (allWarnings, analyse)
+import           Tokstyle.Linter          (allWarnings, analyseLocal)
 
 
 type ParseResult = Either String [Node (Lexeme Text)]
@@ -53,7 +53,7 @@ server =
     parseH = return . Cimple.parseText . Text.decodeUtf8With Text.lenientDecode
 
     analyseH (file, Left  err) = return [Text.pack $ file <> ":" <> err]
-    analyseH (file, Right ast) = return $ analyse webWarnings (file, ast)
+    analyseH (file, Right ast) = return $ analyseLocal webWarnings (file, ast)
 
 -- Turn the server into a WAI app. 'serve' is provided by servant,
 -- more precisely by the Servant.Server module.

@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.BooleanReturn where
 
 import           Control.Monad.State.Strict  (State)

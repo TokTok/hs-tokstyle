@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.SemFmt.EnumFromInt (analyse) where
 
 import           Control.Applicative         ((<|>))

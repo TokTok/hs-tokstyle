@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE StrictData        #-}
+{-# LANGUAGE Strict            #-}
 {-# LANGUAGE TemplateHaskell   #-}
 module Tokstyle.Linter.VarUnusedInScope (analyse) where
 

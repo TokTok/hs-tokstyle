@@ -4,7 +4,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 {-# LANGUAGE TupleSections     #-}
 module Tokstyle.Linter.TypeCheck where
 

@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE ViewPatterns      #-}
 module Tokstyle.Linter.UnsafeFunc (analyse) where

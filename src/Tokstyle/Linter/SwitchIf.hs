@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.SwitchIf (analyse) where
 
 import           Control.Monad.State.Strict  (State)

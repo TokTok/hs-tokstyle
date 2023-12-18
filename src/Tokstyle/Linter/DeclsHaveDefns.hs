@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.DeclsHaveDefns (analyse) where
 
 import           Control.Arrow               ((&&&))

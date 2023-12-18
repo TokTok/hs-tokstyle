@@ -3,6 +3,7 @@
 {-# LANGUAGE ViewPatterns    #-}
 {-# OPTIONS_GHC -Wno-missing-pattern-synonym-signatures #-}
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
+{- HLINT ignore "Use camelCase" -}
 module Main (main) where
 
 import           Control.Monad                   (forM_, unless, zipWithM_)
@@ -119,8 +120,8 @@ checkAssign c l r             = checkConversion c l r
 
 sameEnum :: MonadTrav m => Type -> Type -> (Ident, Expr) -> (Ident, Expr) -> m ()
 sameEnum leftTy rightTy (leftId, leftExpr) (rightId, rightExpr) = do
-    leftVal  <- getJust failMsg =<< intValue <$> constEval defaultMD Map.empty leftExpr
-    rightVal <- getJust failMsg =<< intValue <$> constEval defaultMD Map.empty rightExpr
+    leftVal  <- getJust failMsg . intValue =<< constEval defaultMD Map.empty leftExpr
+    rightVal <- getJust failMsg . intValue =<< constEval defaultMD Map.empty rightExpr
     unless (leftVal == rightVal) $
         throwTravError $ typeMismatch
             ("invalid cast: enumerator value for `"

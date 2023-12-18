@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.GlobalFuncs (analyse) where
 
 import qualified Control.Monad.State.Strict  as State

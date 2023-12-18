@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 {-# LANGUAGE ViewPatterns      #-}
 module Tokstyle.Linter.NonNull (analyse) where
 

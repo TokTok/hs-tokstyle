@@ -1,5 +1,4 @@
-{-# LANGUAGE Strict     #-}
-{-# LANGUAGE StrictData #-}
+{-# LANGUAGE Strict #-}
 module Tokstyle.Common
     ( functionName
     , isPointer

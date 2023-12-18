@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.CallocArgs (analyse) where
 
 import           Control.Monad.State.Strict  (State)
@@ -49,9 +48,9 @@ linter = astActions
             checkNmemb funName file nmemb
             checkSize funName file size
 
-        Calloc "mem_alloc"    _ -> warn file node $ "invalid `mem_alloc` invocation: 1 arguments after `mem` expected"
-        Calloc "mem_valloc"   _ -> warn file node $ "invalid `mem_valloc` invocation: 2 arguments after `mem` expected"
-        Calloc "mem_vrealloc" _ -> warn file node $ "invalid `mem_vrealloc` invocation: 3 argument after `mem` expected"
+        Calloc "mem_alloc"    _ -> warn file node "invalid `mem_alloc` invocation: 1 arguments after `mem` expected"
+        Calloc "mem_valloc"   _ -> warn file node "invalid `mem_valloc` invocation: 2 arguments after `mem` expected"
+        Calloc "mem_vrealloc" _ -> warn file node "invalid `mem_vrealloc` invocation: 3 argument after `mem` expected"
 
         _ -> act
     }

@@ -3,7 +3,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 {-# LANGUAGE TupleSections     #-}
 {-# OPTIONS_GHC -Wwarn #-}
 module Tokstyle.Linter.Callgraph where

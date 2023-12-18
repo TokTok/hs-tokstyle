@@ -1,7 +1,5 @@
-{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.CallbackNames (analyse) where
 
 import           Control.Monad               (unless)
