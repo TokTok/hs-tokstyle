@@ -3,7 +3,7 @@ module Tokstyle.Linter.CompoundInitSpec (spec) where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (analyse)
+import           Tokstyle.Linter     (analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -15,7 +15,7 @@ spec = do
             , "  Foo foo = (Foo){0};"
             , "}"
             ]
-        analyse ["compound-init"] ("test.c", ast)
+        analyseLocal ["compound-init"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: don't use compound literals in initialisations; use simple `Type var = {0};` [-Wcompound-init]"
             ]
@@ -26,5 +26,5 @@ spec = do
             , "  Foo foo = {0};"
             , "}"
             ]
-        analyse ["compound-init"] ("test.c", ast)
+        analyseLocal ["compound-init"] ("test.c", ast)
             `shouldBe` []

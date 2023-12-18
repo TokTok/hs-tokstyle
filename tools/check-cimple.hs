@@ -16,13 +16,13 @@ import qualified Language.Cimple.Program     as Program
 import           System.Environment          (getArgs)
 import           System.IO                   (hPutStrLn, stderr)
 
-import           Tokstyle.Linter             (allWarnings, analyse,
-                                              analyseGlobal)
+import           Tokstyle.Linter             (allWarnings, analyseGlobal,
+                                              analyseLocal)
 
 
 processAst :: [Text] -> (UTCTime, [(FilePath, [Node (Lexeme Text)])]) -> IO ()
 processAst ignore (start, tus) = do
-    report $ concat $ analyseGlobal ignore tus : parMap rpar (analyse ignore) tus
+    report $ concat $ analyseGlobal ignore tus : parMap rpar (analyseLocal ignore) tus
     end <- getCurrentTime
     hPutStrLn stderr $ "Linting: " <> show (diffUTCTime end start)
   where

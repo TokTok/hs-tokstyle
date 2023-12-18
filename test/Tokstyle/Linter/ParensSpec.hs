@@ -3,7 +3,7 @@ module Tokstyle.Linter.ParensSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (allWarnings, analyse)
+import           Tokstyle.Linter     (allWarnings, analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -15,7 +15,7 @@ spec = do
             , "  return (1 + 2);"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: return expression does not need parentheses [-Wparens]"
             ]
@@ -26,4 +26,4 @@ spec = do
             , "  if ((true)) { return 3; }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []

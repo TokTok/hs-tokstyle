@@ -3,7 +3,7 @@ module Tokstyle.Linter.ConstnessSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (analyse)
+import           Tokstyle.Linter     (analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -17,7 +17,7 @@ spec = do
             , "  return *a + b[0];"
             , "}"
             ]
-        analyse ["constness"] ("test.c", ast)
+        analyseLocal ["constness"] ("test.c", ast)
             `shouldBe` []
 
     it "should give diagnostics on locals that can be const" $ do
@@ -27,7 +27,7 @@ spec = do
             , "  return a;"
             , "}"
             ]
-        analyse ["constness"] ("test.c", ast)
+        analyseLocal ["constness"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `a` is never written to and can be declared `const` [-Wconstness]"
             ]

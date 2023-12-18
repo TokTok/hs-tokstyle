@@ -3,7 +3,7 @@ module Tokstyle.Linter.VarUnusedInScopeSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (allWarnings, analyse)
+import           Tokstyle.Linter     (allWarnings, analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -18,7 +18,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast)
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `foo` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -35,7 +35,7 @@ spec = do
             , "  print_int(*foo_ptr);"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "ignores array-typed variables that escape the inner scope through assignment" $ do
         ast <- mustParse
@@ -48,7 +48,7 @@ spec = do
             , "  print(p);"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "ignores array-typed variables assigned in a loop" $ do
         ast <- mustParse
@@ -63,7 +63,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "keeps conditional variable initialisation out of the `if` statement if it's used after" $ do
         ast <- mustParse
@@ -78,7 +78,7 @@ spec = do
             , "  for (int i = 0; i < foo; ++i) { /* nothing */ }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "does not suggest moving complex initialisations into an if-statement" $ do
         ast <- mustParse
@@ -89,7 +89,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "suggests moving trivial (pure) initialisations into an if-statement" $ do
         ast <- mustParse
@@ -100,7 +100,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast)
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `foo` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -118,7 +118,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe` []
 
     it "detects decls that can be for-init-decls" $ do
         ast <- mustParse
@@ -127,7 +127,7 @@ spec = do
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
@@ -141,7 +141,7 @@ spec = do
             , "  for (int i = 0; i < 10; ++i) { /* nothing */ }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
@@ -153,7 +153,7 @@ spec = do
             , "  for (int i = 0; i < 10; ++i) { print_int(i); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "does not suggest reducing scope of loop bound constants" $ do
         ast <- mustParse
@@ -162,7 +162,7 @@ spec = do
             , "  for (int i = 0; i < bound; ++i) { print_int(i); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "considers `&var` a write to `var`" $ do
         ast <- mustParse
@@ -171,7 +171,7 @@ spec = do
             , "  for (int i = start(&foo); !stop(foo); i = incr(&foo)) { print_ints(i, foo); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "ignores function parameters" $ do
         ast <- mustParse
@@ -179,7 +179,7 @@ spec = do
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "supports #if/#endif" $ do
         ast <- mustParse
@@ -190,7 +190,7 @@ spec = do
             , "#endif"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:3: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -208,7 +208,7 @@ spec = do
             , "#endif"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:3: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -225,7 +225,7 @@ spec = do
             , "#endif"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:5: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:6:   possibly to here [-Wvar-unused-in-scope]"
@@ -242,7 +242,7 @@ spec = do
             , "#endif"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:3: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -256,7 +256,7 @@ spec = do
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:3:   possibly to here [-Wvar-unused-in-scope]"
@@ -272,7 +272,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
@@ -289,7 +289,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:6:   possibly to here [-Wvar-unused-in-scope]"
@@ -308,7 +308,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:8:   possibly to here [-Wvar-unused-in-scope]"
@@ -327,7 +327,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "allows vars read in the same scope" $ do
         ast <- mustParse
@@ -337,7 +337,7 @@ spec = do
             , "  print_int(i);"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "allows vars used as the bound for another for-loop" $ do
         ast <- mustParse
@@ -347,7 +347,7 @@ spec = do
             , "  for (int j = 0; j < i; ++j) { puts(\"hello!\"); }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "treats array member assignment as read" $ do
         ast <- mustParse
@@ -356,7 +356,7 @@ spec = do
             , "  if (true) { c[0] = 'a'; }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "treats dereference-and-assign as read" $ do
         ast <- mustParse
@@ -365,7 +365,7 @@ spec = do
             , "  if (true) { *c = 'a'; }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "should consider one `if` branch with a write as possibly not writing" $ do
         ast <- mustParse
@@ -380,7 +380,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "should combine 'either write or read' into 'just read'" $ do
         ast <- mustParse
@@ -397,7 +397,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe` []
+        analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "suggests reducing scope when all if-branches do writes" $ do
         ast <- mustParse
@@ -416,7 +416,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe`
+        analyseLocal allWarnings ("test.c", ast) `shouldBe`
             -- This suggestion is not quite correct, but we have nothing to anchor the "possibly to
             -- here" part to, so we make a slightly wrong suggestion. Hence the "possibly". In
             -- reality, the declaration should be right before the first `if` on line 4.
@@ -438,7 +438,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast) `shouldBe`
+        analyseLocal allWarnings ("test.c", ast) `shouldBe`
             [ "test.c:2: variable `foo` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:4:   possibly to here [-Wvar-unused-in-scope]"
             ]
@@ -454,7 +454,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["var-unused-in-scope"] ("test.c", ast) `shouldBe`
+        analyseLocal ["var-unused-in-scope"] ("test.c", ast) `shouldBe`
             [ "test.c:5: variable `i` can be reduced in scope [-Wvar-unused-in-scope]"
             , "test.c:6:   possibly to here [-Wvar-unused-in-scope]"
             ]

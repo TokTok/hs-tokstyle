@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.Linter
     ( analyse
+    , analyseLocal
     , analyseGlobal
     , allWarnings
     ) where
@@ -13,7 +14,6 @@ import qualified Tokstyle.Linter.Assert            as Assert
 import qualified Tokstyle.Linter.BooleanReturn     as BooleanReturn
 import qualified Tokstyle.Linter.Booleans          as Booleans
 import qualified Tokstyle.Linter.CallbackNames     as CallbackNames
-import qualified Tokstyle.Linter.Callgraph         as Callgraph
 import qualified Tokstyle.Linter.CallocArgs        as CallocArgs
 import qualified Tokstyle.Linter.CallocType        as CallocType
 import qualified Tokstyle.Linter.CompoundInit      as CompoundInit
@@ -36,10 +36,12 @@ import qualified Tokstyle.Linter.TypedefName       as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc        as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope  as VarUnusedInScope
 
+import qualified Tokstyle.Linter.Callgraph         as Callgraph
 import qualified Tokstyle.Linter.DeclaredOnce      as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns    as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments       as DocComments
 import qualified Tokstyle.Linter.TypeCheck         as TypeCheck
+import qualified Tokstyle.SemFmt.EnumFromInt       as EnumFromInt
 
 
 type TranslationUnit = (FilePath, [Node (Lexeme Text)])
@@ -86,13 +88,18 @@ globalLinters =
     , ("decls-have-defns"   , DeclsHaveDefns.analyse   )
     , ("doc-comments"       , DocComments.analyse      )
     , ("type-check"         , TypeCheck.analyse        )
+    -- Semantic formatters:
+    , ("enum-from-int"      , EnumFromInt.analyse      )
     ]
 
-analyse :: [Text] -> TranslationUnit -> [Text]
-analyse = run localLinters
+analyseLocal :: [Text] -> TranslationUnit -> [Text]
+analyseLocal = run localLinters
 
 analyseGlobal :: [Text] -> [TranslationUnit] -> [Text]
 analyseGlobal = run globalLinters
+
+analyse :: [Text] -> [TranslationUnit] -> [Text]
+analyse ignore tus = concat $ analyseGlobal ignore tus : parMap rpar (analyseLocal ignore) tus
 
 allWarnings :: [Text]
 allWarnings = map fst localLinters ++ map fst globalLinters

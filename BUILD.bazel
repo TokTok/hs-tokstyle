@@ -22,6 +22,7 @@ haskell_library(
         "//third_party/haskell:data-fix",
         "//third_party/haskell:deepseq",
         "//third_party/haskell:edit-distance",
+        "//third_party/haskell:extra",
         "//third_party/haskell:filepath",
         "//third_party/haskell:groom",
         "//third_party/haskell:microlens",

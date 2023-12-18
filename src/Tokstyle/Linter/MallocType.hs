@@ -3,17 +3,18 @@
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Linter.MallocType (analyse) where
 
-import           Control.Monad               (unless, when)
+import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
-                                              NodeF (..), removeSloc)
+                                              NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
+import           Tokstyle.Common             (semEq)
 
 supportedTypes :: [Text]
 supportedTypes = ["char", "uint8_t", "int16_t"]
@@ -36,7 +37,7 @@ checkSize :: FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text
 checkSize file castTy@(Fix (TyPointer objTy)) size = case unFix size of
     BinaryExpr _ BopMul r -> checkSize file castTy r
     SizeofType sizeTy ->
-        when (removeSloc sizeTy /= removeSloc objTy) $
+        unless (sizeTy `semEq` objTy) $
             warn file size $ "`size` argument in call to `mem_balloc` indicates "
                 <> "creation of an array with element type `" <> showNode sizeTy <> "`, "
                 <> "but result is cast to `" <> showNode castTy <> "`"
