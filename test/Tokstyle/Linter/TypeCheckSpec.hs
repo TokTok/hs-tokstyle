@@ -3,7 +3,7 @@ module Tokstyle.Linter.TypeCheckSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (analyse)
+import           Tokstyle.Linter     (analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -16,6 +16,6 @@ spec = do
             , "  put_int(i);"
             , "}"
             ]
-        analyse ["type-check"] ("test.c", ast)
+        analyseLocal ["type-check"] ("test.c", ast)
             `shouldBe`
             []

@@ -3,7 +3,7 @@ module Tokstyle.Linter.SwitchIfSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (analyse)
+import           Tokstyle.Linter     (analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -20,7 +20,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["switch-if"] ("test.c", ast) `shouldBe` []
 
     it "accepts a if/else with only 2 comparisons" $ do
         ast <- mustParse
@@ -36,7 +36,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["switch-if"] ("test.c", ast) `shouldBe` []
 
     it "ignores candidates where all branches are single statements" $ do
         ast <- mustParse
@@ -50,7 +50,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["switch-if"] ("test.c", ast) `shouldBe` []
 
     it "diagnoses a series of if/else-if statements as candidate for switch" $ do
         ast <- mustParse
@@ -65,7 +65,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast)
+        analyseLocal ["switch-if"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: if-statement could be a switch [-Wswitch-if]"
             ]
@@ -85,7 +85,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast)
+        analyseLocal ["switch-if"] ("test.c", ast)
             `shouldBe`
             [ "test.c:2: if-statement could be a switch [-Wswitch-if]"
             ]
@@ -107,7 +107,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast)
+        analyseLocal ["switch-if"] ("test.c", ast)
             `shouldBe`
             [ "test.c:3: if-statement could be a switch [-Wswitch-if]"
             ]
@@ -131,7 +131,7 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast)
+        analyseLocal ["switch-if"] ("test.c", ast)
             `shouldBe`
             [ "test.c:5: if-statement could be a switch [-Wswitch-if]"
             ]
@@ -151,4 +151,4 @@ spec = do
             , "  }"
             , "}"
             ]
-        analyse ["switch-if"] ("test.c", ast) `shouldBe` []
+        analyseLocal ["switch-if"] ("test.c", ast) `shouldBe` []

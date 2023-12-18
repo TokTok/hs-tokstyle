@@ -50,6 +50,7 @@ library
     Tokstyle.Linter.TypedefName
     Tokstyle.Linter.UnsafeFunc
     Tokstyle.Linter.VarUnusedInScope
+    Tokstyle.SemFmt.EnumFromInt
 
   ghc-options:      -Wall
   hs-source-dirs:   src
@@ -64,6 +65,7 @@ library
     , data-fix        <0.4
     , deepseq         <2
     , edit-distance   <0.3
+    , extra           <2
     , filepath        <2
     , groom           <0.2
     , microlens       <0.5
@@ -132,6 +134,7 @@ test-suite testsuite
     Tokstyle.Linter.TypeCheckSpec
     Tokstyle.Linter.VarUnusedInScopeSpec
     Tokstyle.LinterSpec
+    Tokstyle.SemFmt.EnumFromIntSpec
 
   ghc-options:        -Wall -Wno-unused-imports
   build-tool-depends: hspec-discover:hspec-discover

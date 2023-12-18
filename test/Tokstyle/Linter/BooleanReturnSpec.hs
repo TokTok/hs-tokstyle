@@ -3,7 +3,7 @@ module Tokstyle.Linter.BooleanReturnSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (allWarnings, analyse)
+import           Tokstyle.Linter     (allWarnings, analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -16,7 +16,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:1: function `a` only ever returns two values `0` and `1`; it can return `bool` [-Wboolean-return]"
             ]
@@ -28,7 +28,7 @@ spec = do
             , "  return 0;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:1: function `a` only ever returns two values `-1` and `0`; it can return `bool` [-Wboolean-return]"
             ]
@@ -41,7 +41,7 @@ spec = do
             , "  return foo();"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             []
 
@@ -53,6 +53,6 @@ spec = do
             , "  return -1;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             []

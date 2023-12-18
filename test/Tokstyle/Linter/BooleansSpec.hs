@@ -3,7 +3,7 @@ module Tokstyle.Linter.BooleansSpec where
 
 import           Test.Hspec          (Spec, it, shouldBe)
 
-import           Tokstyle.Linter     (allWarnings, analyse)
+import           Tokstyle.Linter     (allWarnings, analyseLocal)
 import           Tokstyle.LinterSpec (mustParse)
 
 
@@ -16,7 +16,7 @@ spec = do
             , "  return false;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: if-statement followed by boolean return can be simplified to return [-Wbooleans]"
             ]
@@ -28,7 +28,7 @@ spec = do
             , "  else { return false; }"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:2: if/else with return true/false can be simplified to return [-Wbooleans]"
             ]
@@ -41,7 +41,7 @@ spec = do
             , "  return false;"
             , "}"
             ]
-        analyse allWarnings ("test.c", ast)
+        analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
             [ "test.c:3: if-statement followed by boolean return can be simplified to return [-Wbooleans]"
             ]

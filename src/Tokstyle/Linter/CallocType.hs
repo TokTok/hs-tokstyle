@@ -9,12 +9,12 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
-                                              removeSloc)
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
+import           Tokstyle.Common             (semEq)
 
 
 checkTypes :: Text -> FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()
@@ -23,7 +23,7 @@ checkTypes funName file castTy sizeofTy = case unFix castTy of
         warn file castTy $
             "`" <> funName <> "` should not be used for `" <> showNode castTy
             <> "`; use `mem_balloc` instead"
-    TyPointer ty1 | removeSloc ty1 == removeSloc sizeofTy -> return ()
+    TyPointer ty1 | ty1 `semEq` sizeofTy -> return ()
     _ -> warn file castTy $
         "`" <> funName <> "` result is cast to `" <> showNode castTy
         <> "` but allocated type is `" <> showNode sizeofTy <> "`"
