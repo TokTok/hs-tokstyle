@@ -43,6 +43,7 @@ import qualified Tokstyle.Linter.DocComments       as DocComments
 import qualified Tokstyle.Linter.TypeCheck         as TypeCheck
 import qualified Tokstyle.SemFmt.EnumFromInt       as EnumFromInt
 import qualified Tokstyle.SemFmt.EnumToString      as EnumToString
+import qualified Tokstyle.SemFmt.EnumUnpack        as EnumUnpack
 
 
 type TranslationUnit = (FilePath, [Node (Lexeme Text)])
@@ -92,6 +93,7 @@ globalLinters =
     -- Semantic formatters:
     , ("enum-from-int"      , EnumFromInt.analyse      )
     , ("enum-to-string"     , EnumToString.analyse     )
+    , ("enum-unpack"        , EnumUnpack.analyse       )
     ]
 
 analyseLocal :: [Text] -> TranslationUnit -> [Text]
