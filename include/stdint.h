@@ -21,3 +21,5 @@ extern const uint32_t UINT32_MAX;
 extern const int32_t INT32_MAX;
 extern const uint64_t UINT64_MAX;
 extern const int64_t INT64_MAX;
+
+extern uint32_t UINT32_C(int value);

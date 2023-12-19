@@ -27,15 +27,15 @@ haskell_binary(
         "-RTS",
     ],
     compiler_flags = [
-        "-Wwarn",
         "-rtsopts",
         "-threaded",
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//hs-tokstyle:c-linters",
         "//third_party/haskell:base",
-        "//third_party/haskell:containers",
         "//third_party/haskell:language-c",
         "//third_party/haskell:monad-parallel",
+        "//third_party/haskell:text",
     ],
 )

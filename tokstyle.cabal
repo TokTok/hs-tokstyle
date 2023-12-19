@@ -18,6 +18,15 @@ source-repository head
 library
   default-language: Haskell2010
   exposed-modules:
+    Tokstyle.C.Env
+    Tokstyle.C.Linter
+    Tokstyle.C.Linter.BoolConversion
+    Tokstyle.C.Linter.Cast
+    Tokstyle.C.Linter.Conversion
+    Tokstyle.C.Linter.Sizeof
+    Tokstyle.C.Patterns
+    Tokstyle.C.TravUtils
+    Tokstyle.C.TraverseAst
     Tokstyle.Common
     Tokstyle.Linter
     Tokstyle.Linter.Assert
@@ -68,6 +77,7 @@ library
     , extra           <2
     , filepath        <2
     , groom           <0.2
+    , language-c      <0.10
     , microlens       <0.5
     , microlens-th    <0.5
     , mtl             <3
@@ -94,9 +104,10 @@ executable check-c
   main-is:          check-c.hs
   build-depends:
       base            <5
-    , containers
-    , language-c      <0.10
+    , language-c
     , monad-parallel  <0.9
+    , tokstyle
+    , text
 
 executable webservice
   main-is:          webservice.hs

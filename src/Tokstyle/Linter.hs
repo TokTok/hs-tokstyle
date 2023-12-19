@@ -99,7 +99,7 @@ analyseGlobal :: [Text] -> [TranslationUnit] -> [Text]
 analyseGlobal = run globalLinters
 
 analyse :: [Text] -> [TranslationUnit] -> [Text]
-analyse ignore tus = concat $ analyseGlobal ignore tus : parMap rpar (analyseLocal ignore) tus
+analyse linters tus = concat $ analyseGlobal linters tus : parMap rpar (analyseLocal linters) tus
 
 allWarnings :: [Text]
 allWarnings = map fst localLinters ++ map fst globalLinters

@@ -5,8 +5,28 @@ load("//tools/project:build_defs.bzl", "project")
 project()
 
 haskell_library(
+    name = "c-linters",
+    srcs = glob(["src/Tokstyle/C/**/*.*hs"]),
+    compiler_flags = ["-j4"],
+    src_strip_prefix = "src",
+    version = "0.0.9",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//third_party/haskell:base",
+        "//third_party/haskell:containers",
+        "//third_party/haskell:language-c",
+        "//third_party/haskell:mtl",
+        "//third_party/haskell:parallel",
+        "//third_party/haskell:text",
+    ],
+)
+
+haskell_library(
     name = "hs-tokstyle",
-    srcs = glob(["src/**/*.*hs"]),
+    srcs = glob(
+        ["src/**/*.*hs"],
+        exclude = ["src/Tokstyle/C/**"],
+    ),
     compiler_flags = ["-j4"],
     src_strip_prefix = "src",
     version = "0.0.9",
@@ -25,6 +45,7 @@ haskell_library(
         "//third_party/haskell:extra",
         "//third_party/haskell:filepath",
         "//third_party/haskell:groom",
+        "//third_party/haskell:language-c",
         "//third_party/haskell:microlens",
         "//third_party/haskell:microlens-th",
         "//third_party/haskell:mtl",
