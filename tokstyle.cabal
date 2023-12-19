@@ -137,6 +137,8 @@ test-suite testsuite
   hs-source-dirs:     test
   main-is:            testsuite.hs
   other-modules:
+    Tokstyle.C.Linter.SizeofSpec
+    Tokstyle.C.LinterSpec
     Tokstyle.Linter.BooleanReturnSpec
     Tokstyle.Linter.BooleansSpec
     Tokstyle.Linter.CallgraphSpec
@@ -158,5 +160,6 @@ test-suite testsuite
       base      <5
     , cimple
     , hspec     <3
+    , language-c
     , text
     , tokstyle

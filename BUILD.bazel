@@ -58,10 +58,12 @@ hspec_test(
     name = "testsuite",
     size = "small",
     deps = [
+        ":c-linters",
         ":hs-tokstyle",
         "//hs-cimple",
         "//third_party/haskell:base",
         "//third_party/haskell:hspec",
+        "//third_party/haskell:language-c",
         "//third_party/haskell:text",
     ],
 )

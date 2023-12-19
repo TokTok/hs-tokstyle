@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.LinterSpec
     ( mustParse
@@ -38,14 +37,14 @@ mustParseStmt code =
 spec :: Spec
 spec = do
     it "should parse a simple function" $ do
-        let Right ast = parseText "int a(void) { return 3; }"
+        ast <- mustParse ["int a(void) { return 3; }"]
         analyseLocal allWarnings ("test.c", ast) `shouldBe` []
 
     it "should give diagnostics on extern decls in .c files" $ do
-        let Right ast = parseText "int a(void);"
+        ast <- mustParse ["int a(void);"]
         analyseLocal allWarnings ("test.c", ast)
             `shouldBe` ["test.c:1: global function `a` declared in .c file [-Wglobal-funcs]"]
 
     it "should not give diagnostics on extern decls in .h files" $ do
-        let Right ast = parseText "int a(void);"
+        ast <- mustParse ["int a(void);"]
         analyseLocal allWarnings ("test.h", ast) `shouldBe` []
