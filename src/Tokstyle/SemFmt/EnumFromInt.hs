@@ -8,9 +8,10 @@ import           Data.List.Extra            (firstJust)
 import           Data.Maybe                 (mapMaybe)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
-import           Language.Cimple            (Lexeme (..), LiteralType (..),
-                                             Node, NodeF (..))
-import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums)
+import           Language.Cimple            (AssignOp (..), Lexeme (..),
+                                             LexemeClass (..), LiteralType (..),
+                                             Node, NodeF (..), UnaryOp (..))
+import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums, mkLAt)
 
 
 funSuffix :: Text
@@ -21,13 +22,21 @@ mkCase (Fix Comment{}) = Nothing
 mkCase (Fix (Enumerator name _)) = Just $
     -- case $name: return $name;
     Fix (Case (Fix (LiteralExpr ConstId name))
-         (Fix (Return (Just (Fix (LiteralExpr ConstId name))))))
+         (mkAssignOut name (LitTrue, "true")))
 mkCase node = error $ show node
+
+mkAssignOut :: Lexeme Text -> (LexemeClass, Text) -> Node (Lexeme Text)
+mkAssignOut name (retCls, retStr) =
+    let outDeref = Fix (UnaryExpr UopDeref (Fix (VarExpr (mkLAt name IdVar "out")))) in
+    Fix $ CompoundStmt
+        [ Fix (ExprStmt (Fix (AssignExpr outDeref AopEq (Fix (LiteralExpr ConstId name)))))
+        , Fix (Return (Just (Fix (LiteralExpr Bool (mkLAt name retCls retStr)))))
+        ]
 
 mkFunBody :: MkFunBody
 mkFunBody _ varName enumrs = do
     dn <- defaultName
-    let defaultCase = Fix (Default (Fix (Return (Just (Fix (LiteralExpr ConstId dn))))))
+    let defaultCase = Fix (Default (mkAssignOut dn (LitFalse, "false")))
     return $ Fix (CompoundStmt
         [Fix (SwitchStmt (Fix (VarExpr varName)) (mapMaybe mkCase enumrs ++ [defaultCase]))])
   where

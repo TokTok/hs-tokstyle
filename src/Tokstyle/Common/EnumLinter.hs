@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums) where
+module Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums, mkLAt) where
 
 import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
@@ -9,7 +9,8 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
+import           Language.Cimple             (Lexeme (..), LexemeClass (..),
+                                              Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (ppTranslationUnit, render)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -26,6 +27,9 @@ instance HasDiagnostics Linter where
 
 empty :: Linter
 empty = Linter [] []
+
+mkLAt :: Lexeme a -> LexemeClass -> a -> Lexeme a
+mkLAt (L p _ _) c s = L p c s
 
 collectEnums :: [(FilePath, [Node (Lexeme Text)])] -> State Linter ()
 collectEnums = traverseAst actions
@@ -52,11 +56,11 @@ checkEnums funSuffix mkFunBody = traverseAst actions
     actions = astActions
         { doNode = \file node act ->
             case unFix node of
-                FunctionDefn _ (Fix (FunctionPrototype _ (L _ _ fname) [Fix (VarDecl _ varName _)])) body
+                FunctionDefn _ (Fix (FunctionPrototype _ (L _ _ fname) (Fix (VarDecl _ varName _):_))) body
                     | funSuffix `Text.isSuffixOf` fname -> do
                     Linter{enums} <- State.get
                     case lookup (Text.dropEnd (Text.length funSuffix) fname) enums of
-                        Nothing -> warn file node $ "enum not found for function `" <> fname <> "`"
+                        Nothing -> return ()  -- not every _to_string function is for enums
                         Just (ename, enumrs) -> do
                             case mkFunBody ename varName enumrs of
                                 Nothing ->
