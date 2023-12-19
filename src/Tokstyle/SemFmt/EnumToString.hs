@@ -1,0 +1,40 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
+module Tokstyle.SemFmt.EnumToString (analyse) where
+
+import           Data.Fix                   (Fix (..))
+import           Data.Maybe                 (mapMaybe)
+import           Data.Text                  (Text)
+import           Language.Cimple            (Lexeme (..), LexemeClass (..),
+                                             LiteralType (..), Node, NodeF (..),
+                                             lexemeText)
+import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums)
+
+
+funSuffix :: Text
+funSuffix = "_to_string"
+
+mkLAt :: Lexeme a -> LexemeClass -> a -> Lexeme a
+mkLAt (L p _ _) c s = L p c s
+
+mkReturnString :: Lexeme Text -> Text -> Node (Lexeme Text)
+mkReturnString at str = Fix (Return (Just (Fix (LiteralExpr String (mkLAt at LitString str)))))
+
+mkCase :: Node (Lexeme Text) -> Maybe (Node (Lexeme Text))
+mkCase (Fix Comment{}) = Nothing
+mkCase (Fix (Enumerator name _)) = Just $
+    -- case $name: return "$name";
+    Fix (Case (Fix (LiteralExpr ConstId name)) $
+         mkReturnString name $ "\"" <> lexemeText name <> "\"")
+mkCase node = error $ show node
+
+mkFunBody :: MkFunBody
+mkFunBody ename varName enumrs = do
+    return $ Fix (CompoundStmt
+        [ Fix (SwitchStmt (Fix (VarExpr varName)) (mapMaybe mkCase enumrs))
+        , mkReturnString varName $ "\"<invalid " <> ename <> ">\""
+        ])
+
+
+analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
+analyse = analyseEnums funSuffix mkFunBody

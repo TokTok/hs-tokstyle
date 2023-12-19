@@ -28,6 +28,7 @@ library
     Tokstyle.C.TravUtils
     Tokstyle.C.TraverseAst
     Tokstyle.Common
+    Tokstyle.Common.EnumLinter
     Tokstyle.Linter
     Tokstyle.Linter.Assert
     Tokstyle.Linter.BooleanReturn
@@ -60,6 +61,7 @@ library
     Tokstyle.Linter.UnsafeFunc
     Tokstyle.Linter.VarUnusedInScope
     Tokstyle.SemFmt.EnumFromInt
+    Tokstyle.SemFmt.EnumToString
 
   ghc-options:      -Wall
   hs-source-dirs:   src
@@ -146,6 +148,7 @@ test-suite testsuite
     Tokstyle.Linter.VarUnusedInScopeSpec
     Tokstyle.LinterSpec
     Tokstyle.SemFmt.EnumFromIntSpec
+    Tokstyle.SemFmt.EnumToStringSpec
 
   ghc-options:        -Wall -Wno-unused-imports
   build-tool-depends: hspec-discover:hspec-discover

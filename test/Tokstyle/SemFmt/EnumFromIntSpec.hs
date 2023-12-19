@@ -36,5 +36,6 @@ spec = do
             ]
         analyseGlobal ["enum-from-int"] [("test.c", ast)]
             `shouldBe`
-            [ "test.c:5: enum from_int function should be:\n" <> expected <> " [-Wenum-from-int]"
+            [ "test.c:5: enum `_from_int` function for `Foo` should be:\n"
+              <> expected <> " [-Wenum-from-int]"
             ]
