@@ -17,6 +17,7 @@ import           Tokstyle.C.Env                   (Env, defaultEnv)
 import qualified Tokstyle.C.Linter.BoolConversion as BoolConversion
 import qualified Tokstyle.C.Linter.Cast           as Cast
 import qualified Tokstyle.C.Linter.Conversion     as Conversion
+import qualified Tokstyle.C.Linter.Memset         as Memset
 import qualified Tokstyle.C.Linter.Sizeof         as Sizeof
 
 
@@ -25,6 +26,7 @@ linters =
     [ ("bool-conversion"    , BoolConversion.analyse   )
     , ("cast"               , Cast.analyse             )
     , ("conversion"         , Conversion.analyse       )
+    , ("memset"             , Memset.analyse           )
     , ("sizeof"             , Sizeof.analyse           )
     ]
 
