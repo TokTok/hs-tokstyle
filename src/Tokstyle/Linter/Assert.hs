@@ -52,6 +52,7 @@ checkAssertArg file name expr =
         [ "make_family"
         , "memcmp"
         , "shared_key_is_empty"
+        , "tox_events_get_size"
         ]
 
 

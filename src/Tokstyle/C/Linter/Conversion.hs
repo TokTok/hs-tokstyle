@@ -85,6 +85,9 @@ checkConversion context (r, removeQuals -> rTy) (l, removeQuals -> lTy) =
       (_,"unsigned int")                -> return ()
       (_,"int")                         -> return ()
       (_,"long")                        -> return ()
+
+      -- TODO(iphydf): Remove once the "system" PR is in.
+      ("const struct Memory *","Memory const *") -> return ()
       (rTyName, lTyName) ->
           recordError $ typeMismatch
               ("invalid conversion from `" <> rTyName <> "` to `" <>
