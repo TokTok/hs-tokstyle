@@ -43,6 +43,7 @@ library
     Tokstyle.Linter.DeclaredOnce
     Tokstyle.Linter.DeclsHaveDefns
     Tokstyle.Linter.DocComments
+    Tokstyle.Linter.EnumDefines
     Tokstyle.Linter.EnumNames
     Tokstyle.Linter.FuncPrototypes
     Tokstyle.Linter.FuncScopes
@@ -74,6 +75,7 @@ library
     , base            >=4       && <5
     , bytestring      <0.13
     , cimple          >=0.0.18
+    , casing          <0.2
     , containers      <0.8
     , data-fix        <0.4
     , deepseq         <2
@@ -147,6 +149,7 @@ test-suite testsuite
     Tokstyle.Linter.CallocTypeSpec
     Tokstyle.Linter.CompoundInitSpec
     Tokstyle.Linter.ConstnessSpec
+    Tokstyle.Linter.EnumDefinesSpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec
     Tokstyle.Linter.TypeCheckSpec

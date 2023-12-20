@@ -38,6 +38,7 @@ haskell_library(
         "//third_party/haskell:array",
         "//third_party/haskell:base",
         "//third_party/haskell:bytestring",
+        "//third_party/haskell:casing",
         "//third_party/haskell:containers",
         "//third_party/haskell:data-fix",
         "//third_party/haskell:deepseq",
