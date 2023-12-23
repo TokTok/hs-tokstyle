@@ -7,7 +7,7 @@ project()
 haskell_library(
     name = "c-linters",
     srcs = glob(["src/Tokstyle/C/**/*.*hs"]),
-    compiler_flags = ["-j4"],
+    ghcopts = ["-j4"],
     src_strip_prefix = "src",
     version = "0.0.9",
     visibility = ["//visibility:public"],
@@ -27,7 +27,7 @@ haskell_library(
         ["src/**/*.*hs"],
         exclude = ["src/Tokstyle/C/**"],
     ),
-    compiler_flags = ["-j4"],
+    ghcopts = ["-j4"],
     src_strip_prefix = "src",
     version = "0.0.9",
     visibility = ["//visibility:public"],

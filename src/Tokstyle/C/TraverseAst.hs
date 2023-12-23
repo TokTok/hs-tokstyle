@@ -12,8 +12,15 @@ module Tokstyle.C.TraverseAst where
 import           Data.Foldable              (for_, traverse_)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
-import           Language.C
-import           Language.C.Analysis.SemRep
+import           Language.C.Analysis.SemRep (FunDef (FunDef), GlobalDecls (..),
+                                             IdentDecl (..))
+import           Language.C.Data.Ident      (Ident)
+import           Language.C.Syntax.AST      (CBlockItem,
+                                             CCompoundBlockItem (..), CConst,
+                                             CDecl, CDeclaration (..), CExpr,
+                                             CExpression (..), CInit,
+                                             CInitializer (..), CStat,
+                                             CStatement (..))
 
 class TraverseAst a where
     traverseAst

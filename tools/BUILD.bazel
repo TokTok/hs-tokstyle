@@ -3,7 +3,7 @@ load("@rules_haskell//haskell:defs.bzl", "haskell_binary")
 haskell_binary(
     name = "check-cimple",
     srcs = ["check-cimple.hs"],
-    compiler_flags = [
+    ghcopts = [
         "-rtsopts",
         "-threaded",
     ],
@@ -26,7 +26,7 @@ haskell_binary(
         "-N5",
         "-RTS",
     ],
-    compiler_flags = [
+    ghcopts = [
         "-rtsopts",
         "-threaded",
     ],

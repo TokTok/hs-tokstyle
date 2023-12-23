@@ -6,12 +6,12 @@ module Tokstyle.C.Linter
 
 import           Data.Text                        (Text)
 import qualified Data.Text                        as Text
-import           Language.C                       (CTranslUnit)
 import           Language.C.Analysis.AstAnalysis  (analyseAST)
 import           Language.C.Analysis.SemRep       (GlobalDecls)
 import           Language.C.Analysis.TravMonad    (CLanguage (..), Trav,
                                                    TravOptions (..),
                                                    modifyOptions, runTrav)
+import           Language.C.Syntax.AST            (CTranslUnit)
 import           Tokstyle.C.Env                   (Env, defaultEnv)
 
 import qualified Tokstyle.C.Linter.BoolConversion as BoolConversion
