@@ -7,6 +7,7 @@ haskell_binary(
         "-rtsopts",
         "-threaded",
     ],
+    tags = ["no-cross"],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-cimple",
@@ -30,6 +31,7 @@ haskell_binary(
         "-rtsopts",
         "-threaded",
     ],
+    tags = ["no-cross"],
     visibility = ["//visibility:public"],
     deps = [
         "//hs-tokstyle:c-linters",

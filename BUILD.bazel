@@ -9,6 +9,7 @@ haskell_library(
     srcs = glob(["src/Tokstyle/C/**/*.*hs"]),
     ghcopts = ["-j4"],
     src_strip_prefix = "src",
+    tags = ["no-cross"],
     version = "0.0.9",
     visibility = ["//visibility:public"],
     deps = [
@@ -29,6 +30,7 @@ haskell_library(
     ),
     ghcopts = ["-j4"],
     src_strip_prefix = "src",
+    tags = ["no-cross"],
     version = "0.0.9",
     visibility = ["//visibility:public"],
     deps = [
