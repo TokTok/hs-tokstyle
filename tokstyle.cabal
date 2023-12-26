@@ -55,6 +55,7 @@ library
     Tokstyle.Linter.MallocType
     Tokstyle.Linter.MemcpyStructs
     Tokstyle.Linter.MissingNonNull
+    Tokstyle.Linter.Nesting
     Tokstyle.Linter.NonNull
     Tokstyle.Linter.Parens
     Tokstyle.Linter.SwitchIf
