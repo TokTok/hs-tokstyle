@@ -1,0 +1,21 @@
+genrule(
+    name = "cimple_doc",
+    outs = ["cimple.md.new"],
+    cmd = "$(location //hs-tokstyle/tools:check-cimple) --help > $@",
+    exec_tools = ["//hs-tokstyle/tools:check-cimple"],
+)
+
+sh_test(
+    name = "cimple_doc_test",
+    size = "small",
+    srcs = ["@diffutils//:diff"],
+    args = [
+        "-u",
+        "$(location cimple.md)",
+        "$(location cimple.md.new)",
+    ],
+    data = [
+        "cimple.md",
+        "cimple.md.new",
+    ],
+)

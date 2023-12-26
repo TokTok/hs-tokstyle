@@ -4,8 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE TupleSections     #-}
-{-# OPTIONS_GHC -Wwarn #-}
-module Tokstyle.Linter.Callgraph where
+module Tokstyle.Linter.Callgraph (descr) where
 
 import           Control.Applicative         ((<|>))
 import           Control.Monad               (forM_, unless)
@@ -681,3 +680,24 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "vpx_img_alloc"
         , "vpx_img_free"
         ]
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("callgraph", Text.unlines
+    [ "Performs various call graph related checks:"
+    , ""
+    , "- There should be no unused functions. Even unused `extern` functions are not"
+    , "  permitted, except for the exported library interface."
+    , "- Only a subset of standard library, POSIX, WinAPI, or Darwin API functions are"
+    , "  allowed. Any use of unvetted functions (such as `setjmp`) is not permitted."
+    , "- Recursion is not allowed outside of a few exemptions that should be fixed."
+    , "  Code should be written to use iteration, instead, possibly with a manually"
+    , "  managed stack to keep intermediate results for algorithms like DFS."
+    , ""
+    , "**Reason:**"
+    , ""
+    , "- Unused symbols require useless maintenance."
+    , "- We want to keep control over how much of the standard library we use."
+    , "- Unbounded recursion can cause stack overflows and makes it impossible to"
+    , "  statically determine the maximum stack memory requirements of a program, which"
+    , "  is especially useful in embedded software."
+    ]))

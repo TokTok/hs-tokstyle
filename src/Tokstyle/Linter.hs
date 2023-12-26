@@ -1,13 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Tokstyle.Linter
     ( analyse
     , analyseLocal
     , analyseGlobal
     , allWarnings
+    , markdown
     ) where
 
 import           Control.Parallel.Strategies       (parMap, rpar)
+import qualified Data.List                         as List
 import           Data.Text                         (Text)
+import qualified Data.Text                         as Text
 import           Language.Cimple                   (Lexeme, Node)
 
 import qualified Tokstyle.Linter.Assert            as Assert
@@ -50,54 +56,58 @@ import qualified Tokstyle.SemFmt.EnumUnpack        as EnumUnpack
 
 type TranslationUnit = (FilePath, [Node (Lexeme Text)])
 
-run :: [(Text, t -> [Text])] -> [Text] -> t -> [Text]
+run :: [(t -> [Text], (Text, Text))] -> [Text] -> t -> [Text]
 run linters flags tu =
-    concat . parMap rpar apply . filter ((`elem` flags) . fst) $ linters
+    concat . parMap rpar apply . filter ((`elem` flags) . fst . snd) $ linters
   where
-    apply (flag, f) = map (<> " [-W" <> flag <> "]") $ f tu
+    apply (f, (flag, _)) = map (<> " [-W" <> flag <> "]") $ f tu
 
-localLinters :: [(Text, TranslationUnit -> [Text])]
+type LocalLinter = (TranslationUnit -> [Text], (Text, Text))
+
+localLinters :: [LocalLinter]
 localLinters =
-    [ ("assert"             , Assert.analyse           )
-    , ("booleans"           , Booleans.analyse         )
-    , ("boolean-return"     , BooleanReturn.analyse    )
-    , ("callback-names"     , CallbackNames.analyse    )
-    , ("calloc-args"        , CallocArgs.analyse       )
-    , ("calloc-type"        , CallocType.analyse       )
-    , ("compound-init"      , CompoundInit.analyse     )
-    , ("constness"          , Constness.analyse        )
-    , ("enum-defines"       , EnumDefines.analyse      )
-    , ("enum-names"         , EnumNames.analyse        )
-    , ("func-prototypes"    , FuncPrototypes.analyse   )
-    , ("func-scopes"        , FuncScopes.analyse       )
-    , ("global-funcs"       , GlobalFuncs.analyse      )
-    , ("large-struct-params", LargeStructParams.analyse)
-    , ("logger-calls"       , LoggerCalls.analyse      )
-    , ("logger-const"       , LoggerConst.analyse      )
-    , ("logger-no-escapes"  , LoggerNoEscapes.analyse  )
-    , ("malloc-type"        , MallocType.analyse       )
-    , ("memcpy-structs"     , MemcpyStructs.analyse    )
-    , ("missing-non-null"   , MissingNonNull.analyse   )
-    , ("nesting"            , Nesting.analyse          )
-    , ("non-null"           , NonNull.analyse          )
-    , ("parens"             , Parens.analyse           )
-    , ("switch-if"          , SwitchIf.analyse         )
-    , ("typedef-name"       , TypedefName.analyse      )
-    , ("unsafe-func"        , UnsafeFunc.analyse       )
-    , ("var-unused-in-scope", VarUnusedInScope.analyse )
+    [ Assert.descr
+    , Booleans.descr
+    , BooleanReturn.descr
+    , CallbackNames.descr
+    , CallocArgs.descr
+    , CallocType.descr
+    , CompoundInit.descr
+    , Constness.descr
+    , EnumDefines.descr
+    , EnumNames.descr
+    , FuncPrototypes.descr
+    , FuncScopes.descr
+    , GlobalFuncs.descr
+    , LargeStructParams.descr
+    , LoggerCalls.descr
+    , LoggerConst.descr
+    , LoggerNoEscapes.descr
+    , MallocType.descr
+    , MemcpyStructs.descr
+    , MissingNonNull.descr
+    , Nesting.descr
+    , NonNull.descr
+    , Parens.descr
+    , SwitchIf.descr
+    , TypedefName.descr
+    , UnsafeFunc.descr
+    , VarUnusedInScope.descr
     ]
 
-globalLinters :: [(Text, [TranslationUnit] -> [Text])]
+type GlobalLinter = ([TranslationUnit] -> [Text], (Text, Text))
+
+globalLinters :: [GlobalLinter]
 globalLinters =
-    [ ("callgraph"          , Callgraph.analyse        )
-    , ("declared-once"      , DeclaredOnce.analyse     )
-    , ("decls-have-defns"   , DeclsHaveDefns.analyse   )
-    , ("doc-comments"       , DocComments.analyse      )
-    , ("type-check"         , TypeCheck.analyse        )
+    [ Callgraph.descr
+    , DeclaredOnce.descr
+    , DeclsHaveDefns.descr
+    , DocComments.descr
+    , TypeCheck.descr
     -- Semantic formatters:
-    , ("enum-from-int"      , EnumFromInt.analyse      )
-    , ("enum-to-string"     , EnumToString.analyse     )
-    , ("enum-unpack"        , EnumUnpack.analyse       )
+    , EnumFromInt.descr
+    , EnumToString.descr
+    , EnumUnpack.descr
     ]
 
 analyseLocal :: [Text] -> TranslationUnit -> [Text]
@@ -110,4 +120,25 @@ analyse :: [Text] -> [TranslationUnit] -> [Text]
 analyse linters tus = concat $ analyseGlobal linters tus : parMap rpar (analyseLocal linters) tus
 
 allWarnings :: [Text]
-allWarnings = map fst localLinters ++ map fst globalLinters
+allWarnings = map (fst . snd) localLinters ++ map (fst . snd) globalLinters
+
+class LinterType a where
+    linterType :: a -> Text
+
+instance LinterType LocalLinter where linterType = const ""
+instance LinterType GlobalLinter where linterType = const " (global)"
+
+markdown :: Text
+markdown = Text.intercalate "\n" . (prelude ++) . map snd . List.sort $ map mkDoc localLinters ++ map mkDoc globalLinters
+  where
+    prelude =
+        [ "# Cimple-based linters (`check-cimple`)"
+        , ""
+        , "There are currently " <> Text.pack (show $ length localLinters + length globalLinters) <> " linters implemented,"
+          <> " out of which " <> Text.pack (show $ length globalLinters) <> " perform global analyses."
+        , "In the list below, the global ones are marked specially."
+        , ""
+        ]
+    mkDoc lnt =
+        let (flag, doc) = snd lnt in
+        (flag, "## `-W" <> flag <> "`" <> linterType lnt <> "\n\n" <> doc)

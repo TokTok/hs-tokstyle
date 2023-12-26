@@ -17,7 +17,7 @@ import           System.Environment          (getArgs)
 import           System.IO                   (hPutStrLn, stderr)
 
 import           Tokstyle.Linter             (allWarnings, analyseGlobal,
-                                              analyseLocal)
+                                              analyseLocal, markdown)
 
 
 processAst :: [Text] -> (UTCTime, [(FilePath, [Node (Lexeme Text)])]) -> IO ()
@@ -47,16 +47,17 @@ parseArgs = first (processFlags . map (drop 2)) . partition ("-W" `isPrefixOf`)
 defaultFlags :: [String]
 defaultFlags =
     [ "-Wno-callback-names"
-    , "-Wno-enum-names"
     ]
 
 
 main :: IO ()
-main = do
-    (flags, files) <- parseArgs . (defaultFlags ++) <$> getArgs
-    start <- getCurrentTime
-    hPutStrLn stderr $ "Parsing " <> show (length files) <> " files..."
-    parseProgram files >>= getRight start >>= (processAst flags . second Program.toList)
+main = getArgs >>= \case
+    ["--help"] -> Text.putStr markdown
+    args -> do
+        let (flags, files) = parseArgs $ defaultFlags ++ args
+        start <- getCurrentTime
+        hPutStrLn stderr $ "Parsing " <> show (length files) <> " files..."
+        parseProgram files >>= getRight start >>= (processAst flags . second Program.toList)
 
 getRight :: UTCTime -> Either String a -> IO (UTCTime, a)
 getRight _ (Left err) = putStrLn err >> fail "aborting after parse error"

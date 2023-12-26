@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.LoggerCalls (analyse) where
+module Tokstyle.Linter.LoggerCalls (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
@@ -39,3 +39,11 @@ analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 -- point, though.
 analyse (file, _) | takeFileName file == "logger.h" = []
 analyse tu = reverse . flip State.execState [] . traverseAst linter $ tu
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("logger-calls", Text.unlines
+    [ "Checks that the format argument in LOGGER calls is a string literal."
+    , ""
+    , "**Reason:** format arguments must always be string literals so they can be"
+    , "statically checked to match with their argument list."
+    ]))

@@ -4,7 +4,7 @@
 {-# LANGUAGE RankNTypes        #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE TemplateHaskell   #-}
-module Tokstyle.Linter.VarUnusedInScope (analyse) where
+module Tokstyle.Linter.VarUnusedInScope (descr) where
 
 import           Control.Applicative         ((<|>))
 import           Control.Monad.State.Strict  (State)
@@ -13,6 +13,7 @@ import           Data.Fix                    (Fix (..), foldFix)
 import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 --import           Debug.Trace                 (trace)
 import           Language.Cimple             (AssignOp (..), Lexeme (..), Node,
                                               NodeF (..), UnaryOp (..),
@@ -282,3 +283,38 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("var-unused-in-scope", Text.unlines
+    [ "Suggests reducing the scope of a local variable definition when possible."
+    , ""
+    , "E.g.:"
+    , ""
+    , "```cpp"
+    , "{"
+    , "  int a = get_a();"
+    , "  if (cond) {"
+    , "    do_something(a);"
+    , "    do_something_else(a);"
+    , "  }"
+    , "}"
+    , "```"
+    , ""
+    , "could be written as:"
+    , ""
+    , "```cpp"
+    , "{"
+    , "  if (cond) {"
+    , "    int a = get_a();"
+    , "    do_something(a);"
+    , "    do_something_else(a);"
+    , "  }"
+    , "}"
+    , "```"
+    , ""
+    , "This can be semantically different if `get_a` has side-effects, so some care"
+    , "should be taken when applying suggested changes."
+    , ""
+    , "**Reason:** having variables declared in their inner-most possible scope makes"
+    , "it clearer how much code can be influenced by that variable."
+    ]))

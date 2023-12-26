@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.LoggerNoEscapes (analyse) where
+module Tokstyle.Linter.LoggerNoEscapes (descr) where
 
 import           Control.Monad               (when)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
-import           Data.Text                   (Text, isInfixOf)
+import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), LiteralType (String),
                                               Node, NodeF (..), lexemeText)
@@ -36,7 +36,7 @@ linter = astActions
 
 checkFormat :: FilePath -> Lexeme Text -> State [Text] ()
 checkFormat file fmt =
-    when ("\\" `isInfixOf` text) $
+    when ("\\" `Text.isInfixOf` text) $
         Diagnostics.warn file fmt $
             "logger format "
             <> text
@@ -46,3 +46,12 @@ checkFormat file fmt =
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("logger-no-escapes", Text.unlines
+    [ "Checks that no escape sequences are present in the logger format string."
+    , ""
+    , "**Reason:** newlines, tabs, or double quotes are not permitted in log outputs"
+    , "to ensure that each log output is a single line. It's particularly easy to"
+    , "accidentally add `\\n` to the end of a log format. This avoids that problem."
+    ]))

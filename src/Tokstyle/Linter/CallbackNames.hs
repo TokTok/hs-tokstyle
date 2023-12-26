@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.CallbackNames (analyse) where
+module Tokstyle.Linter.CallbackNames (descr) where
 
 import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
@@ -14,13 +14,16 @@ import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 
 
-isValid :: Text -> Bool
-isValid name = any (`Text.isSuffixOf` name)
+allowed :: [Text]
+allowed =
     [ "callback"
     , "cb"
     , "function"
     , "handler"
     ]
+
+isValid :: Text -> Bool
+isValid name = any (`Text.isSuffixOf` name) allowed
 
 
 linter :: AstActions (State [Text]) Text
@@ -40,3 +43,13 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("callback-names", Text.unlines
+    [ "Checks for naming conventions for callbacks. Callback names should end in"
+    , "`callback`, but the following list of suffixes is permitted:"
+    , ""
+    , Text.intercalate "\n" . map (\x -> "- `" <> x <> "`") $ allowed
+    , ""
+    , "**Reason:** naming conventions help quickly understand the code."
+    ]))

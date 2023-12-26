@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.SemFmt.EnumToString (analyse) where
+module Tokstyle.SemFmt.EnumToString (descr) where
 
 import           Data.Fix                   (Fix (..))
 import           Data.Maybe                 (mapMaybe)
 import           Data.Text                  (Text)
+import qualified Data.Text                  as Text
 import           Language.Cimple            (Lexeme (..), LexemeClass (..),
                                              LiteralType (..), Node, NodeF (..),
                                              lexemeText)
@@ -38,3 +39,13 @@ mkFunBody ename varName enumrs = do
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = analyseEnums funSuffix mkFunBody
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("enum-to-string", Text.unlines
+    [ "Checks that `_to_string` functions for `enum`s are complete."
+    , ""
+    , "**Reason:** we provide `to_string` functions for `enum` but don't want to"
+    , "manually maintain them. This linter checks that the function is exactly what"
+    , "we want it to be, and the error message will say what the function should look"
+    , "like."
+    ]))

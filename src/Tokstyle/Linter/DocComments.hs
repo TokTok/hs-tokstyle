@@ -1,13 +1,14 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.DocComments (analyse) where
+module Tokstyle.Linter.DocComments (descr) where
 
 import           Control.Monad               (forM_)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (ppTranslationUnit, render)
@@ -55,3 +56,12 @@ linter = astActions
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter . reverse
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("doc-comments", Text.unlines
+    [ "Checks that doc comments on function definitions match the ones on their"
+    , "corresponding declarations."
+    , ""
+    , "**Reason:** ideally, documentation should be only in one place, but if it is"
+    , "duplicated, it should not be different."
+    ]))

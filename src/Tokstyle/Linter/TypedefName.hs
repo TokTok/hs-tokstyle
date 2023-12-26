@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.TypedefName where
+module Tokstyle.Linter.TypedefName (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               lexemeText)
 import           Language.Cimple.Diagnostics (warn)
@@ -36,3 +37,14 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("typedef-name", Text.unlines
+    [ "Checks that typedef names match the struct/union name. E.g."
+    , "`typedef struct Foo_ { ... } Foo;` should instead be"
+    , "`typedef struct Foo { ... } Foo;`."
+    , ""
+    , "**Reason:** there is no good reason for them to be different, and it adds"
+    , "confusion and a potential for C++ code to pick the wrong name and later break"
+    , "in refactorings."
+    ]))

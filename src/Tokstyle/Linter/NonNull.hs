@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE ViewPatterns      #-}
-module Tokstyle.Linter.NonNull (analyse) where
+module Tokstyle.Linter.NonNull (descr) where
 
 import           Control.Arrow               ((&&&))
 --import           Control.Monad               (when)
@@ -100,3 +100,12 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("non-null", Text.unlines
+    [ "Checks that all pointer parameters are listed in either `non_null` or"
+    , "`nullable`, and that none of the numbers in these annotations are non-pointers."
+    , ""
+    , "**Reason:** see `-Wmissing-non-null` for more context. This check ensures that"
+    , "nullability annotations are updated when parameter lists change."
+    ]))

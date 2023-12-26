@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.FuncScopes (analyse) where
+module Tokstyle.Linter.FuncScopes (descr) where
 
 import           Control.Monad               (when)
 import           Control.Monad.State.Strict  (State)
@@ -58,3 +58,15 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("func-scopes", Text.unlines
+    [ "Checks that static function definitions are marked with `static`."
+    , ""
+    , "In C, a function is `static` even if the definition doesn't use `static`, but"
+    , "there happens to be another declaration of the function which does."
+    , ""
+    , "**Reason:** static/extern qualification of functions should be visible locally."
+    , "It takes mental effort otherwise to look up the declaration to check for storage"
+    , "qualifiers."
+    ]))

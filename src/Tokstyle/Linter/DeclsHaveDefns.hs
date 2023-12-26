@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.DeclsHaveDefns (analyse) where
+module Tokstyle.Linter.DeclsHaveDefns (descr) where
 
 import           Control.Arrow               ((&&&))
 import           Control.Monad.State.Strict  (State)
@@ -95,3 +95,12 @@ makeDiagnostic defns (file, fn@(L _ _ name)) =
             (d, (dfile, dn@(L _ _ dname))):_ | d < maxEditDistance ->
                 [Diagnostics.sloc dfile dn <> ": did you mean `" <> dname <> "`?"]
             _ -> []
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("decls-have-defns", Text.unlines
+    [ "Checks that all function declarations also have matching definitions."
+    , ""
+    , "**Reason:** extern function declarations without definitions are not implemented"
+    , "and cannot be used. This likely means the declaration was forgotten when"
+    , "deleting a function."
+    ]))

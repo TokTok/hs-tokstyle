@@ -5,7 +5,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE TupleSections     #-}
-module Tokstyle.Linter.TypeCheck where
+module Tokstyle.Linter.TypeCheck (descr) where
 
 import           Control.Monad                (foldM, void, zipWithM)
 import           Control.Monad.State.Strict   (State)
@@ -434,3 +434,13 @@ linter = astActions
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = reverse . envDiags . flip State.execState empty . traverseAst linter
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("type-check", Text.unlines
+    [ "Performs Hindley-Milner like type checking."
+    , ""
+    , "This is very much work in progress, so it may fail in cryptic ways. Talk to"
+    , "@iphydf if it produces an error."
+    , ""
+    , "**Reason:** this allows us to validate various difficult to check aspects of C."
+    ]))

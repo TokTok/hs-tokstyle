@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.Assert (analyse) where
+module Tokstyle.Linter.Assert (descr) where
 
 import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (Diagnostics)
 import qualified Language.Cimple.Diagnostics as Diagnostics
@@ -46,14 +47,14 @@ checkAssertArg file name expr =
       _ -> Diagnostics.warn file name $
           "invalid expression in assert: `" <> showNode expr <> "` is not a pure function"
 
-  where
-    -- Known const/pure functions.
-    exemptions =
-        [ "make_family"
-        , "memcmp"
-        , "shared_key_is_empty"
-        , "tox_events_get_size"
-        ]
+-- Known const/pure functions.
+exemptions :: [Text]
+exemptions =
+    [ "make_family"
+    , "memcmp"
+    , "shared_key_is_empty"
+    , "tox_events_get_size"
+    ]
 
 
 linter :: AstActions (State [Text]) Text
@@ -69,3 +70,16 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("assert", Text.unlines
+    [ "Checks whether `assert` is side-effect-free. Only pure expressions"
+    , "(no function calls, no assignments) and an allowlist of exemptions are permitted"
+    , "within `assert`. The current list of exemptions is:"
+    , ""
+    , Text.intercalate "\n" . map (\x -> "- `" <> x <> "`") $ exemptions
+    , ""
+    , "**Reason:** `assert` is compiled out in `NDEBUG` builds, so should not influence"
+    , "logic of the code in debug modes to avoid different behaviours in different"
+    , "compilation modes."
+    ]))

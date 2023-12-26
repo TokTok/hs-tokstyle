@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.SemFmt.EnumUnpack (analyse) where
+module Tokstyle.SemFmt.EnumUnpack (descr) where
 
 import           Data.Fix                   (Fix (..))
 import           Data.Text                  (Text)
@@ -54,3 +54,13 @@ mkFunBody ename varName _ = return $
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = analyseEnums funSuffix mkFunBody
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("enum-unpack", Text.unlines
+    [ "Checks that `_unpack` functions for `enum`s are complete."
+    , ""
+    , "**Reason:** we provide `unpack` functions for `enum` but don't want to"
+    , "manually maintain them. This linter checks that the function is exactly what"
+    , "we want it to be, and the error message will say what the function should look"
+    , "like."
+    ]))

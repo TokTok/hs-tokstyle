@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.Nesting where
+module Tokstyle.Linter.Nesting (descr) where
 
 import           Control.Monad               (when)
 import           Control.Monad.State.Strict  (State)
@@ -40,3 +40,10 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("nesting", Text.unlines
+    [ "Warns if a function has more than " <> Text.pack (show maxNesting) <> " nesting levels."
+    , ""
+    , "**Reason:** deep nesting makes functions more difficult to comprehend."
+    ]))

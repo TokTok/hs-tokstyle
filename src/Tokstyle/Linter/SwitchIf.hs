@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.SwitchIf (analyse) where
+module Tokstyle.Linter.SwitchIf (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.List                   (nub)
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (BinaryOp (..), Lexeme (..),
                                               LiteralType (..), Node,
                                               NodeF (..), lexemeText)
@@ -41,14 +42,16 @@ collectInfo (Fix (IfStmt _ t (Just e))) =
 collectInfo e =
     IfInfo (Just []) [e]
 
+minSequence :: Int
+minSequence = 3
 
--- | Returns 'True' if there are at least 3 if conditions comparing a variable
--- to a constant and all variable names are the same. Additionally checks
+-- | Returns 'True' if there are at least 'minSequence' if conditions comparing a
+-- variable to a constant and all variable names are the same. Additionally checks
 -- whether all branches are single statements, in which case it returns
 -- 'False'.
 shouldDiagnose :: [Lexeme Text] -> [Node (Lexeme Text)] -> Bool
 shouldDiagnose cs branches =
-    length cs >= 3 && length (nub $ map lexemeText cs) == 1 && not (all singleStatement branches)
+    length cs >= minSequence && length (nub $ map lexemeText cs) == 1 && not (all singleStatement branches)
   where
     singleStatement (Fix (CompoundStmt [_])) = True
     singleStatement _                        = False
@@ -72,3 +75,14 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("switch-if", Text.unlines
+    [ "Suggests turning sequences of `if`/`else` statements into `switch`, if there are"
+    , "at least " <> Text.pack (show minSequence) <> " sequential if-conditions"
+    , "comparing a variable to a constant."
+    , ""
+    , "**Reason:** switch-case statements are clearer in expressing long sequences of"
+    , "comparisons against constants. They also come with duplication checks in most C"
+    , "compilers."
+    ]))

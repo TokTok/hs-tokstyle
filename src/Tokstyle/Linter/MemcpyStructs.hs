@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.MemcpyStructs (analyse) where
+module Tokstyle.Linter.MemcpyStructs (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
@@ -43,3 +44,17 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("memcpy-structs", Text.unlines
+    [ "Checks that `memcpy` and `memset` aren't used for struct pointers."
+    , ""
+    , "Exemptions are:"
+    , ""
+    , Text.intercalate "\n" . map (\x -> "- `" <> x <> "`") $ exemptions
+    , ""
+    , "**Reason:** structs can contain pointers, so `memset` is risky (it can create"
+    , "invalid null pointer representations) and `memcpy` should be replaced by an"
+    , "assignment, possibly in a loop, to avoid messing up the size argument of the"
+    , "`memcpy` call."
+    ]))

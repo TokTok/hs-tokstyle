@@ -1,11 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.LargeStructParams (analyse) where
+module Tokstyle.Linter.LargeStructParams (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
-import           Data.Text                   (Text, isPrefixOf)
+import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -34,7 +35,7 @@ exemptionPrefixes =
     ]
 
 isExempt :: Text -> Bool
-isExempt name = any (`isPrefixOf` name) exemptionPrefixes || name `elem` exemptions
+isExempt name = any (`Text.isPrefixOf` name) exemptionPrefixes || name `elem` exemptions
 
 checkParam :: FilePath -> Node (Lexeme Text) -> State [Text] ()
 checkParam file param = case unFix param of
@@ -56,3 +57,20 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("large-struct-params", Text.unlines
+    [ "Checks that large structs are passed by pointer rather than by value."
+    , ""
+    , "Exemptions are enums and some well-known small structs:"
+    , ""
+    , Text.intercalate "\n" . map (\x -> "- `" <> x <> "`") $ exemptions
+    , ""
+    , "and anything with one of the following prefixes, which are probably enums:"
+    , ""
+    , Text.intercalate "\n" . map (\x -> "- `" <> x <> "`") $ exemptionPrefixes
+    , ""
+    , "**Reason:** some structs in toxcore are up to 5MB in size, which would cause"
+    , "stack overflows. Since we can't currently measure the size, we avoid any struct"
+    , "passing altogether apart from some well-known exemptions."
+    ]))

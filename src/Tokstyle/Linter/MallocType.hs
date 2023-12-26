@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.MallocType (analyse) where
+module Tokstyle.Linter.MallocType (descr) where
 
 import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
                                               NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
@@ -66,3 +67,14 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("malloc-type", Text.unlines
+    [ "Checks that `mem_balloc` is only used for built-in types. For struct allocations"
+    , "`mem_alloc` and other `calloc`-like functions should be used."
+    , ""
+    , "**Reason:** `mem_balloc` does not zero-initialise its memory, which is ok for"
+    , "byte arrays (at most it can cause incorrect behaviour on most systems), but very"
+    , "risky for aggregate types containing pointers, which can point at random (or"
+    , "worse, attacker-controlled) memory."
+    ]))

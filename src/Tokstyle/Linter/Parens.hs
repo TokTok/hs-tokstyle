@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.Parens (analyse) where
+module Tokstyle.Linter.Parens (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Maybe                  (maybeToList)
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -60,3 +61,17 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("parens", Text.unlines
+    [ "Suggests removing parentheses where they are not needed:"
+    , ""
+    , "- in return expressions, e.g. `return(something);` should be `return something;`."
+    , "- in initialisers, e.g. `int foo = (something);` should be `int foo = something;`."
+    , "- in assignments, e.g. `foo = (something);` should be `foo = something;`."
+    , "- in parentheses, e.g. `((something))` should be `(something)`."
+    , ""
+    , "**Reason:** sometimes extra parentheses add clarity, so we don't forbid all"
+    , "redundant parentheses, but in the above cases, they don't add clarity and only"
+    , "add more syntax and confusion as to why there are extra parentheses there."
+    ]))

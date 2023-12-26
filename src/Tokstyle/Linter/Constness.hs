@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.Constness where
+module Tokstyle.Linter.Constness (descr) where
 
 import           Control.Applicative         ((<|>))
 import           Control.Monad.State.Strict  (State)
@@ -11,6 +11,7 @@ import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map
 import qualified Data.Maybe                  as Maybe
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               UnaryOp (..), lexemeText)
 import           Language.Cimple.Diagnostics (warn)
@@ -122,3 +123,17 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("constness", Text.unlines
+    [ "Warns if a variable can be marked as `const`, i.e. it is only initialised and"
+    , "then never assigned again. Pointer types are exempt, i.e. `int *p = get_p();`"
+    , "is fine and doesn't need to be written as `int *const p = get_p();`, but"
+    , "`int q = get_q();`, if then `q` is never assigned again, should be written as"
+    , "`const int q = get_q();`."
+    , ""
+    , "**Reason:** `const` makes the no-assign local invariant clear. We exempt pointer"
+    , "types at the moment, because making that change in toxcore would be a lot of"
+    , "work and we perceive less value in that than in local integer constants, since"
+    , "pointers, especially aggregate object pointers, already change less often."
+    ]))

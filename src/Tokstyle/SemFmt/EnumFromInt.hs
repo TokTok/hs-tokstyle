@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.SemFmt.EnumFromInt (analyse) where
+module Tokstyle.SemFmt.EnumFromInt (descr) where
 
 import           Control.Applicative        ((<|>))
 import           Data.Fix                   (Fix (..))
@@ -51,3 +51,12 @@ mkFunBody _ varName enumrs = do
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse = analyseEnums funSuffix mkFunBody
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("enum-from-int", Text.unlines
+    [ "Checks that `_from_int` functions for `enum`s are complete."
+    , ""
+    , "**Reason:** ensures that no enumerators are missed in conversion functions that"
+    , "turn `int`s into `enum`s. Type-cast is not permitted, because some values of"
+    , "type `int` are not in the enumeration."
+    ]))

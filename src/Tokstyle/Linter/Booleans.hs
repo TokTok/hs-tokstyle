@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.Booleans (analyse) where
+module Tokstyle.Linter.Booleans (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme, LiteralType (..), Node,
                                               NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
@@ -44,3 +45,31 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("booleans", Text.unlines
+    [ "Checks for if/else statements that return true/false and could be simplified to"
+    , "just return. E.g.:"
+    , ""
+    , "```cpp"
+    , "bool foo(void) {"
+    , "  if (check_something()) {"
+    , "    return false;"
+    , "  }"
+    , "  return true;"
+    , "}"
+    , "```"
+    , ""
+    , "could be simplified to:"
+    , ""
+    , "```cpp"
+    , "bool foo(void) {"
+    , "  return !check_something();"
+    , "}"
+    , "```"
+    , ""
+    , "Also checks for the use of `true` or `false` in binary expressions. E.g."
+    , "`a == true` should be `a` and `a != true` should be `!a`."
+    , ""
+    , "**Reason:** simpler code is easier to read."
+    ]))

@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.BooleanReturn where
+module Tokstyle.Linter.BooleanReturn (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
@@ -69,3 +69,14 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("boolean-return", Text.unlines
+    [ "Checks for functions that always return constant integers and thus seem to be"
+    , "semantically boolean functions. E.g. a function returning -1 for error and 0 for"
+    , "success should rather return `false` for error and `true` for success and change"
+    , "its return type to `bool`."
+    , ""
+    , "**Reason:** boolean returns using `bool` (or an `enum` type) are clearer than"
+    , "ones returning an `int` that happens to only have 2 possible values."
+    ]))

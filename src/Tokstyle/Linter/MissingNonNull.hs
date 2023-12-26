@@ -1,12 +1,13 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.MissingNonNull (analyse) where
+module Tokstyle.Linter.MissingNonNull (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
                                               Scope (..), lexemeText)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
@@ -86,3 +87,14 @@ analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse tu@(path, _)
   | takeFileName path `elem` exemptions = []
   | otherwise = reverse . diags . flip State.execState empty . traverseAst linter $ tu
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("missing-non-null", Text.unlines
+    [ "Checks that all function declarations have nullability annotations (`non_null`"
+    , "and/or `nullable`)."
+    , ""
+    , "**Reason:** in TokTok code, we want to be explicit about which pointer"
+    , "parameters can be passed a NULL pointer. This forces the developer to think"
+    , "about nullability and allows static analysers to ensure that all possibly-NULL"
+    , "pointers are checked before being dereferenced or passed to a non-NULL parameter."
+    ]))

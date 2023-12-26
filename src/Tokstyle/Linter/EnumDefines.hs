@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.EnumDefines (analyse) where
+module Tokstyle.Linter.EnumDefines (descr) where
 
 import           Control.Monad               (when)
 import           Control.Monad.State.Strict  (State)
@@ -104,3 +104,21 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("enum-defines", Text.unlines
+    [ "Suggests using `enum` instead of a sequence of `#define`s for enumerations."
+    , "Only matches sequences of `#define`s longer than " <> Text.pack (show minSequence)
+      <> " to avoid some false positives."
+    , "Also, the sequence must have a common prefix of at least " <> Text.pack (show minComponents)
+      <> " components. I.e."
+    , "`" <> mkPrefix 1 <> "` is not a sufficient common prefix, but `" <> mkPrefix 0 <> "` is."
+    , "Lastly, we only require enums for small-int enums, i.e. all enumerators have a"
+    , "constant int expression value less than or equal to " <> Text.pack (show maxSmallInt) <> "."
+    , ""
+    , "**Reason:** `enum` constants are safer, and can potentially be type-checked"
+    , "more thoroughly."
+    ]))
+  where
+    mkPrefix n =
+        Text.intercalate "_" . map (Text.pack . replicate 3 . fst) . zip ['A'..] $ [1..minComponents-n]

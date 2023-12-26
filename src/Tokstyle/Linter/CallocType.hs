@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.CallocType (analyse) where
+module Tokstyle.Linter.CallocType (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
@@ -55,3 +55,17 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("calloc-type", Text.unlines
+    [ "Checks that `mem_alloc` and other `calloc`-like functions are cast to the"
+    , "correct type. The types in the `sizeof` expression and the type-cast expression"
+    , "must be the same. Also, `calloc`-like functions should not be used for built-in"
+    , "types such as `uint8_t` arrays. For this, use `mem_balloc`, instead."
+    , ""
+    , "**Reason:** ensures that the allocation size is appropriate for the allocated"
+    , "object. This makes allocation functions behave more like C++ `new`. For byte"
+    , "arrays, we provide a separate function that doesn't need to zero out its memory"
+    , "for efficiency and to make it easier to detect logic errors using msan or"
+    , "valgrind that can detect uninitialised memory use."
+    ]))

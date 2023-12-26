@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.DeclaredOnce (analyse) where
+module Tokstyle.Linter.DeclaredOnce (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
@@ -9,6 +9,7 @@ import           Data.Fix                    (Fix (..))
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), LexemeClass (..),
                                               Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
@@ -46,3 +47,11 @@ linter = astActions
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse tus = reverse . diags $ State.execState (traverseAst linter tus) empty
+
+descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr = (analyse, ("declared-once", Text.unlines
+    [ "Checks that any function is declared exactly once."
+    , ""
+    , "**Reason:** functions should never be declared in multiple files, and within the"
+    , "same file, declaring it twice is unnecessary and confusing."
+    ]))

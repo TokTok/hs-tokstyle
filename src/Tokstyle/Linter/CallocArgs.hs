@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Linter.CallocArgs (analyse) where
+module Tokstyle.Linter.CallocArgs (descr) where
 
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
 import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -57,3 +58,17 @@ linter = astActions
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . flip State.execState [] . traverseAst linter
+
+descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
+descr = (analyse, ("calloc-args", Text.unlines
+    [ "Checks that `mem_alloc`, `mem_valloc`, and `mem_vrealloc` are used correctly:"
+    , ""
+    , "- The `size` argument (e.g. for `mem_alloc`, the second argument) should be a"
+    , "  pure `sizeof` expression without additions or multiplications."
+    , "- There should be no `sizeof` in the `nmemb` argument of a memory allocation"
+    , "  call."
+    , ""
+    , "**Reason:** we want to avoid arbitrary computations in allocation sizes to"
+    , "ensure the allocation size is exactly correct for the type of the object"
+    , "being allocated."
+    ]))
