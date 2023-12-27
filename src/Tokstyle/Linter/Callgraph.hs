@@ -555,6 +555,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "GetAdaptersInfo"
         , "GetTickCount"
         , "LocalFree"
+        , "QueryPerformanceCounter"
 
         , "fuzz_get_count"
         , "fuzz_random_bytes"
