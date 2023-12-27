@@ -11,5 +11,10 @@ branches:
     protection:
       required_status_checks:
         contexts:
+          - "Hound"
+          - "Mergeable"
           - "bazel-opt"
           - "build / stack"
+          - "buildifier"
+          - "check-release"
+          - "restyled"
