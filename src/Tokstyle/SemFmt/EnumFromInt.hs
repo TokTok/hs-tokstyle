@@ -11,7 +11,8 @@ import qualified Data.Text                  as Text
 import           Language.Cimple            (AssignOp (..), Lexeme (..),
                                              LexemeClass (..), LiteralType (..),
                                              Node, NodeF (..), UnaryOp (..))
-import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums, mkLAt)
+import           Tokstyle.Common.EnumLinter (EnumInfo (..), MkFunBody,
+                                             analyseEnums, mkLAt)
 
 
 funSuffix :: Text
@@ -34,7 +35,7 @@ mkAssignOut name (retCls, retStr) =
         ]
 
 mkFunBody :: MkFunBody
-mkFunBody _ varName enumrs = do
+mkFunBody _ varName (EnumInfo _ enumrs) = do
     dn <- defaultName
     let defaultCase = Fix (Default (mkAssignOut dn (LitFalse, "false")))
     return $ Fix (CompoundStmt

@@ -1,7 +1,12 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-module Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums, mkLAt) where
+module Tokstyle.Common.EnumLinter
+    ( EnumInfo (..)
+    , MkFunBody
+    , analyseEnums
+    , mkLAt
+    ) where
 
 import           Control.Monad               (unless)
 import           Control.Monad.State.Strict  (State)
@@ -17,9 +22,16 @@ import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import           Tokstyle.Common             (semEq)
 
+data EnumInfo = EnumInfo
+    { enumName    :: Text
+    , enumMembers :: [Node (Lexeme Text)]
+    }
+
+type SymbolTable = [(Text, EnumInfo)]
+
 data Linter = Linter
     { diags :: [Text]
-    , enums :: [(Text, (Text, [Node (Lexeme Text)]))]
+    , types :: SymbolTable
     }
 
 instance HasDiagnostics Linter where
@@ -29,7 +41,7 @@ empty :: Linter
 empty = Linter [] []
 
 mkLAt :: Lexeme a -> LexemeClass -> a -> Lexeme a
-mkLAt (L p _ _) c s = L p c s
+mkLAt (L p _ _) = L p
 
 collectEnums :: [(FilePath, [Node (Lexeme Text)])] -> State Linter ()
 collectEnums = traverseAst actions
@@ -39,15 +51,15 @@ collectEnums = traverseAst actions
         { doNode = \file node act ->
             case unFix node of
                 EnumDecl (L _ _ ename) enumrs _ -> do
-                    l@Linter{enums} <- State.get
-                    case lookup ename enums of
-                        Nothing -> State.put l{enums = (Text.toLower ename, (ename, enumrs)):enums}
+                    l@Linter{types} <- State.get
+                    case lookup ename types of
+                        Nothing -> State.put l{types = (Text.toLower ename, EnumInfo ename enumrs):types}
                         Just{} -> warn file node $ "duplicate enum: " <> ename
 
                 _ -> act
         }
 
-type MkFunBody = Text -> Lexeme Text -> [Node (Lexeme Text)] -> Maybe (Node (Lexeme Text))
+type MkFunBody = SymbolTable -> Lexeme Text -> EnumInfo -> Maybe (Node (Lexeme Text))
 
 checkEnums :: Text -> MkFunBody -> [(FilePath, [Node (Lexeme Text)])] -> State Linter ()
 checkEnums funSuffix mkFunBody = traverseAst actions
@@ -58,11 +70,11 @@ checkEnums funSuffix mkFunBody = traverseAst actions
             case unFix node of
                 FunctionDefn _ (Fix (FunctionPrototype _ (L _ _ fname) (Fix (VarDecl _ varName _):_))) body
                     | funSuffix `Text.isSuffixOf` fname -> do
-                    Linter{enums} <- State.get
-                    case lookup (Text.dropEnd (Text.length funSuffix) fname) enums of
+                    Linter{types} <- State.get
+                    case lookup (Text.dropEnd (Text.length funSuffix) fname) types of
                         Nothing -> return ()  -- not every _to_string function is for enums
-                        Just (ename, enumrs) -> do
-                            case mkFunBody ename varName enumrs of
+                        Just e@(EnumInfo ename _) -> do
+                            case mkFunBody types varName e of
                                 Nothing ->
                                     warn file node $ "invalid enum format for `" <> ename <> "`"
                                 Just wanted ->

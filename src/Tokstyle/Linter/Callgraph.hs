@@ -16,6 +16,7 @@ import           Data.Graph                  (SCC (..))
 import qualified Data.Graph                  as Graph
 import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map
+import           Data.Maybe                  (maybeToList)
 import qualified Data.Maybe                  as Maybe
 import           Data.Set                    (Set, (\\))
 import qualified Data.Set                    as Set
@@ -32,7 +33,8 @@ import           Language.Cimple.Diagnostics (Diagnostics, warn)
 data NameKind
     = NKVal
     | NKType
-    deriving (Show)
+    | NKTypedef
+    deriving (Eq, Ord, Show)
 
 data Name a = Name
     { nameKind   :: NameKind
@@ -44,17 +46,21 @@ data Name a = Name
 nameKindStr :: Name a -> Text
 nameKindStr = str . nameKind
   where
-    str NKVal  = "function/constant"
-    str NKType = "type name"
+    str NKVal     = "function/constant"
+    str NKType    = "type name"
+    str NKTypedef = "typedef name"
 
 instance Ord a => Ord (Name a) where
-    (Name _ _ a) <= (Name _ _ b) = lexemeText a <= lexemeText b
+    (Name ka _ a) <= (Name kb _ b) = (ka, lexemeText a) <= (kb, lexemeText b)
 
 instance Eq a => Eq (Name a) where
-    (Name _ _ a) == (Name _ _ b) = lexemeText a == lexemeText b
+    (Name ka _ a) == (Name kb _ b) = ka == kb && lexemeText a == lexemeText b
 
 instance IsString a => IsString (Name a) where
     fromString x = Name NKVal "<builtins>" (L (AlexPn 0 0 0) IdVar (fromString x))
+
+nktype :: Text -> Name Text
+nktype = Name NKType "<builtins>" . L (AlexPn 0 0 0) IdVar
 
 globalName :: Name Text
 globalName = "<global>"
@@ -139,6 +145,9 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
     go file (EnumDecl name envs _) =
         let Env{outgoing, funcs} = fold envs in
         empty{funcs = Map.insert (Name NKType file name) outgoing funcs}
+    go file (Typedef env name) =
+        let Env{outgoing, funcs} = env in
+        env{funcs = Map.insert (Name NKTypedef file name) outgoing funcs}
 
     go _ FunctionDecl    {} = empty
     go _ TypedefFunction {} = empty
@@ -156,8 +165,13 @@ checkReferences cg =
     forM_ (Map.assocs cg) $ \(src, dsts) ->
         mapM_ (checkForward src) dsts
   where
+    dests name@(Name k f n) = name : maybeToList (
+        case k of
+            NKType    -> Just (Name NKTypedef f n)
+            NKTypedef -> Just (Name NKType f n)
+            NKVal     -> Nothing)
     checkForward src dst =
-        unless (dst `Map.member` cg) $
+        unless (any (`Map.member` cg) $ dests dst) $
             warn (nameFile dst) (nameLexeme dst) $ "definition of `" <> nameText src
                 <> "` references undefined global " <> nameKindStr dst
                 <> " `" <> nameText dst <> "`"
@@ -194,6 +208,7 @@ checkUnused :: Callgraph -> Diagnostics ()
 checkUnused cg =
     forM_ roots $ \case
         Name NKType _ _ -> return ()
+        Name NKTypedef _ _ -> return ()
         src -> warn (nameFile src) (nameLexeme src) $ "unused symbol `" <> nameText src <> "`"
   where
     (graph, nodeFromVertex, _) = Graph.graphFromEdges . cgToEdges $ cg
@@ -251,6 +266,7 @@ checkUnused cg =
             , "get_random_tcp_conn_ip_port"
             , "ipport_self_copy"
             , "mono_time_set_current_time_callback"
+            , "net_addr_get_port"
             , "net_family_is_tcp_onion"
             , "net_family_is_tox_tcp_ipv6"
             , "net_family_tox_tcp_ipv4"
@@ -258,6 +274,8 @@ checkUnused cg =
             , "onion_announce_entry_public_key"
             , "onion_announce_entry_set_time"
             , "onion_getfriendip"
+            , "os_network_deinit"
+            , "system_network_deinit"  -- TODO(iphydf): Delete.
             , "rb_data"
             , "rb_full"
             , "sanctions_list_packed_size"
@@ -267,7 +285,6 @@ checkUnused cg =
             , "send_tcp_forward_request"
             , "set_callback_forwarded_response"
             , "set_forwarding_packet_tcp_connection_callback"
-            , "system_network_deinit"
             , "tcp_connections_public_key"
             , "tcp_send_oob_packet_using_relay"
             , "tcp_server_listen_count"
@@ -421,7 +438,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "CLOCK_MONOTONIC"
         , "clock_get_time"
         , "clock_gettime"
-        , "timespec"
+        , nktype "timespec"
 
         , "F_SETFL"
         , "FD_SET"
@@ -447,7 +464,6 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "SO_REUSEADDR"
         , "SO_SNDBUF"
         , "accept"
-        , "addrinfo"
         , "bind"
         , "close"
         , "closesocket"
@@ -459,16 +475,11 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "getsockopt"
         , "htonl"
         , "htons"
-        , "ifconf"
-        , "ifreq"
-        , "in6_addr"
         , "in6addr_loopback"
-        , "in_addr"
         , "inet_ntop"
         , "inet_pton"
         , "ioctl"
         , "ioctlsocket"
-        , "ipv6_mreq"
         , "listen"
         , "ntohl"
         , "ntohs"
@@ -478,12 +489,18 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "send"
         , "sendto"
         , "setsockopt"
-        , "sockaddr"
-        , "sockaddr_in"
-        , "sockaddr_in6"
-        , "sockaddr_storage"
         , "socket"
-        , "timeval"
+        , nktype "addrinfo"
+        , nktype "ifconf"
+        , nktype "ifreq"
+        , nktype "in_addr"
+        , nktype "in6_addr"
+        , nktype "ipv6_mreq"
+        , nktype "sockaddr"
+        , nktype "sockaddr_in"
+        , nktype "sockaddr_in6"
+        , nktype "sockaddr_storage"
+        , nktype "timeval"
 
         , "EPOLL_CTL_ADD"
         , "EPOLL_CTL_MOD"
@@ -493,43 +510,13 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "EPOLLIN"
         , "epoll_create"
         , "epoll_ctl"
-        , "epoll_event"
         , "epoll_wait"
+        , nktype "epoll_event"
 
         , "__FILE__"
         , "__LINE__"
         , "__VA_ARGS__"
         , "__func__"
-
-
-        , "MSGPACK_OBJECT_ARRAY"
-        , "MSGPACK_OBJECT_BIN"
-        , "MSGPACK_OBJECT_BOOLEAN"
-        , "MSGPACK_OBJECT_POSITIVE_INTEGER"
-        , "MSGPACK_UNPACK_SUCCESS"
-        , "msgpack_object"
-        , "msgpack_object_equal"
-        , "msgpack_object_print"
-        , "msgpack_pack_array"
-        , "msgpack_pack_bin"
-        , "msgpack_pack_bin_body"
-        , "msgpack_pack_false"
-        , "msgpack_pack_true"
-        , "msgpack_pack_uint8"
-        , "msgpack_pack_uint16"
-        , "msgpack_pack_uint32"
-        , "msgpack_pack_uint64"
-        , "msgpack_packer"
-        , "msgpack_packer_init"
-        , "msgpack_sbuffer"
-        , "msgpack_sbuffer_destroy"
-        , "msgpack_sbuffer_init"
-        , "msgpack_sbuffer_write"
-        , "msgpack_unpacked"
-        , "msgpack_unpacked_destroy"
-        , "msgpack_unpacked_init"
-        , "msgpack_unpack_next"
-        , "msgpack_unpack_return"
 
         , "cmp_init"
         , "cmp_read_array"
@@ -633,8 +620,6 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "OPUS_SET_COMPLEXITY"
         , "OPUS_SET_INBAND_FEC"
         , "OPUS_SET_PACKET_LOSS_PERC"
-        , "OpusDecoder"
-        , "OpusEncoder"
         , "opus_packet_get_nb_channels"
         , "opus_strerror"
         , "opus_decode"
@@ -645,6 +630,8 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "opus_encoder_create"
         , "opus_encoder_ctl"
         , "opus_encoder_destroy"
+        , nktype "OpusDecoder"
+        , nktype "OpusEncoder"
 
         , "VP8_DEBLOCK"
         , "VP8_SET_POSTPROC"

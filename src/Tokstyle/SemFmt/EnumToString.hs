@@ -9,14 +9,12 @@ import qualified Data.Text                  as Text
 import           Language.Cimple            (Lexeme (..), LexemeClass (..),
                                              LiteralType (..), Node, NodeF (..),
                                              lexemeText)
-import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums)
+import           Tokstyle.Common.EnumLinter (EnumInfo (EnumInfo), MkFunBody,
+                                             analyseEnums, mkLAt)
 
 
 funSuffix :: Text
 funSuffix = "_to_string"
-
-mkLAt :: Lexeme a -> LexemeClass -> a -> Lexeme a
-mkLAt (L p _ _) c s = L p c s
 
 mkReturnString :: Lexeme Text -> Text -> Node (Lexeme Text)
 mkReturnString at str = Fix (Return (Just (Fix (LiteralExpr String (mkLAt at LitString str)))))
@@ -30,7 +28,7 @@ mkCase (Fix (Enumerator name _)) = Just $
 mkCase node = error $ show node
 
 mkFunBody :: MkFunBody
-mkFunBody ename varName enumrs = do
+mkFunBody _ varName (EnumInfo ename enumrs) = do
     return $ Fix (CompoundStmt
         [ Fix (SwitchStmt (Fix (VarExpr varName)) (mapMaybe mkCase enumrs))
         , mkReturnString varName $ "\"<invalid " <> ename <> ">\""

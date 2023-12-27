@@ -52,3 +52,6 @@ struct ipv6_mreq {
   struct in6_addr ipv6mr_multiaddr;
   unsigned int ipv6mr_interface;
 };
+
+#define INET6_ADDRSTRLEN 66
+#define INET_ADDRSTRLEN 22

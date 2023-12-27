@@ -8,7 +8,8 @@ import qualified Data.Text                  as Text
 import           Language.Cimple            (BinaryOp (..), Lexeme (..),
                                              LexemeClass (..), Node, NodeF (..),
                                              UnaryOp (..))
-import           Tokstyle.Common.EnumLinter (MkFunBody, analyseEnums, mkLAt)
+import           Tokstyle.Common.EnumLinter (EnumInfo (EnumInfo), MkFunBody,
+                                             analyseEnums, mkLAt)
 
 
 funSuffix :: Text
@@ -21,7 +22,7 @@ funSuffix = "_unpack"
 --            && ${toLower ename}_from_int(u32, val);
 -- }
 mkFunBody :: MkFunBody
-mkFunBody ename varName _ = return $
+mkFunBody _ varName (EnumInfo ename _) = return $
     Fix (CompoundStmt
         [Fix
            (VarDeclStmt
