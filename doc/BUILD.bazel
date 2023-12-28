@@ -3,6 +3,7 @@ genrule(
     outs = ["cimple.md.new"],
     cmd = "$(location //hs-tokstyle/tools:check-cimple) --help > $@",
     exec_tools = ["//hs-tokstyle/tools:check-cimple"],
+    tags = ["no-cross"],
 )
 
 sh_test(
@@ -18,4 +19,5 @@ sh_test(
         "cimple.md",
         "cimple.md.new",
     ],
+    tags = ["no-cross"],
 )
