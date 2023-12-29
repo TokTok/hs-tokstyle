@@ -25,6 +25,7 @@ library
     Tokstyle.C.Linter.Conversion
     Tokstyle.C.Linter.Memset
     Tokstyle.C.Linter.Sizeof
+    Tokstyle.C.Linter.VoidCall
     Tokstyle.C.Patterns
     Tokstyle.C.TravUtils
     Tokstyle.C.TraverseAst
@@ -143,6 +144,7 @@ test-suite testsuite
   other-modules:
     Tokstyle.C.Linter.MemsetSpec
     Tokstyle.C.Linter.SizeofSpec
+    Tokstyle.C.Linter.VoidCallSpec
     Tokstyle.C.LinterSpec
     Tokstyle.Linter.BooleanReturnSpec
     Tokstyle.Linter.BooleansSpec

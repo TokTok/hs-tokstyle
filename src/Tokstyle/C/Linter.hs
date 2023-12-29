@@ -19,6 +19,7 @@ import qualified Tokstyle.C.Linter.Cast           as Cast
 import qualified Tokstyle.C.Linter.Conversion     as Conversion
 import qualified Tokstyle.C.Linter.Memset         as Memset
 import qualified Tokstyle.C.Linter.Sizeof         as Sizeof
+import qualified Tokstyle.C.Linter.VoidCall       as VoidCall
 
 
 linters :: [(Text, GlobalDecls -> Trav Env ())]
@@ -28,6 +29,7 @@ linters =
     , ("conversion"         , Conversion.analyse       )
     , ("memset"             , Memset.analyse           )
     , ("sizeof"             , Sizeof.analyse           )
+    , ("void-call"          , VoidCall.analyse         )
     ]
 
 runLinters :: [Text] -> GlobalDecls -> Trav Env ()

@@ -5,15 +5,25 @@ module Tokstyle.C.Env where
 import           Language.C.Analysis.SemRep    (Type)
 import           Language.C.Analysis.TravMonad (Trav, getUserState,
                                                 modifyUserState)
+import           Language.C.Data.Ident         (Ident)
 import           Tokstyle.C.TravUtils          (getJust)
 
 data Env = Env
-    { ctx   :: [String]
-    , retTy :: Maybe Type
+    { ctx    :: [String]
+    , retTy  :: Maybe Type
+    , params :: [Ident]
     }
 
 defaultEnv :: Env
-defaultEnv = Env ["file"] Nothing
+defaultEnv = Env ["file"] Nothing []
+
+bracketUserState :: (s -> s) -> Trav s a -> Trav s a
+bracketUserState f act = do
+    s <- getUserState
+    modifyUserState f
+    r <- act
+    modifyUserState (const s)
+    return r
 
 
 getCtx :: Trav Env [String]
