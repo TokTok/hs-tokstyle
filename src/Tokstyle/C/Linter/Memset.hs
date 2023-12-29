@@ -35,7 +35,7 @@ hasPtrs ty = case canonicalType ty of
             _ ->
                 throwTravError $ userErr $
                     "couldn't find struct/union type `" <> show (pretty name) <> "`"
-    PtrType _ _ _ -> return True
+    PtrType{} -> return True
     _ -> return False
 
 memberHasPtrs :: MonadTrav m => MemberDecl -> m Bool
