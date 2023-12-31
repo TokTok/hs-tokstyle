@@ -5,6 +5,14 @@
 {- HLINT ignore "Use camelCase" -}
 module Tokstyle.C.Patterns where
 
+import           Language.C                    (CConstant (CIntConst),
+                                                CDeclaration (CDecl),
+                                                CDeclarationSpecifier (CTypeSpec),
+                                                CDeclarator (CDeclr),
+                                                CDerivedDeclarator (CPtrDeclr),
+                                                CExpression (CCast, CConst),
+                                                CInteger (CInteger),
+                                                CTypeSpecifier (CVoidType))
 import           Language.C.Analysis.SemRep    (CompTypeRef (..), IntType (..),
                                                 Type (..), TypeDefRef (..),
                                                 TypeName (..))
@@ -25,6 +33,8 @@ pattern TY_sockaddr_in_ptr      <- TY_struct_ptr "sockaddr_in"
 pattern TY_sockaddr_in6_ptr     <- TY_struct_ptr "sockaddr_in6"
 pattern TY_canon_bool           <- (canonicalType -> DirectType (TyIntegral TyBool) _ _)
 
+pattern E_0 <- CConst (CIntConst (CInteger 0 _ _) _)
+pattern E_nullptr <- CCast (CDecl [CTypeSpec (CVoidType _)] [(Just (CDeclr _ [CPtrDeclr [] _] _ _ _),_,_)] _) E_0 _
 
 isEnum :: Type -> Bool
 isEnum (canonicalType -> DirectType TyEnum{} _ _) = True
