@@ -72,7 +72,7 @@ collectPairs = astActions
 
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
 analyse =
-    (\(a, b) -> concatMap (makeDiagnostic a) b)
+    uncurry (concatMap . makeDiagnostic)
     . (mapMaybe defn &&& mapMaybe lacksDefn)
     . Map.elems
     . flip State.execState empty
