@@ -52,6 +52,7 @@ checkConversion _ (_, rTy) (_, lTy) | isEnumConversion (canonicalType lTy) rTy =
 checkConversion context (r, removeQuals -> rTy) (l, removeQuals -> lTy) =
     case (show $ pretty rTy, show $ pretty lTy) of
       (rTyName, lTyName) | rTyName == lTyName -> return ()
+      ("uint8_t [32]","uint8_t const [32]") -> return ()
       ("char *","const char *")         -> return ()
       ("const int *","const char *")    -> return ()
       ("int","vpx_codec_er_flags_t")    -> return ()
