@@ -18,10 +18,8 @@ import           Language.C.Analysis.TypeUtils   (canonicalType, sameType,
 import           Language.C.Data.Node            (NodeInfo)
 import           Language.C.Pretty               (pretty)
 import           Language.C.Syntax.AST           (Annotated, CAssignOp (..),
-                                                  CBinaryOp (..), CExpr,
-                                                  CExpression (..),
-                                                  CStatement (..),
-                                                  CUnaryOp (..), annotation)
+                                                  CExpr, CExpression (..),
+                                                  CStatement (..), annotation)
 import qualified Tokstyle.C.Env                  as Env
 import           Tokstyle.C.Env                  (Env)
 import           Tokstyle.C.Patterns
@@ -55,19 +53,11 @@ checkConversion context (r, removeQuals -> rTy) (l, removeQuals -> lTy) =
       ("uint8_t [32]","uint8_t const [32]") -> return ()
       ("char *","const char *")         -> return ()
       ("const int *","const char *")    -> return ()
-      ("int","vpx_codec_er_flags_t")    -> return ()
-      ("int","bool") | relaxed r        -> return ()
       (_,"void *")                      -> return ()
       (_,"const void *")                -> return ()
 
       -- int literals and integer promotions.
-      ("int","int8_t")                  -> return ()
-      ("int","uint8_t")                 -> return ()
-      ("int","uint16_t")                -> return ()
-      ("int","uint32_t")                -> return ()
-      ("int","int16_t")                 -> return ()
-      ("int","int64_t")                 -> return ()
-      ("int","uint64_t")                -> return ()
+      ("int",_)                         -> return ()
 
       ("uint32_t","int64_t")            -> return ()
       ("enum RTPFlags","uint64_t")      -> return ()
@@ -95,17 +85,6 @@ checkConversion context (r, removeQuals -> rTy) (l, removeQuals -> lTy) =
                   lTyName <> "` in " <> context)
               (annotation l, lTy)
               (annotation r, rTy)
-  where
-      relaxed (CUnary CNegOp _ _)    = True
-      relaxed (CBinary CEqOp  _ _ _) = True
-      relaxed (CBinary CNeqOp _ _ _) = True
-      relaxed (CBinary CGeqOp _ _ _) = True
-      relaxed (CBinary CLeqOp _ _ _) = True
-      relaxed (CBinary CGrOp  _ _ _) = True
-      relaxed (CBinary CLeOp  _ _ _) = True
-      relaxed (CBinary CLndOp _ _ _) = True
-      relaxed (CBinary CLorOp _ _ _) = True
-      relaxed _                      = False
 
 checkAssign :: MonadTrav m => String -> (CExpr, Type) -> (CExpr, Type) -> m ()
 checkAssign _ _ (CConst{}, _) = return ()
