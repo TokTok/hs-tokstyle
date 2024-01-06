@@ -48,6 +48,7 @@ linter :: AstActions (TravT Env Identity)
 linter = astActions
     { doIdentDecl = \node act -> case node of
         FunctionDef (FunDef (VarDecl (VarName fname _) _ (FunctionType (FunType _ ps _) _)) (CCompound _ body _) _)
+            | "os_" `isPrefixOf` idName fname -> return ()
             | "sys_" `isPrefixOf` idName fname -> return ()
             | otherwise -> checkFunction (voidPtrParams ps) body
 
