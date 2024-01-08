@@ -53,6 +53,7 @@ library
     Tokstyle.Linter.LoggerCalls
     Tokstyle.Linter.LoggerConst
     Tokstyle.Linter.LoggerNoEscapes
+    Tokstyle.Linter.MallocCall
     Tokstyle.Linter.MallocType
     Tokstyle.Linter.MemcpyStructs
     Tokstyle.Linter.MissingNonNull

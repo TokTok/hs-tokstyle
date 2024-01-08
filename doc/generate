@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+
+set -eux
+
+bazel run //hs-tokstyle/tools:check-cimple -- --help >"$SCRIPT_DIR/cimple.md"

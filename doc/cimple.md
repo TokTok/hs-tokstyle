@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 35 linters implemented, out of which 8 perform global analyses.
+There are currently 36 linters implemented, out of which 8 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -292,6 +292,34 @@ Checks that no escape sequences are present in the logger format string.
 **Reason:** newlines, tabs, or double quotes are not permitted in log outputs
 to ensure that each log output is a single line. It's particularly easy to
 accidentally add `\n` to the end of a log format. This avoids that problem.
+
+## `-Wmalloc-call`
+
+Checks that allocation functions like `mem_balloc` are always first assigned to
+a local variable. The exception is in a return statement, e.g. in simple typed
+allocation functions like `logger_new()`. If the allocation is stored in a local
+variable, that variable must immediately be checked against `nullptr` before
+doing anything else.
+
+Invalid code:
+
+```c
+ob->mem = (My_Struct *)mem_alloc(mem, sizeof(My_Struct));
+```
+
+Valid code:
+
+```c
+My_Struct *tmp = (My_Struct *)mem_alloc(mem, sizeof(My_Struct))
+if (tmp == nullptr) {
+  return false;
+}
+ob->mem = tmp;
+```
+
+**Reason:** This avoids accidentally putting `nullptr` into a location without
+checking first. Putting `nullptr` somewhere may be ok, but we must do it
+intentionally.
 
 ## `-Wmalloc-type`
 

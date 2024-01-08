@@ -13,6 +13,7 @@ import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
+import qualified Tokstyle.Common             as Common
 import           Tokstyle.Common             (semEq)
 
 
@@ -32,6 +33,8 @@ pattern Calloc :: Text -> [Node (Lexeme Text)] -> Node (Lexeme Text)
 pattern Calloc funName args <- Fix (FunctionCall (Fix (VarExpr (L _ _ funName))) args)
 
 isCalloc :: Text -> Bool
+isCalloc "calloc"       = True
+isCalloc "realloc"      = True
 isCalloc "mem_alloc"    = True
 isCalloc "mem_valloc"   = True
 isCalloc "mem_vrealloc" = True
@@ -40,6 +43,12 @@ isCalloc _              = False
 linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act -> case node of
+        Fix (CastExpr castTy (Calloc funName@"calloc" [_, Fix (SizeofType sizeofTy)])) ->
+            checkTypes funName file castTy sizeofTy
+        Fix (CastExpr castTy (Calloc funName@"calloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))])) ->
+            checkTypes funName file castTy sizeofTy
+        Fix (CastExpr castTy (Calloc funName@"realloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))])) ->
+            checkTypes funName file castTy sizeofTy
         Fix (CastExpr castTy (Calloc funName@"mem_alloc" [_, Fix (SizeofType sizeofTy)])) ->
             checkTypes funName file castTy sizeofTy
         Fix (CastExpr castTy (Calloc funName@"mem_valloc" [_, _, Fix (SizeofType sizeofTy)])) ->
@@ -54,7 +63,11 @@ linter = astActions
     }
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
-analyse = reverse . flip State.execState [] . traverseAst linter
+analyse = reverse . flip State.execState [] . traverseAst linter . Common.skip
+    [ "toxav/rtp.c"
+    , "toxcore/list.c"
+    , "toxcore/mem.c"
+    ]
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
 descr = (analyse, ("calloc-type", Text.unlines

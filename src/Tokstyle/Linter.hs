@@ -33,6 +33,7 @@ import qualified Tokstyle.Linter.LargeStructParams as LargeStructParams
 import qualified Tokstyle.Linter.LoggerCalls       as LoggerCalls
 import qualified Tokstyle.Linter.LoggerConst       as LoggerConst
 import qualified Tokstyle.Linter.LoggerNoEscapes   as LoggerNoEscapes
+import qualified Tokstyle.Linter.MallocCall        as MallocCall
 import qualified Tokstyle.Linter.MallocType        as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs     as MemcpyStructs
 import qualified Tokstyle.Linter.MissingNonNull    as MissingNonNull
@@ -83,6 +84,7 @@ localLinters =
     , LoggerCalls.descr
     , LoggerConst.descr
     , LoggerNoEscapes.descr
+    , MallocCall.descr
     , MallocType.descr
     , MemcpyStructs.descr
     , MissingNonNull.descr

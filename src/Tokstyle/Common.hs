@@ -3,9 +3,12 @@ module Tokstyle.Common
     ( functionName
     , isPointer
     , semEq
+    , skip
+    , (>+>)
     ) where
 
 import           Data.Fix        (Fix (..))
+import qualified Data.List       as List
 import           Data.Text       (Text)
 import           Language.Cimple (Lexeme (..), LexemeClass (..), Node,
                                   NodeF (..), removeSloc)
@@ -38,3 +41,12 @@ functionName _                              = Nothing
 -- Semantic equality: nodes are the same, except for source locations.
 semEq :: Node (Lexeme Text) -> Node (Lexeme Text) -> Bool
 semEq a b = removeSloc a == removeSloc b
+
+
+-- Don't apply the linter to certain files.
+skip :: [FilePath] -> (FilePath, [Node (Lexeme Text)]) -> (FilePath, [Node (Lexeme Text)])
+skip fps (fp, _) | any (`List.isSuffixOf` fp) fps = (fp, [])
+skip _ tu = tu
+
+(>+>) :: Monad m => (t -> m ()) -> (t -> m ()) -> t -> m ()
+(>+>) f g x = f x >> g x

@@ -8,10 +8,12 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
+import           Language.Cimple             (BinaryOp (BopMul), Lexeme (..),
+                                              Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
+import qualified Tokstyle.Common             as Common
 
 
 checkSize, checkNmemb :: Text -> FilePath -> Node (Lexeme Text) -> State [Text] ()
@@ -20,8 +22,9 @@ checkSize funName file size = case unFix size of
     _ -> warn file size $ "`size` argument in call to `" <> funName <> "` must be a sizeof expression"
 
 checkNmemb funName file nmemb = case unFix nmemb of
-    LiteralExpr{} -> return ()
-    VarExpr{} -> return ()
+    LiteralExpr{}     -> return ()
+    VarExpr{}         -> return ()
+    ParenExpr e       -> checkNmemb funName file e
     PointerAccess e _ -> checkNmemb funName file e
     BinaryExpr l _ r -> do
         checkNmemb funName file l
@@ -40,6 +43,12 @@ pattern Calloc funName args <- Fix (FunctionCall (Fix (VarExpr (L _ _ funName)))
 linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act -> case node of
+        Calloc funName@"calloc" [nmemb, size] -> do
+            checkNmemb funName file nmemb
+            checkSize funName file size
+        Calloc funName@"realloc" [_, Fix (BinaryExpr nmemb BopMul size)] -> do
+            checkNmemb funName file nmemb
+            checkSize funName file size
         Calloc funName@"mem_alloc" [_, size] -> do
             checkSize funName file size
         Calloc funName@"mem_valloc" [_, nmemb, size] -> do
@@ -49,7 +58,9 @@ linter = astActions
             checkNmemb funName file nmemb
             checkSize funName file size
 
-        Calloc "mem_alloc"    _ -> warn file node "invalid `mem_alloc` invocation: 1 arguments after `mem` expected"
+        Calloc "calloc"       _ -> warn file node "invalid `calloc` invocation: 2 arguments expected"
+        Calloc "realloc"      _ -> warn file node "invalid `realloc` invocation: 2 arguments expected"
+        Calloc "mem_alloc"    _ -> warn file node "invalid `mem_alloc` invocation: 1 argument after `mem` expected"
         Calloc "mem_valloc"   _ -> warn file node "invalid `mem_valloc` invocation: 2 arguments after `mem` expected"
         Calloc "mem_vrealloc" _ -> warn file node "invalid `mem_vrealloc` invocation: 3 argument after `mem` expected"
 
@@ -57,7 +68,11 @@ linter = astActions
     }
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
-analyse = reverse . flip State.execState [] . traverseAst linter
+analyse = reverse . flip State.execState [] . traverseAst linter . Common.skip
+    [ "toxav/rtp.c"
+    , "toxcore/list.c"
+    , "toxcore/mem.c"
+    ]
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
 descr = (analyse, ("calloc-args", Text.unlines
