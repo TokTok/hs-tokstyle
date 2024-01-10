@@ -24,6 +24,7 @@ library
     Tokstyle.C.Linter.Cast
     Tokstyle.C.Linter.Conversion
     Tokstyle.C.Linter.Memset
+    Tokstyle.C.Linter.SizeArg
     Tokstyle.C.Linter.Sizeof
     Tokstyle.C.Linter.VoidCall
     Tokstyle.C.Patterns
@@ -144,6 +145,7 @@ test-suite testsuite
   main-is:            testsuite.hs
   other-modules:
     Tokstyle.C.Linter.MemsetSpec
+    Tokstyle.C.Linter.SizeArgSpec
     Tokstyle.C.Linter.SizeofSpec
     Tokstyle.C.Linter.VoidCallSpec
     Tokstyle.C.LinterSpec

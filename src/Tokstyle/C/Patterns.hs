@@ -5,9 +5,12 @@
 {- HLINT ignore "Use camelCase" -}
 module Tokstyle.C.Patterns where
 
-import           Language.C.Analysis.SemRep    (CompTypeRef (..), IntType (..),
-                                                Type (..), TypeDefRef (..),
-                                                TypeName (..))
+import           Language.C.Analysis.SemRep    (ArraySize (..),
+                                                CompTypeRef (..), Expr,
+                                                FunType (..), IntType (..),
+                                                ParamDecl (..), Type (..),
+                                                TypeDefRef (..), TypeName (..),
+                                                VarDecl (..), VarName (..))
 import           Language.C.Analysis.TypeUtils (canonicalType)
 import           Language.C.Data.Ident         (Ident (..), SUERef (..))
 
@@ -25,6 +28,15 @@ pattern TY_sockaddr_in_ptr      <- TY_struct_ptr "sockaddr_in"
 pattern TY_sockaddr_in6_ptr     <- TY_struct_ptr "sockaddr_in6"
 pattern TY_canon_bool           <- (canonicalType -> DirectType (TyIntegral TyBool) _ _)
 
+
+pattern ArrayTypeSize :: Expr -> Type
+pattern ArrayTypeSize arrSize <- ArrayType _ (ArraySize _ arrSize) _ _
+
+pattern ParamName :: String -> ParamDecl
+pattern ParamName name <- ParamDecl (VarDecl (VarName (Ident name _ _) _) _ _) _
+
+pattern FunPtrParams :: [ParamDecl] -> Type
+pattern FunPtrParams params <- (canonicalType -> PtrType (FunctionType (FunType _ params _) _) _ _)
 
 isEnum :: Type -> Bool
 isEnum (canonicalType -> DirectType TyEnum{} _ _) = True
