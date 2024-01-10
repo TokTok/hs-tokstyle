@@ -156,6 +156,7 @@ test-suite testsuite
     Tokstyle.Linter.CompoundInitSpec
     Tokstyle.Linter.ConstnessSpec
     Tokstyle.Linter.EnumDefinesSpec
+    Tokstyle.Linter.MallocCallSpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec
     Tokstyle.Linter.TypeCheckSpec

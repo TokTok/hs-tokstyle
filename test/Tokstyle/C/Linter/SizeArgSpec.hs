@@ -140,6 +140,26 @@ spec = do
                 ]
             ]
 
+    it "works on typedef array parameters" $ do
+        ast <- mustParse
+            [ "enum { CRYPTO_PUBLIC_KEY_SIZE = 32 };"
+            , "enum { EXTENDED_PUBLIC_KEY_SIZE = 64 };"
+            , "typedef char Public_Key[CRYPTO_PUBLIC_KEY_SIZE];"
+            , "typedef void consume_cb(char *arr, int size);"
+            , "void caller(consume_cb *consume, Public_Key pk) {"
+            , "  consume(pk, EXTENDED_PUBLIC_KEY_SIZE);"
+            , "}"
+            ]
+        analyse allWarnings ast
+            `shouldBe`
+            [ Text.unlines
+                [ "test.c:6: (column 15) [ERROR]  >>> Type mismatch"
+                , "  size parameter `size` is passed constant value `EXTENDED_PUBLIC_KEY_SIZE` (= 64),"
+                , "  which is greater than the array size of `char [CRYPTO_PUBLIC_KEY_SIZE]`,"
+                , "  potentially causing buffer overrun in `consume`"
+                ]
+            ]
+
     it "warns about string literal overrun" $ do
         ast <- mustParse
             [ "void consume(char *arr, int size);"

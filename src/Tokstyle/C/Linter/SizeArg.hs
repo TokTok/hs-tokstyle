@@ -27,7 +27,7 @@ import           Tokstyle.C.TraverseAst          (AstActions (..), astActions,
 
 checkArraySizes :: Ident -> [(ParamDecl, CExpr, Type)] -> Trav Env ()
 checkArraySizes funId ((_, _, arrTy@(ArrayTypeSize arrSize)):(ParamName sizeParam, sizeArg, sizeTy):args)
-    | isIntegral sizeTy && any (`List.isInfixOf` sizeParam) ["size", "len"] =
+    | any (`List.isInfixOf` sizeParam) ["size", "len"] =
         -- Ignore any name lookup errors here. VLAs have locally defined
         -- array sizes, but we don't check VLAs.
         catchTravError (do
