@@ -42,7 +42,7 @@ main = do
     let (opts, rest) = partition (isPrefixOf "--") args
     let (cppOpts, files) = partition (isPrefixOf "-") rest
     let cc = Maybe.fromMaybe "clang" $ getFlag "--cc=" opts
-    let sysInclude = Maybe.fromMaybe "src/workspace/hs-tokstyle/include" $ getFlag "--include=" opts
+    let sysInclude = Maybe.fromMaybe "/src/workspace/hs-tokstyle/include" $ getFlag "--include=" opts
     result <- Par.mapM (processFile cc sysInclude cppOpts) files
     mapM_ (mapM_ (Text.hPutStrLn stderr) . snd) result
     unless (all fst result) $ exitWith (ExitFailure 1)
