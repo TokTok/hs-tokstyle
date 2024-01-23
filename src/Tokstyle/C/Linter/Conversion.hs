@@ -4,6 +4,7 @@
 module Tokstyle.C.Linter.Conversion (analyse) where
 
 import           Data.Functor.Identity           (Identity)
+import           Data.List                       (isSuffixOf)
 import           Language.C.Analysis.AstAnalysis (ExprSide (..), tExpr)
 import           Language.C.Analysis.SemError    (typeMismatch)
 import           Language.C.Analysis.SemRep      (FunDef (..), FunType (..),
@@ -16,6 +17,7 @@ import           Language.C.Analysis.TravMonad   (MonadTrav, Trav, TravT,
 import           Language.C.Analysis.TypeUtils   (canonicalType, sameType,
                                                   typeQualsUpd)
 import           Language.C.Data.Node            (NodeInfo)
+import           Language.C.Data.Position        (posFile, posOf)
 import           Language.C.Pretty               (pretty)
 import           Language.C.Syntax.AST           (Annotated, CAssignOp (..),
                                                   CExpr, CExpression (..),
@@ -35,6 +37,10 @@ removeQuals :: Type -> Type
 removeQuals = typeQualsUpd (mergeTypeQuals noTypeQuals)
 
 checkConversion :: (Annotated node, MonadTrav m) => String -> (CExpr, Type) -> (node NodeInfo, Type) -> m ()
+-- Ignore cmp.c, it does a lot of implicit conversions.
+-- TODO(iphydf): Maybe it shouldn't? UBSAN also warns about it.
+checkConversion _ (r, _) (_, _) | "cmp/cmp.c" `isSuffixOf` posFile (posOf (annotation r)) = return ()
+
 checkConversion _ (_, TY_void_ptr) (_, PtrType{}) = return ()
 checkConversion _ (_, ArrayType{}) (_, PtrType{}) = return ()
 checkConversion _ (_, rTy) (_, lTy)               | typeEq lTy rTy = return ()

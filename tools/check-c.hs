@@ -19,8 +19,10 @@ import           Tokstyle.C.Linter      (allWarnings, analyse)
 
 defaultCppOpts :: String -> [String]
 defaultCppOpts sysInclude =
-    [ "-nostdinc"  -- we have our own stdlib headers
-    , "-undef"     -- no __linux__
+    [ "-DCMP_NO_FLOAT"      -- avoid float->char* casts
+    , "-DWORDS_BIGENDIAN=0" -- avoid casting in is_bigendian()
+    , "-nostdinc"           -- we have our own stdlib headers
+    , "-undef"              -- no __linux__
     , "-I" <> sysInclude
     , "-I" <> sysInclude <> "/opus"
     ]
