@@ -98,7 +98,12 @@ linter = astActions
     }
   where
     stripType :: Text -> [Text]
-    stripType name = name : maybeToList (Text.stripSuffix "TYPE_" name)
+    stripType name =
+        [name]
+        ++ allowSuffix "_TYPE_"
+        ++ allowSuffix "_T_"
+      where
+        allowSuffix s = maybeToList ((<>"_") <$> Text.stripSuffix s name)
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter

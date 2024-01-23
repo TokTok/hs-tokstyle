@@ -17,7 +17,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
---import           Debug.Trace                  (trace)
+-- import           Debug.Trace                  (trace)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -122,6 +122,7 @@ empty = Env{..}
     envLocals = []
     envTypes = Map.fromList
         [ ("nullptr"       , T_Ptr T_Top)
+        , ("NULL"          , T_Ptr T_Top)
         -- TODO(iphydf): Can't deal with variadic functions yet.
         , ("LOGGER_ASSERT" , T_Func T_Void [T_Ptr (T_Name "Logger"), T_Bool, T_Ptr T_Char])
         , ("LOGGER_DEBUG"  , T_Func T_Void [T_Ptr (T_Name "Logger"), T_Ptr T_Char])
@@ -172,7 +173,7 @@ addName n ty = do
 
 getName :: HasCallStack => Text -> State Env Type
 getName n = do
---    trace ("g " <> show n) $ return ()
+    -- trace ("g " <> show n) $ return ()
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Just ok -> return ok

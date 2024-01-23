@@ -228,6 +228,7 @@ checkUnused cg =
     isExempt name = or
         [ "bin_pack_" `Text.isPrefixOf` name
         , "bin_unpack_" `Text.isPrefixOf` name
+        , "cmp_" `Text.isPrefixOf` name
         , "crypto_auth" `Text.isPrefixOf` name
         , "crypto_sign_" `Text.isPrefixOf` name
         , "msgpack_" `Text.isPrefixOf` name
@@ -309,6 +310,10 @@ checkUnused cg =
             , "TCP_CLIENT_NO_STATUS"
             , "USERSTATUS_AWAY"
             , "USERSTATUS_BUSY"
+
+            -- From cmp.c, maybe clean up?
+            , "NEGATIVE_FIXNUM_MARKER"
+            , "POSITIVE_FIXNUM_MARKER"
             ]
         ]
 
@@ -331,6 +336,8 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "EBADF"
         , "EINPROGRESS"
         , "EWOULDBLOCK"
+
+        , "WORDS_BIGENDIAN"
 
         , "crypto_aead_xchacha20poly1305_ietf_decrypt"
         , "crypto_aead_xchacha20poly1305_ietf_encrypt"
@@ -396,6 +403,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "ev_loop_new"
         , "ev_run"
 
+        , "NULL"
         , "SIZEOF_VLA"
         , "abort"
         , "assert"

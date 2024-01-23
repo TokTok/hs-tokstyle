@@ -81,6 +81,10 @@ exemptions =
     , "tox_private.h"
     , "toxav.h"
     , "toxencryptsave.h"
+
+    -- cmp is exempt.
+    , "cmp.c"
+    , "cmp.h"
     ]
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]

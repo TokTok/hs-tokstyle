@@ -6,8 +6,9 @@
 module Tokstyle.C.Patterns where
 
 import           Language.C.Analysis.SemRep    (ArraySize (..),
-                                                CompTypeRef (..), Expr,
-                                                FunType (..), IntType (..),
+                                                CompTypeRef (..), Decl (..),
+                                                Expr, FunType (..),
+                                                IdentDecl (..), IntType (..),
                                                 ParamDecl (..), Type (..),
                                                 TypeDefRef (..), TypeName (..),
                                                 VarDecl (..), VarName (..))
@@ -35,8 +36,12 @@ pattern ArrayTypeSize arrSize <- ArrayType _ (ArraySize _ arrSize) _ _
 pattern ParamName :: String -> ParamDecl
 pattern ParamName name <- ParamDecl (VarDecl (VarName (Ident name _ _) _) _ _) _
 
+pattern ParamType ty <- ParamDecl (VarDecl _ _ ty) _
+
 pattern FunPtrParams :: [ParamDecl] -> Type
 pattern FunPtrParams params <- (canonicalType -> PtrType (FunctionType (FunType _ params _) _) _ _)
+
+pattern FunDeclParams params <- Declaration (Decl (VarDecl _ _ (FunctionType (FunType _ params False) [])) _)
 
 isEnum :: Type -> Bool
 isEnum (canonicalType -> DirectType TyEnum{} _ _) = True

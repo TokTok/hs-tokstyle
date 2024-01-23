@@ -20,6 +20,7 @@ funSuffix = "_from_int"
 
 mkCase :: Node (Lexeme Text) -> Maybe (Node (Lexeme Text))
 mkCase (Fix Comment{}) = Nothing
+mkCase (Fix (Commented _ e)) = mkCase e
 mkCase (Fix (Enumerator name _)) = Just $
     -- case $name: return $name;
     Fix (Case (Fix (LiteralExpr ConstId name))
@@ -43,9 +44,11 @@ mkFunBody _ varName (EnumInfo _ enumrs) = do
   where
     defaultName =
         firstJust isDefault enumrs <|> firstJust isEnumr enumrs
+    isDefault (Fix (Commented _ e)) = isDefault e
     isDefault (Fix (Enumerator l@(L _ _ name) _))
         | "_INVALID" `Text.isSuffixOf` name = Just l
     isDefault _ = Nothing
+    isEnumr (Fix (Commented _ e))  = isEnumr e
     isEnumr (Fix (Enumerator l _)) = Just l
     isEnumr _                      = Nothing
 

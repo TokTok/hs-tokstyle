@@ -21,6 +21,7 @@ library
     Tokstyle.C.Env
     Tokstyle.C.Linter
     Tokstyle.C.Linter.BoolConversion
+    Tokstyle.C.Linter.CallbackParams
     Tokstyle.C.Linter.Cast
     Tokstyle.C.Linter.Conversion
     Tokstyle.C.Linter.Memset
@@ -32,6 +33,8 @@ library
     Tokstyle.C.TraverseAst
     Tokstyle.Common
     Tokstyle.Common.EnumLinter
+    Tokstyle.Common.StructLinter
+    Tokstyle.Common.TypeSystem
     Tokstyle.Linter
     Tokstyle.Linter.Assert
     Tokstyle.Linter.BooleanReturn
@@ -50,7 +53,6 @@ library
     Tokstyle.Linter.FuncPrototypes
     Tokstyle.Linter.FuncScopes
     Tokstyle.Linter.GlobalFuncs
-    Tokstyle.Linter.LargeStructParams
     Tokstyle.Linter.LoggerCalls
     Tokstyle.Linter.LoggerConst
     Tokstyle.Linter.LoggerNoEscapes
@@ -69,6 +71,7 @@ library
     Tokstyle.SemFmt.EnumFromInt
     Tokstyle.SemFmt.EnumToString
     Tokstyle.SemFmt.EnumUnpack
+    Tokstyle.SemFmt.StructPack
 
   ghc-options:      -Wall
   hs-source-dirs:   src
@@ -165,6 +168,7 @@ test-suite testsuite
     Tokstyle.SemFmt.EnumFromIntSpec
     Tokstyle.SemFmt.EnumToStringSpec
     Tokstyle.SemFmt.EnumUnpackSpec
+    Tokstyle.SemFmt.StructPackSpec
 
   ghc-options:        -Wall -Wno-unused-imports
   build-tool-depends: hspec-discover:hspec-discover

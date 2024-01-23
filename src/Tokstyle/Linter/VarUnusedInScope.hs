@@ -10,6 +10,7 @@ import           Control.Applicative         ((<|>))
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..), foldFix)
+import           Data.List                   (isSuffixOf)
 import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map
 import           Data.Text                   (Text)
@@ -24,6 +25,7 @@ import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
 import           Lens.Micro                  (over, set, (^.))
 import           Lens.Micro.TH               (makeLenses, makeLensesFor)
 import           Text.Groom                  (groom)
+import qualified Tokstyle.Common             as Common
 
 
 data Action
@@ -276,13 +278,16 @@ linter = astActions
             _ -> act
     }
   where
+      warnAbout file _ | "cmp.c" `isSuffixOf` file = return ()
       warnAbout file (Var (Operation Reduce _) (Just decl) (Just use)) = do
           warn file decl $ "variable `" <> lexemeText decl <> "` can be reduced in scope"
           warn file use    "  possibly to here"
       warnAbout _ _ = return ()
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
-analyse = reverse . flip State.execState [] . traverseAst linter
+analyse = reverse . flip State.execState [] . traverseAst linter . Common.skip
+    [ "third_party/cmp/cmp.c"
+    ]
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
 descr = (analyse, ("var-unused-in-scope", Text.unlines

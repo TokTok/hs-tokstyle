@@ -187,7 +187,7 @@ spec = do
             , "#if HAHA"
             , "  int i;"
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
-            , "#endif"
+            , "#endif /* HAHA */"
             , "}"
             ]
         analyseLocal allWarnings ("test.c", ast)
@@ -205,7 +205,7 @@ spec = do
             , "#else"
             , "  int i;"
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
-            , "#endif"
+            , "#endif /* HAHA */"
             , "}"
             ]
         analyseLocal allWarnings ("test.c", ast)
@@ -222,7 +222,7 @@ spec = do
             , "#else"
             , "  int i;"
             , "  for (i = 0; i < 10; ++i) { /* nothing */ }"
-            , "#endif"
+            , "#endif /* HAHA */"
             , "}"
             ]
         analyseLocal allWarnings ("test.c", ast)
@@ -239,7 +239,7 @@ spec = do
             , "  for (i = 0; i < 10; ++i) { puts(\"hello!\"); }"
             , "#else"
             , "  for (int i = 0; i < 10; ++i) { puts(\"hello!\"); }"
-            , "#endif"
+            , "#endif /* HAHA */"
             , "}"
             ]
         analyseLocal allWarnings ("test.c", ast)

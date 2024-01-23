@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 36 linters implemented, out of which 8 perform global analyses.
+There are currently 36 linters implemented, out of which 9 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -243,33 +243,6 @@ not declared in a .h file we can include. This means we're depending on an
 unexported implementation detail, and there is no compiler that can check
 whether our declaration matches the implementation's definition.
 
-## `-Wlarge-struct-params`
-
-Checks that large structs are passed by pointer rather than by value.
-
-Exemptions are enums and some well-known small structs:
-
-- `Family`
-- `IP4`
-- `Logger_Level`
-- `Net_Packet_Type`
-- `Onion_Connection_Status`
-- `Packet`
-- `Packet_Direction`
-- `Socket`
-- `State_Type`
-
-and anything with one of the following prefixes, which are probably enums:
-
-- `Group_`
-- `MSI`
-- `Tox_`
-- `Toxav_`
-
-**Reason:** some structs in toxcore are up to 5MB in size, which would cause
-stack overflows. Since we can't currently measure the size, we avoid any struct
-passing altogether apart from some well-known exemptions.
-
 ## `-Wlogger-calls`
 
 Checks that the format argument in LOGGER calls is a string literal.
@@ -382,6 +355,15 @@ Suggests removing parentheses where they are not needed:
 **Reason:** sometimes extra parentheses add clarity, so we don't forbid all
 redundant parentheses, but in the above cases, they don't add clarity and only
 add more syntax and confusion as to why there are extra parentheses there.
+
+## `-Wstruct-pack` (global)
+
+Checks that `_pack` functions for `struct`s are complete and correct.
+
+**Reason:** we provide `pack` functions for `struct` but don't want to
+manually maintain them. This linter checks that the function is exactly what
+we want it to be, and the error message will say what the function should look
+like.
 
 ## `-Wswitch-if`
 

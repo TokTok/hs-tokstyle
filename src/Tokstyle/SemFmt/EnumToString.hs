@@ -21,6 +21,7 @@ mkReturnString at str = Fix (Return (Just (Fix (LiteralExpr String (mkLAt at Lit
 
 mkCase :: Node (Lexeme Text) -> Maybe (Node (Lexeme Text))
 mkCase (Fix Comment{}) = Nothing
+mkCase (Fix (Commented _ e)) = mkCase e
 mkCase (Fix (Enumerator name _)) = Just $
     -- case $name: return "$name";
     Fix (Case (Fix (LiteralExpr ConstId name)) $
