@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wwarn #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms   #-}
 {-# LANGUAGE Strict            #-}
@@ -56,16 +55,21 @@ lintAssign = astActions
         _ -> act
     }
 
-pattern NullCheck :: Text -> Node (Lexeme Text)
-pattern NullCheck ref <-
+pattern NullCheck :: Text -> Node (Lexeme Text) -> Node (Lexeme Text)
+pattern NullCheck ref nullptr <-
     Fix (IfStmt
-        (Fix (BinaryExpr (Fix (VarExpr (L _ _ ref))) _ (Fix (VarExpr (L _ _ "nullptr")))))
+        (Fix (BinaryExpr (Fix (VarExpr (L _ _ ref))) _ nullptr))
         (Fix (CompoundStmt _)) _)
+pattern ConstNull, VarNull :: Node (Lexeme Text)
+pattern ConstNull <- Fix (LiteralExpr _ (L _ _ "nullptr"))
+pattern VarNull <- Fix (VarExpr (L _ _ "nullptr"))
 
 lintCheck :: AstActions (State [Text]) Text
 lintCheck = astActions
     { doNodes = \file nodes act -> case nodes of
-        (MallocVarDecl decl FunctionCast{}:ss@(NullCheck ref:_)) | decl == ref ->
+        (MallocVarDecl decl FunctionCast{}:ss@(NullCheck ref ConstNull:_)) | decl == ref ->
+            traverseAst lintCheck (file, ss)
+        (MallocVarDecl decl FunctionCast{}:ss@(NullCheck ref VarNull:_)) | decl == ref ->
             traverseAst lintCheck (file, ss)
         (MallocVarDecl decl (FunctionCast name):s:_) ->
             warn file s $ "`" <> decl <> "`, assigned from `" <> name
