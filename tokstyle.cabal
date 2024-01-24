@@ -33,6 +33,7 @@ library
     Tokstyle.C.TraverseAst
     Tokstyle.Common
     Tokstyle.Common.EnumLinter
+    Tokstyle.Common.Patterns
     Tokstyle.Common.StructLinter
     Tokstyle.Common.TypeSystem
     Tokstyle.Linter

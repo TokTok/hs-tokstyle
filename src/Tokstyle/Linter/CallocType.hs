@@ -8,13 +8,15 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
+import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
+                                              Scope (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import qualified Tokstyle.Common             as Common
 import           Tokstyle.Common             (semEq)
+import           Tokstyle.Common.Patterns
 
 
 checkTypes :: Text -> FilePath -> Node (Lexeme Text) -> Node (Lexeme Text) -> State [Text] ()
@@ -32,6 +34,9 @@ checkTypes funName file castTy sizeofTy = case unFix castTy of
 pattern Calloc :: Text -> [Node (Lexeme Text)] -> Node (Lexeme Text)
 pattern Calloc funName args <- Fix (FunctionCall (Fix (VarExpr (L _ _ funName))) args)
 
+pattern CallocCast :: Node (Lexeme Text) -> Text -> [Node (Lexeme Text)] -> Node (Lexeme Text)
+pattern CallocCast castTy funName args <- Fix (CastExpr castTy (Calloc funName args))
+
 isCalloc :: Text -> Bool
 isCalloc "calloc"       = True
 isCalloc "realloc"      = True
@@ -43,21 +48,26 @@ isCalloc _              = False
 linter :: AstActions (State [Text]) Text
 linter = astActions
     { doNode = \file node act -> case node of
-        Fix (CastExpr castTy (Calloc funName@"calloc" [_, Fix (SizeofType sizeofTy)])) ->
+        CallocCast castTy funName@"calloc" [_, Fix (SizeofType sizeofTy)] ->
             checkTypes funName file castTy sizeofTy
-        Fix (CastExpr castTy (Calloc funName@"calloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))])) ->
+        CallocCast castTy funName@"calloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))] ->
             checkTypes funName file castTy sizeofTy
-        Fix (CastExpr castTy (Calloc funName@"realloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))])) ->
+        CallocCast castTy funName@"realloc" [_, Fix (BinaryExpr _ _ (Fix (SizeofType sizeofTy)))] ->
             checkTypes funName file castTy sizeofTy
-        Fix (CastExpr castTy (Calloc funName@"mem_alloc" [_, Fix (SizeofType sizeofTy)])) ->
+        CallocCast castTy funName@"mem_alloc" [_, Fix (SizeofType sizeofTy)] ->
             checkTypes funName file castTy sizeofTy
-        Fix (CastExpr castTy (Calloc funName@"mem_valloc" [_, _, Fix (SizeofType sizeofTy)])) ->
+        CallocCast castTy funName@"mem_valloc" [_, _, Fix (SizeofType sizeofTy)] ->
             checkTypes funName file castTy sizeofTy
-        Fix (CastExpr castTy (Calloc funName@"mem_vrealloc" [_, _, _, Fix (SizeofType sizeofTy)])) ->
+        CallocCast castTy funName@"mem_vrealloc" [_, _, _, Fix (SizeofType sizeofTy)] ->
             checkTypes funName file castTy sizeofTy
 
         Calloc funName _ | isCalloc funName ->
             warn file node $ "the result of `" <> funName <> "` must be cast to its member type"
+
+        Fix (FunctionDefn Static (Fix (FunctionPrototype TY_void_ptr _ _)) _) ->
+            -- Ignore static functions returning void pointers. These are allocator
+            -- functions from mem.c.
+            return ()
 
         _ -> act
     }

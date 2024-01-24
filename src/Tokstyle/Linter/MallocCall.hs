@@ -71,7 +71,7 @@ lintCheck = astActions
             traverseAst lintCheck (file, ss)
         (MallocVarDecl decl FunctionCast{}:ss@(NullCheck ref VarNull:_)) | decl == ref ->
             traverseAst lintCheck (file, ss)
-        (MallocVarDecl decl (FunctionCast name):s:_) ->
+        (MallocVarDecl decl (FunctionCast name):s:_) | name `elem` mallocFuncs ->
             warn file s $ "`" <> decl <> "`, assigned from `" <> name
                 <> "` must immediately be checked against `nullptr`"
 
