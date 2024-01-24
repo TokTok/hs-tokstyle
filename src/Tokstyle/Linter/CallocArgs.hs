@@ -9,11 +9,12 @@ import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import           Language.Cimple             (BinaryOp (BopMul), Lexeme (..),
-                                              Node, NodeF (..))
+                                              Node, NodeF (..), Scope (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import qualified Tokstyle.Common             as Common
+import           Tokstyle.Common.Patterns
 
 
 checkSize, checkNmemb :: Text -> FilePath -> Node (Lexeme Text) -> State [Text] ()
@@ -63,6 +64,11 @@ linter = astActions
         Calloc "mem_alloc"    _ -> warn file node "invalid `mem_alloc` invocation: 1 argument after `mem` expected"
         Calloc "mem_valloc"   _ -> warn file node "invalid `mem_valloc` invocation: 2 arguments after `mem` expected"
         Calloc "mem_vrealloc" _ -> warn file node "invalid `mem_vrealloc` invocation: 3 argument after `mem` expected"
+
+        Fix (FunctionDefn Static (Fix (FunctionPrototype TY_void_ptr _ _)) _) ->
+            -- Ignore static functions returning void pointers. These are allocator
+            -- functions from mem.c.
+            return ()
 
         _ -> act
     }

@@ -9,12 +9,13 @@ import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
 import           Language.Cimple             (BinaryOp (..), Lexeme (..), Node,
-                                              NodeF (..))
+                                              NodeF (..), Scope (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import           Tokstyle.Common             (semEq, skip)
+import           Tokstyle.Common.Patterns
 
 supportedTypes :: [Text]
 supportedTypes = ["char", "uint8_t", "int16_t"]
@@ -84,6 +85,11 @@ linter = astActions
 
             FunctionCall (Fix (VarExpr (L _ _ name))) _ | name `elem` mallocs ->
                 warn file node $ "the result of `" <> name <> "` must be cast; plain `void *` is not supported"
+
+            FunctionDefn Static (Fix (FunctionPrototype TY_void_ptr _ _)) _ ->
+                -- Ignore static functions returning void pointers. These are allocator
+                -- functions from mem.c.
+                return ()
 
             _ -> act
     }

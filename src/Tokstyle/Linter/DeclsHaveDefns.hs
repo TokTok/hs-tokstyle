@@ -19,7 +19,6 @@ import           Language.Cimple             (AlexPosn (..), Lexeme (..),
 import qualified Language.Cimple.Diagnostics as Diagnostics
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
-import           System.FilePath             (takeFileName)
 import           Text.EditDistance           (defaultEditCosts,
                                               levenshteinDistance)
 
@@ -77,7 +76,6 @@ analyse =
     . Map.elems
     . flip State.execState empty
     . traverseAst collectPairs
-    . filter (not . (`elem` ["tox.h", "tox_private.h"]) . takeFileName . fst)
   where
     lacksDefn DeclDefn{decl, defn = Nothing} = decl
     lacksDefn _                              = Nothing
