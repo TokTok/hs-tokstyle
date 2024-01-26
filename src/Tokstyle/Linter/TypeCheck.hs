@@ -110,10 +110,10 @@ instance Pretty Env where
             mapM (\(n, ty) -> (n,) <$> unify ty ty) tys
 
 
-typeError :: (HasCallStack, Show a) => [a] -> State Env b
-typeError x = do
+typeError :: (HasCallStack, Show a) => String -> [a] -> State Env b
+typeError msg x = do
     env <- State.get
-    error $ show $ vcat $ map (text . show) x ++ [pretty env]
+    error $ msg <> ": " <> (show $ vcat $ map (text . show) x ++ [pretty env])
 
 empty :: Env
 empty = Env{..}
@@ -187,7 +187,7 @@ unifyRecursive :: HasCallStack => [(Type, Type)] -> Type -> Type -> State Env Ty
 unifyRecursive stack ty1 ty2 = do
     res <- go False ty1 ty2
     case res of -- trace ("unify: " <> show (l, r)) $
-      T_Bot -> typeError $ (ty1, ty2):stack
+      T_Bot -> typeError "bottom" $ (ty1, ty2):stack
       ok    -> return ok
   where
     -- Equal types unify trivially.
@@ -254,7 +254,7 @@ unifyRecursive stack ty1 ty2 = do
     go _ T_Bot _ = return T_Bot
 
     go False a b = go True b a
-    go True a b = typeError [(a, b)]
+    go True a b = typeError "unification" [(a, b)]
 
     unifyRec = unifyRecursive ((ty1, ty2):stack)
 
@@ -311,7 +311,7 @@ inferTypes = \case
     TyFunc (L _ _ name) -> return $ T_Name name
     TyStd (L _ _ name) ->
         case Map.lookup name stdTypes of
-          Nothing -> return $ T_Name name -- typeError [name]
+          Nothing -> return $ T_Name name -- typeError "standard type" [name]
           Just ty -> return ty
     TyUserDefined (L _ _ name) -> return $ T_Name name
     TyPointer ty -> return $ T_Ptr ty
@@ -373,12 +373,15 @@ inferTypes = \case
         funTy <- unify (T_Func retTy args) callee
         case funTy of
           T_Func result _ -> return result
-          _               -> typeError [funTy]
-    FunctionDefn _ (T_Func r _) body -> do
+          _               -> typeError "function type" [funTy]
+    FunctionDefn _ defnTy body -> do
         dropLocals
-        -- trace (show r) $ return ()
-        -- trace (show body) $ return ()
-        unify r body
+        retTy <- newTyVar
+        -- Ignore parameter types, unify will zip [] with the params, resulting in [].
+        funTy <- unify (T_Func retTy []) defnTy
+        case funTy of
+          T_Func r _ -> unify r body
+          _          -> typeError "function defn" [funTy]
 
     ExprStmt{} -> return T_Void
     Break -> return T_Void
@@ -422,7 +425,7 @@ inferTypes = \case
         void $ unify e (T_Ptr (T_Struct (Map.singleton mem ty)))
         return ty
 
-    x -> typeError [x]
+    x -> typeError "unhandled" [x]
 
 linter :: AstActions (State Env) Text
 linter = astActions
