@@ -17,7 +17,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
--- import           Debug.Trace                  (trace)
+-- import           Debug.Trace                  (traceM)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -163,7 +163,7 @@ dropLocals = State.modify $ \env@Env{envLocals, envTypes} ->
 
 addName :: HasCallStack => Text -> Type -> State Env Type
 addName n ty = do
-    -- trace ("a: " <> show n <> " = " <> show ty) $ return ()
+    -- traceM $ "a: " <> show n <> " = " <> show ty
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Nothing ->do
@@ -173,22 +173,33 @@ addName n ty = do
 
 getName :: HasCallStack => Text -> State Env Type
 getName n = do
-    -- trace ("g " <> show n) $ return ()
+    -- traceM $ "g " <> show n
     found <- Map.lookup n . envTypes <$> State.get
+    -- traceM $ "g " <> show n <> " = " <> show found
     case found of
       Just ok -> return ok
       Nothing -> addName n =<< newTyVar
 
 resolve :: Int -> State Env (Maybe Type)
-resolve v = IntMap.lookup v . envVars <$> State.get
+resolve v = do
+    -- traceM $ "r " <> show v
+    found <- IntMap.lookup v . envVars <$> State.get
+    -- traceM $ "r " <> show v <> " = " <> show found
+    return found
+
+
+data HasRecursed
+    = NotRecursed
+    | HasRecursed
 
 
 unifyRecursive :: HasCallStack => [(Type, Type)] -> Type -> Type -> State Env Type
 unifyRecursive stack ty1 ty2 = do
-    res <- go False ty1 ty2
-    case res of -- trace ("unify: " <> show (l, r)) $
-      T_Bot -> typeError "bottom" $ (ty1, ty2):stack
-      ok    -> return ok
+    -- traceM $ "unify: " <> show (ty1, ty2)
+    res <- go NotRecursed ty1 ty2
+    case res of
+        T_Bot -> typeError "bottom" $ (ty1, ty2):stack
+        ok    -> return ok
   where
     -- Equal types unify trivially.
     go _ a b | a == b = return a
@@ -201,7 +212,10 @@ unifyRecursive stack ty1 ty2 = do
 
     go _ (T_Intersect a1 a2) b = foldM unifyRec b [a1, a2]
 
-    go _ (T_Name name) b = unifyRec b =<< getName name
+    go _ (T_Name name) b = do
+        r <- getName name
+        -- traceM $ "unify name: " <> show name <> " (= " <> show r <> ") with " <> show b
+        unifyRec b r
 
     go _ (T_Var a) b = do
         res <- resolve a
@@ -236,6 +250,7 @@ unifyRecursive stack ty1 ty2 = do
     go _ (T_Arr a) (T_Ptr b) = T_Ptr <$> unifyRec a b
 
     go _ a@T_Struct{} T_InitList{} = return a
+    go _ a@T_Struct{} T_Name{} = return a
 
     -- Arrays unify with all elements in their initialiser list.
     go _ (T_Arr a) (T_InitList b) = foldM unifyRec a b
@@ -253,8 +268,8 @@ unifyRecursive stack ty1 ty2 = do
     -- The bottom type turns everything into bottom.
     go _ T_Bot _ = return T_Bot
 
-    go False a b = go True b a
-    go True a b = typeError "unification" [(a, b)]
+    go NotRecursed a b = go HasRecursed b a
+    go HasRecursed a b = typeError "unification" [(a, b)]
 
     unifyRec = unifyRecursive ((ty1, ty2):stack)
 
@@ -336,8 +351,12 @@ inferTypes = \case
         void $ addName name ty
         return T_Void
 
-    VarExpr (L _ _ name) -> getName name
-    LiteralExpr ConstId (L _ _ name) -> getName name
+    VarExpr (L _ _ name) -> do
+        -- traceM $ "infer var " <> show name
+        getName name
+    LiteralExpr ConstId (L _ _ name) -> do
+        -- traceM $ "infer const " <> show name
+        getName name
     CastExpr ty _ -> return ty
     CompoundLiteral ty _ -> return ty
     DoWhileStmt body c -> body <$ unify c T_Bool
@@ -362,14 +381,14 @@ inferTypes = \case
         unify t e
 
     FunctionPrototype retTy (L _ _ name) args -> do
-        -- trace ("f " <> show f) $ return ()
+        -- traceM $ "f " <> show f
         addName name $ T_Func retTy args
     FunctionCall callee args -> do
         retTy <- newTyVar
-        -- trace ">>>>" $ return ()
-        -- trace (show (T_Func retTy args)) $ return ()
-        -- trace (show callee) $ return ()
-        -- trace "<<<<" $ return ()
+        -- traceM ">>>>"
+        -- traceM $ show (T_Func retTy args)
+        -- traceM $ show callee
+        -- traceM "<<<<"
         funTy <- unify (T_Func retTy args) callee
         case funTy of
           T_Func result _ -> return result
