@@ -595,6 +595,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "UINT64_MAX"
         , "SIZE_MAX"
         , "UINT32_C"
+        , "INT64_C"
         , "UINT64_C"
 
         , "OPUS_APPLICATION_AUDIO"

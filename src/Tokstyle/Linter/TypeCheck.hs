@@ -17,7 +17,7 @@ import           Data.Map.Strict              (Map)
 import qualified Data.Map.Strict              as Map
 import           Data.Text                    (Text)
 import qualified Data.Text                    as Text
--- import           Debug.Trace                  (traceM)
+import           Debug.Trace                  (traceM)
 import           GHC.Stack                    (HasCallStack)
 import           Language.Cimple              (AssignOp (..), BinaryOp (..),
                                                Lexeme (..), LiteralType (..),
@@ -27,6 +27,15 @@ import           Language.Cimple.TraverseAst  (AstActions, astActions, doNode,
                                                traverseAst)
 import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
                                                vcat, (<+>))
+
+
+wantTrace :: Bool
+wantTrace = False
+
+traceMaybe :: Monad m => String -> m ()
+traceMaybe = if wantTrace
+    then traceM
+    else const $ return ()
 
 
 {-# ANN module ("HLint: ignore Use camelCase"::String) #-}
@@ -163,7 +172,7 @@ dropLocals = State.modify $ \env@Env{envLocals, envTypes} ->
 
 addName :: HasCallStack => Text -> Type -> State Env Type
 addName n ty = do
-    -- traceM $ "a: " <> show n <> " = " <> show ty
+    traceMaybe $ "a: " <> show n <> " = " <> show ty
     found <- Map.lookup n . envTypes <$> State.get
     case found of
       Nothing ->do
@@ -173,18 +182,18 @@ addName n ty = do
 
 getName :: HasCallStack => Text -> State Env Type
 getName n = do
-    -- traceM $ "g " <> show n
+    traceMaybe $ "g " <> show n
     found <- Map.lookup n . envTypes <$> State.get
-    -- traceM $ "g " <> show n <> " = " <> show found
+    traceMaybe $ "g " <> show n <> " = " <> show found
     case found of
       Just ok -> return ok
       Nothing -> addName n =<< newTyVar
 
 resolve :: Int -> State Env (Maybe Type)
 resolve v = do
-    -- traceM $ "r " <> show v
+    traceMaybe $ "r " <> show v
     found <- IntMap.lookup v . envVars <$> State.get
-    -- traceM $ "r " <> show v <> " = " <> show found
+    traceMaybe $ "r " <> show v <> " = " <> show found
     return found
 
 
@@ -194,8 +203,10 @@ data HasRecursed
 
 
 unifyRecursive :: HasCallStack => [(Type, Type)] -> Type -> Type -> State Env Type
+unifyRecursive stack ty1 ty2 | (ty1, ty2) `elem` stack =
+    typeError "recursive unification" stack
 unifyRecursive stack ty1 ty2 = do
-    -- traceM $ "unify: " <> show (ty1, ty2)
+    traceMaybe $ "unify: " <> show (ty1, ty2)
     res <- go NotRecursed ty1 ty2
     case res of
         T_Bot -> typeError "bottom" $ (ty1, ty2):stack
@@ -214,7 +225,7 @@ unifyRecursive stack ty1 ty2 = do
 
     go _ (T_Name name) b = do
         r <- getName name
-        -- traceM $ "unify name: " <> show name <> " (= " <> show r <> ") with " <> show b
+        traceMaybe $ "unify name: " <> show name <> " (= " <> show r <> ") with " <> show b
         unifyRec b r
 
     go _ (T_Var a) b = do
@@ -330,6 +341,8 @@ inferTypes = \case
           Just ty -> return ty
     TyUserDefined (L _ _ name) -> return $ T_Name name
     TyPointer ty -> return $ T_Ptr ty
+    TyBitwise ty -> return ty
+    TyForce ty -> return ty
     TyConst ty -> return ty
     Ellipsis -> return T_Void
 
@@ -352,10 +365,10 @@ inferTypes = \case
         return T_Void
 
     VarExpr (L _ _ name) -> do
-        -- traceM $ "infer var " <> show name
+        traceMaybe $ "infer var " <> show name
         getName name
     LiteralExpr ConstId (L _ _ name) -> do
-        -- traceM $ "infer const " <> show name
+        traceMaybe $ "infer const " <> show name
         getName name
     CastExpr ty _ -> return ty
     CompoundLiteral ty _ -> return ty
@@ -381,14 +394,14 @@ inferTypes = \case
         unify t e
 
     FunctionPrototype retTy (L _ _ name) args -> do
-        -- traceM $ "f " <> show f
+        -- traceMaybe $ "f " <> show f
         addName name $ T_Func retTy args
     FunctionCall callee args -> do
         retTy <- newTyVar
-        -- traceM ">>>>"
-        -- traceM $ show (T_Func retTy args)
-        -- traceM $ show callee
-        -- traceM "<<<<"
+        -- traceMaybe ">>>>"
+        -- traceMaybe $ show (T_Func retTy args)
+        -- traceMaybe $ show callee
+        -- traceMaybe "<<<<"
         funTy <- unify (T_Func retTy args) callee
         case funTy of
           T_Func result _ -> return result

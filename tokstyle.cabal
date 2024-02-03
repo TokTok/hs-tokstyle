@@ -82,7 +82,7 @@ library
     , array           <0.6
     , base            >=4       && <5
     , bytestring      <0.13
-    , cimple          >=0.0.18
+    , cimple          >=0.0.20
     , casing          <0.2
     , containers      <0.8
     , data-fix        <0.4
