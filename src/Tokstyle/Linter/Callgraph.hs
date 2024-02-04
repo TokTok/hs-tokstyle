@@ -351,6 +351,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "crypto_box_BEFORENMBYTES"
         , "crypto_box_BOXZEROBYTES"
         , "crypto_box_keypair"
+        , "crypto_box_MACBYTES"
         , "crypto_box_NONCEBYTES"
         , "crypto_box_open_afternm"
         , "crypto_box_PUBLICKEYBYTES"
