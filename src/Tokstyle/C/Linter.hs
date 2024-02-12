@@ -18,6 +18,7 @@ import qualified Tokstyle.C.Linter.BoolConversion as BoolConversion
 import qualified Tokstyle.C.Linter.CallbackParams as CallbackParams
 import qualified Tokstyle.C.Linter.Cast           as Cast
 import qualified Tokstyle.C.Linter.Conversion     as Conversion
+import qualified Tokstyle.C.Linter.Memcpy         as Memcpy
 import qualified Tokstyle.C.Linter.Memset         as Memset
 import qualified Tokstyle.C.Linter.SizeArg        as SizeArg
 import qualified Tokstyle.C.Linter.Sizeof         as Sizeof
@@ -30,6 +31,7 @@ linters =
     , ("callback-params"    , CallbackParams.analyse   )
     , ("cast"               , Cast.analyse             )
     , ("conversion"         , Conversion.analyse       )
+    , ("memcpy"             , Memcpy.analyse           )
     , ("memset"             , Memset.analyse           )
     , ("size-arg"           , SizeArg.analyse          )
     , ("sizeof"             , Sizeof.analyse           )
