@@ -19,6 +19,7 @@ isPointer x = case unFix x of
     VarDecl ty _ [] -> isPointer ty
     VarDecl{}       -> True
     TyConst ty      -> isPointer ty
+    TyOwner ty      -> isPointer ty
     TyPointer{}     -> True
     TyStd{}         -> False
     TyStruct{}      -> False

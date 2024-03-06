@@ -30,6 +30,10 @@ isByteSize ty = case unFix ty of
     TyStd (L _ _ "uint8_t") -> True
     _                       -> False
 
+removeOwner :: Node (Lexeme Text) -> Node (Lexeme Text)
+removeOwner (Fix (TyOwner ty)) = ty
+removeOwner ty                 = ty
+
 checkType :: FilePath -> Text -> Node (Lexeme Text) -> State [Text] ()
 checkType file malloc castTy = case unFix castTy of
     TyPointer (Fix (TyStd (L _ _ tyName))) | tyName `elem` supportedTypes -> return ()
@@ -74,14 +78,15 @@ linter = astActions
     { doNode = \file node act ->
         case unFix node of
             -- Windows API weirdness: ignore completely.
-            CastExpr (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO"))))) _ -> return ()
+            CastExpr               (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO")))))   _ -> return ()
+            CastExpr (Fix (TyOwner (Fix (TyPointer (Fix (TyStd (L _ _ "IP_ADAPTER_INFO"))))))) _ -> return ()
 
             CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "malloc"))) [size])) -> do
-                checkType file "malloc" castTy
-                checkSize file "malloc" castTy size
+                checkType file "malloc" (removeOwner castTy)
+                checkSize file "malloc" (removeOwner castTy) size
             CastExpr castTy (Fix (FunctionCall (Fix (VarExpr (L _ _ "mem_balloc"))) [_, size])) -> do
-                checkType file "mem_balloc" castTy
-                checkSize file "mem_balloc" castTy size
+                checkType file "mem_balloc" (removeOwner castTy)
+                checkSize file "mem_balloc" (removeOwner castTy) size
 
             FunctionCall (Fix (VarExpr (L _ _ name))) _ | name `elem` mallocs ->
                 warn file node $ "the result of `" <> name <> "` must be cast; plain `void *` is not supported"

@@ -29,7 +29,7 @@ mkCase node = error $ show node
 
 mkAssignOut :: Lexeme Text -> (LexemeClass, Text) -> Node (Lexeme Text)
 mkAssignOut name (retCls, retStr) =
-    let outDeref = Fix (UnaryExpr UopDeref (Fix (VarExpr (mkLAt name IdVar "out")))) in
+    let outDeref = Fix (UnaryExpr UopDeref (Fix (VarExpr (mkLAt name IdVar "out_enum")))) in
     Fix $ CompoundStmt
         [ Fix (ExprStmt (Fix (AssignExpr outDeref AopEq (Fix (LiteralExpr ConstId name)))))
         , Fix (Return (Just (Fix (LiteralExpr Bool (mkLAt name retCls retStr)))))

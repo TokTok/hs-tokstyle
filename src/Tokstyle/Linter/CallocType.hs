@@ -26,6 +26,7 @@ checkTypes funName file castTy sizeofTy = case unFix castTy of
             "`" <> funName <> "` should not be used for `" <> showNode castTy
             <> "`; use `mem_balloc` instead"
     TyPointer ty1 | ty1 `semEq` sizeofTy -> return ()
+    TyOwner (Fix (TyPointer ty1)) | ty1 `semEq` sizeofTy -> return ()
     _ -> warn file castTy $
         "`" <> funName <> "` result is cast to `" <> showNode castTy
         <> "` but allocated type is `" <> showNode sizeofTy <> "`"

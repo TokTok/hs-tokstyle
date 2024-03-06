@@ -339,6 +339,9 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
 
         , "WORDS_BIGENDIAN"
 
+        -- cake
+        , "static_set"
+
         , "crypto_aead_xchacha20poly1305_ietf_decrypt"
         , "crypto_aead_xchacha20poly1305_ietf_encrypt"
         , "crypto_auth_BYTES"
