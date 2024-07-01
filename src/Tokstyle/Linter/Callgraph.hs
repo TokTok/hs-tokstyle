@@ -612,6 +612,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "OPUS_SET_COMPLEXITY"
         , "OPUS_SET_INBAND_FEC"
         , "OPUS_SET_PACKET_LOSS_PERC"
+        , "OPUS_SET_VBR"
         , "opus_packet_get_nb_channels"
         , "opus_strerror"
         , "opus_decode"
