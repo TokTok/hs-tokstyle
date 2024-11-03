@@ -383,6 +383,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "crypto_verify_64"
         , "randombytes"
         , "randombytes_stir"
+        , "randombytes_random"
         , "randombytes_uniform"
         , "sodium_init"
         , "sodium_memzero"
