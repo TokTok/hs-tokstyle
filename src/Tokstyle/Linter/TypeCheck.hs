@@ -7,26 +7,25 @@
 {-# LANGUAGE TupleSections     #-}
 module Tokstyle.Linter.TypeCheck (descr) where
 
-import           Control.Monad                (foldM, void, zipWithM)
-import           Control.Monad.State.Strict   (State)
-import qualified Control.Monad.State.Strict   as State
-import           Data.Fix                     (Fix (..), foldFixM)
-import           Data.IntMap.Strict           (IntMap)
-import qualified Data.IntMap.Strict           as IntMap
-import           Data.Map.Strict              (Map)
-import qualified Data.Map.Strict              as Map
-import           Data.Text                    (Text)
-import qualified Data.Text                    as Text
-import           Debug.Trace                  (traceM)
-import           GHC.Stack                    (HasCallStack)
-import           Language.Cimple              (AssignOp (..), BinaryOp (..),
-                                               Lexeme (..), LiteralType (..),
-                                               Node, NodeF (..), UnaryOp (..))
-import           Language.Cimple.Diagnostics  (HasDiagnostics (..))
-import           Language.Cimple.TraverseAst  (AstActions, astActions, doNode,
-                                               traverseAst)
-import           Text.PrettyPrint.ANSI.Leijen (Pretty (..), colon, int, text,
-                                               vcat, (<+>))
+import           Control.Monad               (foldM, void, zipWithM)
+import           Control.Monad.State.Strict  (State)
+import qualified Control.Monad.State.Strict  as State
+import           Data.Fix                    (Fix (..), foldFixM)
+import           Data.IntMap.Strict          (IntMap)
+import qualified Data.IntMap.Strict          as IntMap
+import           Data.Map.Strict             (Map)
+import qualified Data.Map.Strict             as Map
+import           Data.Text                   (Text)
+import qualified Data.Text                   as Text
+import           Debug.Trace                 (traceM)
+import           GHC.Stack                   (HasCallStack)
+import           Language.Cimple             (AssignOp (..), BinaryOp (..),
+                                              Lexeme (..), LiteralType (..),
+                                              Node, NodeF (..), UnaryOp (..))
+import           Language.Cimple.Diagnostics (HasDiagnostics (..))
+import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
+                                              traverseAst)
+import           Prettyprinter               (Pretty (..), colon, vcat, (<+>))
 
 
 wantTrace :: Bool
@@ -104,10 +103,10 @@ instance HasDiagnostics Env where
 instance Pretty Env where
     pretty env = vcat
         [ vcat
-          . map (\(k, v) -> text (Text.unpack k) <+> colon <+> text (show v))
+          . map (\(k, v) -> pretty k <+> colon <+> pretty (show v))
           $ resolved
         , vcat
-          . map (\(k, v) -> int k <+> colon <+> text (show v))
+          . map (\(k, v) -> pretty k <+> colon <+> pretty (show v))
           . IntMap.assocs
           . envVars
           $ env
@@ -122,7 +121,7 @@ instance Pretty Env where
 typeError :: (HasCallStack, Show a) => String -> [a] -> State Env b
 typeError msg x = do
     env <- State.get
-    error $ msg <> ": " <> (show $ vcat $ map (text . show) x ++ [pretty env])
+    error $ msg <> ": " <> show (vcat $ map (pretty . show) x ++ [pretty env])
 
 empty :: Env
 empty = Env{..}

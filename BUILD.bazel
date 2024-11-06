@@ -36,7 +36,6 @@ haskell_library(
     deps = [
         "//hs-cimple",
         "//third_party/haskell:aeson",
-        "//third_party/haskell:ansi-wl-pprint",
         "//third_party/haskell:array",
         "//third_party/haskell:base",
         "//third_party/haskell:bytestring",
@@ -53,6 +52,7 @@ haskell_library(
         "//third_party/haskell:microlens-th",
         "//third_party/haskell:mtl",
         "//third_party/haskell:parallel",
+        "//third_party/haskell:prettyprinter",
         "//third_party/haskell:text",
     ],
 )
