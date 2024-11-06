@@ -17,7 +17,7 @@ spec = do
             ]
         analyseLocal allWarnings ("test.c", ast)
             `shouldBe`
-            ["test.c:2: `mem_alloc` should not be used for `\ESC[32muint8_t\ESC[0m*`; use `mem_balloc` instead [-Wcalloc-type]"]
+            ["test.c:2: `mem_alloc` should not be used for `\ESC[0;32muint8_t\ESC[0m*`; use `mem_balloc` instead [-Wcalloc-type]"]
 
     it "detects when mem_valloc() result is cast to the wrong type" $ do
         ast <- mustParse

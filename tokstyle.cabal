@@ -81,7 +81,7 @@ library
     , array           <0.6
     , base            >=4       && <5
     , bytestring      <0.13
-    , cimple          >=0.0.21
+    , cimple          >=0.0.22
     , casing          <0.2
     , containers      <0.8
     , data-fix        <0.4
@@ -148,6 +148,7 @@ test-suite testsuite
   hs-source-dirs:     test
   main-is:            testsuite.hs
   other-modules:
+    Tokstyle.C.Linter.CallbackParamsSpec
     Tokstyle.C.Linter.MemsetSpec
     Tokstyle.C.Linter.SizeArgSpec
     Tokstyle.C.Linter.SizeofSpec
