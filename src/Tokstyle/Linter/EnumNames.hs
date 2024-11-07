@@ -102,6 +102,7 @@ linter = astActions
         [name]
         ++ allowSuffix "_TYPE_"
         ++ allowSuffix "_T_"
+        ++ allowSuffix "_E_"  -- for cmp
       where
         allowSuffix s = maybeToList ((<>"_") <$> Text.stripSuffix s name)
 

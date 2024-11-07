@@ -19,7 +19,7 @@ valid :: Lexeme Text -> Lexeme Text -> Bool
 valid (L _ _ tname) (L _ _ sname) =
     sname == tname || fromMaybe False (do
         t <- Text.stripSuffix "_t" tname
-        s <- Text.stripSuffix "_s" sname <|> Text.stripSuffix "_u" sname
+        s <- Text.stripSuffix "_s" sname <|> Text.stripSuffix "_u" sname <|> Text.stripSuffix "_e" sname
         return $ t == s)
 
 linter :: AstActions (State [Text]) Text

@@ -142,7 +142,7 @@ callgraph = funcs . mconcat . concatMap (uncurry $ map . foldFix . go)
 
     go file (Union  name envs) = empty{funcs = Map.singleton (Name NKType file name) (outgoing $ fold envs)}
     go file (Struct name envs) = empty{funcs = Map.singleton (Name NKType file name) (outgoing $ fold envs)}
-    go file (EnumDecl name envs _) =
+    go file (EnumDecl _ envs name) =
         let Env{outgoing, funcs} = fold envs in
         empty{funcs = Map.insert (Name NKType file name) outgoing funcs}
     go file (Typedef env name) =
