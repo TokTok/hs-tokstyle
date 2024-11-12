@@ -474,6 +474,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "SOCK_STREAM"
         , "SOL_SOCKET"
         , "SO_BROADCAST"
+        , "SO_EXCLUSIVEADDRUSE"
         , "SO_NOSIGPIPE"
         , "SO_RCVBUF"
         , "SO_REUSEADDR"
