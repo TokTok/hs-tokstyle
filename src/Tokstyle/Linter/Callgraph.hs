@@ -468,6 +468,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "IPPROTO_UDP"
         , "IPV6_JOIN_GROUP"
         , "O_NONBLOCK"
+        , "SIOCGIFADDR"
         , "SIOCGIFBRDADDR"
         , "SIOCGIFCONF"
         , "SOCK_DGRAM"
