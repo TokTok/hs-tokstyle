@@ -2,7 +2,10 @@ genrule(
     name = "cimple_doc",
     outs = ["cimple.md.new"],
     cmd = "$(location //hs-tokstyle/tools:check-cimple) --help > $@",
-    tags = ["no-cross"],
+    tags = [
+        "haskell",
+        "no-cross",
+    ],
     tools = ["//hs-tokstyle/tools:check-cimple"],
 )
 
@@ -19,5 +22,8 @@ sh_test(
         "cimple.md",
         "cimple.md.new",
     ],
-    tags = ["no-cross"],
+    tags = [
+        "haskell",
+        "no-cross",
+    ],
 )
