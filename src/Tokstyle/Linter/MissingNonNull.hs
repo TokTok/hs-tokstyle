@@ -78,6 +78,7 @@ exemptions =
     , "tox.h"
     , "tox_dispatch.h"
     , "tox_events.h"
+    , "tox_options.h"
     , "tox_private.h"
     , "toxav.h"
     , "toxencryptsave.h"
