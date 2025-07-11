@@ -29,6 +29,12 @@ instance HasDiagnostics Linter where
     addDiagnostic diag l@Linter{diags} = l{diags = addDiagnostic diag diags}
 
 
+hasPerParamAnnotation :: Node (Lexeme Text) -> Bool
+hasPerParamAnnotation (Fix (NonNullParam _))  = True
+hasPerParamAnnotation (Fix (NullableParam _)) = True
+hasPerParamAnnotation _                       = False
+
+
 linter :: AstActions (State Linter) Text
 linter = astActions
     { doNode = \file node act ->
@@ -40,9 +46,22 @@ linter = astActions
 
             NonNull{} -> return ()
 
+            FunctionDecl Static (Fix (FunctionPrototype _ name args))
+                | any hasPerParamAnnotation args -> addStatic name
+            FunctionDecl _ (Fix (FunctionPrototype _ _ args))
+                | any hasPerParamAnnotation args -> return ()
+
             FunctionDecl Global (Fix (FunctionPrototype _ name args)) | any isPointer args ->
                warn file name "global function has no non_null or nullable annotation"
 
+            FunctionDefn _ (Fix (FunctionPrototype _ _ args)) _ | any hasPerParamAnnotation args ->
+                return ()
+
+            FunctionDecl Static (Fix (FunctionPrototype _ name args))
+                | any isPointer args && not (any hasPerParamAnnotation args) ->
+                    warn file name "static function must have nullability annotation"
+            FunctionDefn Static (Fix (FunctionPrototype _ name args)) _
+                | any hasPerParamAnnotation args -> addStatic name
             FunctionDefn Static (Fix (FunctionPrototype _ name args)) _ | any isPointer args -> do
                 Linter{statics} <- State.get
                 case lookup (lexemeText name) statics of

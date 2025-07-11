@@ -16,15 +16,17 @@ import           Language.Cimple (Lexeme (..), LexemeClass (..), Node,
 
 isPointer :: Node (Lexeme Text) -> Bool
 isPointer x = case unFix x of
-    VarDecl ty _ [] -> isPointer ty
-    VarDecl{}       -> True
-    TyConst ty      -> isPointer ty
-    TyOwner ty      -> isPointer ty
-    TyPointer{}     -> True
-    TyStd{}         -> False
-    TyStruct{}      -> False
-    TyUserDefined{} -> False
-    _               -> error $ show x
+    VarDecl ty _ []  -> isPointer ty
+    VarDecl{}        -> True
+    TyConst ty       -> isPointer ty
+    TyOwner ty       -> isPointer ty
+    TyPointer{}      -> True
+    TyStd{}          -> False
+    TyStruct{}       -> False
+    TyUserDefined{}  -> False
+    NonNullParam ty  -> isPointer ty
+    NullableParam ty -> isPointer ty
+    _                -> error $ show x
 
 
 -- | Extract the name of a function, possibly inside an attribute node.
