@@ -5,14 +5,17 @@
 module Tokstyle.Linter.NonNull (descr) where
 
 import           Control.Arrow               ((&&&))
---import           Control.Monad               (when)
+import           Control.Monad               (forM_, when)
 import           Control.Monad.State.Strict  (State)
 import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
+import           Data.Maybe                  (isJust)
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..),
-                                              Scope (..), lexemeText)
+import           Language.Cimple             (AlexPosn (..), Lexeme (..),
+                                              LexemeClass (..), Node,
+                                              NodeF (..), Scope (..),
+                                              lexemeText)
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -22,7 +25,7 @@ import           Tokstyle.Common             (isPointer)
 
 data Linter = Linter
     { diags   :: [Text]
-    , statics :: [(Text, Lexeme Text)]
+    , statics :: [(Text, (Lexeme Text, Bool))]
     }
 
 empty :: Linter
@@ -43,7 +46,7 @@ checkParams file (indices -> nonnull) (indices -> nullable) params = do
     case unmarked ptrParams of
         [] -> return ()
         (ix, l):_ -> warn file l $ "pointer-type parameter " <> Text.pack (show ix) <> " (`" <> showNode l <> "`) has no non_null or nullable attribute"
-    case superfluous nullable of
+    case superfluous (nonnull ++ nullable) of
         [] -> return ()
         (ix, l):_ -> warn file l $ "parameter " <> lexemeText l <> " (" <> showParam ix <> ") does not have a pointer type; nullability has no effect"
   where
@@ -64,36 +67,94 @@ isDestructor name =
     "_kill" `Text.isSuffixOf` lexemeText name ||
     "kill_" `Text.isPrefixOf` lexemeText name
 
+hasPerParamAnnotation :: Node (Lexeme Text) -> Bool
+hasPerParamAnnotation (Fix (NonNullParam _))  = True
+hasPerParamAnnotation (Fix (NullableParam _)) = True
+hasPerParamAnnotation _                       = False
+
+isPerParamNonNull :: Node (Lexeme Text) -> Bool
+isPerParamNonNull (Fix (NonNullParam _)) = True
+isPerParamNonNull _                      = False
+
+getVarDeclName :: Node (Lexeme Text) -> Lexeme Text
+getVarDeclName (Fix (VarDecl _ name _)) = name
+getVarDeclName (Fix (NonNullParam p))   = getVarDeclName p
+getVarDeclName (Fix (NullableParam p))  = getVarDeclName p
+getVarDeclName (Fix n)                  = L (AlexPn 0 0 0) IdVar . Text.pack . show . fmap (const ()) $ n
+
+checkPerParamAnns :: FilePath -> Lexeme Text -> Scope -> [Node (Lexeme Text)] -> Maybe (Node (Lexeme Text)) -> State Linter ()
+checkPerParamAnns file name scope params mBody = do
+    forM_ params $ \p ->
+        when (hasPerParamAnnotation p && not (isPointer p)) $
+            let vardeclName = getVarDeclName p
+            in warn file vardeclName $ "nullability attribute on non-pointer parameter `" <> lexemeText vardeclName <> "`"
+
+    when (isDestructor name && length params == 1 && any isPerParamNonNull params) $
+        warn file name $ "destructor function `" <> lexemeText name <> "` must accept nullable arguments"
+
+    when (isJust mBody && scope == Global && any hasPerParamAnnotation params) $
+        warn file name "global function must only have nullability attribute on its declaration, not on its definition"
+
+    when (isJust mBody && scope == Static) $ do
+        Linter{statics} <- State.get
+        case lookup (lexemeText name) statics of
+            Nothing -> return ()
+            Just (prev, hasAnn) ->
+                when (any hasPerParamAnnotation params && not hasAnn) $ do
+                   warn file name "static function must have nullability attribute on its declaration if it has one"
+                   warn file prev "  declaration was here"
 
 linter :: AstActions (State Linter) Text
 linter = astActions
     { doNode = \file node act ->
         case unFix node of
-            FunctionDecl Static (Fix (FunctionPrototype _ name _)) ->
-                State.modify $ \l@Linter{statics} -> l{statics = (lexemeText name, name) : statics}
+            NonNull nonnull nullable (Fix fn) -> case fn of
+                FunctionDefn scope (Fix (FunctionPrototype _ name params)) body -> do
+                    if any hasPerParamAnnotation params then
+                        warn file name "cannot mix function-level and per-parameter nullability attributes"
+                    else do
+                        when (not $ any isPointer params) $
+                            warn file name "function has no pointer-type parameters, nullability has no effect"
+                        when (scope == Global) $
+                            warn file name "global function must only have nullability attribute on its declaration, not on its definition"
+                        when (scope == Static) $ do
+                            Linter{statics} <- State.get
+                            case lookup (lexemeText name) statics of
+                                Nothing -> return ()
+                                Just (prev, hasAnn) ->
+                                    when (not hasAnn) $ do
+                                        warn file name "static function must have nullability attribute on its declaration if it has one"
+                                        warn file prev "  declaration was here"
+                        checkParams file nonnull nullable params
+                    traverseAst linter (file, [body])
+                FunctionDecl scope (Fix (FunctionPrototype _ name params)) -> do
+                    when (scope == Static) $
+                        State.modify $ \l@Linter{statics} -> l{statics = (lexemeText name, (name, True)) : statics}
+                    if any hasPerParamAnnotation params then
+                        warn file name "cannot mix function-level and per-parameter nullability attributes"
+                    else do
+                        when (nonnull == [] && nullable == [] && isDestructor name && length params == 1 && any isPointer params) $
+                            warn file name $ "destructor function `" <> lexemeText name <> "` must accept nullable arguments"
+                        checkParams file nonnull nullable params
+                        when (not $ any isPointer params) $
+                            warn file name "function declaration has no pointer-type parameters, nullability has no effect"
+                _ -> act
 
-            NonNull _ [] (Fix (FunctionDecl _ (Fix (FunctionPrototype _ name [_])))) | isDestructor name ->
-                warn file name $ "destructor function `" <> lexemeText name <> "` must accept nullable arguments"
+            FunctionDefn scope (Fix (FunctionPrototype _ name params)) body -> do
+                when (any hasPerParamAnnotation params) $
+                    checkPerParamAnns file name scope params (Just body)
+                act
 
-            NonNull nonnull nullable (Fix (FunctionDefn Static (Fix (FunctionPrototype _ name params)) _)) -> do
-                checkParams file nonnull nullable params
-                Linter{statics} <- State.get
-                case lookup (lexemeText name) statics of
-                    Nothing -> return ()
-                    Just prev -> do
-                       warn file name "static function must have nullability attribute on its declaration if it has one"
-                       warn file prev "  declaration was here"
+            FunctionDecl Static (Fix (FunctionPrototype _ name params)) -> do
+                State.modify $ \l@Linter{statics} -> l{statics = (lexemeText name, (name, any hasPerParamAnnotation params)) : statics}
+                when (any hasPerParamAnnotation params) $
+                    checkPerParamAnns file name Static params Nothing
+                act
 
-            NonNull _ _ (Fix (FunctionDefn _ (Fix (FunctionPrototype _ name params)) _)) | not $ any isPointer params ->
-               warn file name "function definition has no pointer-type parameters, nullability has no effect"
-            NonNull _ _ (Fix (FunctionDecl _ (Fix (FunctionPrototype _ name params)))) | not $ any isPointer params ->
-               warn file name "function declaration has no pointer-type parameters, nullability has no effect"
-
-            NonNull _ _ (Fix (FunctionDefn Global (Fix (FunctionPrototype _ name _)) _)) ->
-               warn file name "global function must only have nullability attribute on its declaration, not on its definition"
-
-            NonNull nonnull nullable (Fix (FunctionDecl _ (Fix (FunctionPrototype _ _ params)))) ->
-                checkParams file nonnull nullable params
+            FunctionDecl scope (Fix (FunctionPrototype _ name params)) -> do
+                when (any hasPerParamAnnotation params) $
+                    checkPerParamAnns file name scope params Nothing
+                act
 
             _ -> act
     }

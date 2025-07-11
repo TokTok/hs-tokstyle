@@ -9,7 +9,8 @@ import qualified Control.Monad.State.Strict  as State
 import           Data.Fix                    (Fix (..))
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
+import           Language.Cimple             (CommentStyle (..), Lexeme (..),
+                                              Node, NodeF (..))
 import           Language.Cimple.Diagnostics (HasDiagnostics (..), warn)
 import           Language.Cimple.Pretty      (ppTranslationUnit, render)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
@@ -54,8 +55,23 @@ linter = astActions
                 warn file' doc' $ "mismatching comment found here:\n"
                     <> render (ppTranslationUnit [doc'])
 
+associateComments :: [Node (Lexeme Text)] -> [Node (Lexeme Text)]
+associateComments [] = []
+associateComments (doc@(Fix c) : nextNode : rest)
+    | isFunc (unFix nextNode) && isDocComment c =
+        Fix (Commented doc nextNode) : associateComments rest
+  where
+    isFunc FunctionDecl{} = True
+    isFunc FunctionDefn{} = True
+    isFunc _              = False
+    isDocComment (Comment Doxygen _ _ _) = True
+    isDocComment _                       = False
+associateComments (x:xs) = x : associateComments xs
+
 analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
-analyse = reverse . diags . flip State.execState empty . traverseAst linter . reverse
+analyse files =
+    let processedFiles = map (fmap associateComments) files
+    in reverse . diags . flip State.execState empty . traverseAst linter . reverse $ processedFiles
 
 descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
 descr = (analyse, ("doc-comments", Text.unlines

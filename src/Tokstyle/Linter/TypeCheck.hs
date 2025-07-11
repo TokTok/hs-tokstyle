@@ -392,6 +392,8 @@ inferTypes = \case
     TernaryExpr c t e -> do
         void $ unify T_Bool c
         unify t e
+    NonNullParam e -> return e
+    NullableParam e -> return e
 
     FunctionPrototype retTy (L _ _ name) args -> do
         -- traceMaybe $ "f " <> show f
