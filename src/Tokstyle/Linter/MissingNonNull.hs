@@ -68,6 +68,12 @@ linter = astActions
                     Just{}  -> return ()
                     Nothing -> warn file name "static function must have nullability annotation"
 
+            TypedefFunction (Fix (FunctionPrototype _ _ args))
+                | any hasPerParamAnnotation args -> return ()
+            TypedefFunction (Fix (FunctionPrototype _ name args))
+                | any isPointer args ->
+                    warn file name "function type must have nullability annotation"
+
             _ -> act
     }
   where
