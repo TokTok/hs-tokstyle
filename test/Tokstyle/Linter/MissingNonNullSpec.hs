@@ -44,3 +44,28 @@ spec = do
             `shouldBe`
             [ "test.c:1: static function must have nullability annotation [-Wmissing-non-null]"
             ]
+
+    it "warns for typedef functions with pointer args and no annotation" $ do
+        ast <- mustParse
+            [ "typedef void func_cb(int *b);"
+            ]
+        analyseLocal ["missing-non-null"] ("test.c", ast)
+            `shouldBe`
+            [ "test.c:1: function type must have nullability annotation [-Wmissing-non-null]"
+            ]
+
+    it "does not warn for typedef functions with annotated pointer args" $ do
+        ast <- mustParse
+            [ "typedef void func_cb(non_null() int *b);"
+            ]
+        analyseLocal ["missing-non-null"] ("test.c", ast)
+            `shouldBe`
+            []
+
+    it "does not warn for typedef functions with non-pointer args" $ do
+        ast <- mustParse
+            [ "typedef void func_cb(int b);"
+            ]
+        analyseLocal ["missing-non-null"] ("test.c", ast)
+            `shouldBe`
+            []
