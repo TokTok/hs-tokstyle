@@ -13,12 +13,13 @@ import           Language.C.Analysis.SemError    (typeMismatch)
 import           Language.C.Analysis.SemRep      (EnumType (..),
                                                   EnumTypeRef (..),
                                                   Enumerator (..), GlobalDecls,
-                                                  TagDef (..), Type (..),
-                                                  TypeName (..))
+                                                  IntType (..), TagDef (..),
+                                                  Type (..), TypeName (..),
+                                                  TypeQuals (..), noTypeQuals)
 import           Language.C.Analysis.TravMonad   (MonadTrav, Trav, TravT,
                                                   getDefTable, recordError,
                                                   throwTravError)
-import           Language.C.Analysis.TypeUtils   (canonicalType)
+import           Language.C.Analysis.TypeUtils   (canonicalType, sameType)
 import           Language.C.Data.Error           (userErr)
 import           Language.C.Data.Ident           (Ident (..))
 import           Language.C.Pretty               (pretty)
@@ -71,44 +72,67 @@ enumerators ty =
     throwTravError $ userErr $ "invalid enum type `" <> show (pretty ty) <> "`"
 
 
-checkCast :: MonadTrav m => Type -> Type -> CExpr -> m ()
--- Cast to void: OK.
-checkCast (DirectType TyVoid _ _) _ _ = return ()
--- Casting between `void*` and `T*`: OK
-checkCast PtrType{} TY_void_ptr _ = return ()
-checkCast TY_void_ptr PtrType{} _ = return ()
--- Casting between `char*` and `uint8_t*`: OK
-checkCast TY_uint8_t_ptr TY_char_ptr _ = return ()
-checkCast TY_uint8_t_ptr TY_char_arr _ = return ()
-checkCast TY_char_ptr TY_uint8_t_ptr _ = return ()
-checkCast TY_char_ptr TY_uint8_t_arr _ = return ()
--- Casting literal 0 to `T*`: OK
-checkCast PtrType{} _ (CConst (CIntConst (CInteger 0 _ _) _)) = return ()
--- Casting sockaddr_storage to any of the sockaddr_... types: OK
-checkCast TY_sockaddr_ptr     TY_sockaddr_storage_ptr _ = return ()
-checkCast TY_sockaddr_in_ptr  TY_sockaddr_storage_ptr _ = return ()
-checkCast TY_sockaddr_in6_ptr TY_sockaddr_storage_ptr _ = return ()
--- Casting between numeric types: OK
-checkCast castTy exprTy _ | isNumeric castTy && isNumeric exprTy = return ()
--- Casting from enum to int: OK
-checkCast castTy exprTy _ | isIntegral castTy && isEnum exprTy = return ()
--- Casting between enums: check whether they have the same enumerators.
-checkCast castTy exprTy e | isEnum castTy && isEnum exprTy = checkEnumCast castTy exprTy e
--- Casting to `Messenger**`: NOT OK, but toxav does this.
--- TODO(iphydf): Fix this.
-checkCast (PtrType (PtrType (TY_typedef "Messenger") _ _) _ _) _ _ = return ()
--- Casting to `void**`: probably not ok, but toxav also does this.
--- TODO(iphydf): Investigate.
-checkCast (PtrType TY_void_ptr _ _) _ _ = return ()
--- Casting from int to enum: actually NOT OK, but we do this a lot, so meh.
--- TODO(iphydf): Fix these.
-checkCast castTy exprTy _ | isEnum castTy && isIntegral exprTy = return ()
+unqual :: Type -> Type
+unqual (PtrType ty _ a)      = PtrType (unqual ty) noTypeQuals a
+unqual (DirectType tn _ a)   = DirectType tn noTypeQuals a
+unqual (ArrayType ty sz _ a) = ArrayType (unqual ty) sz noTypeQuals a
+unqual ty                    = ty
 
--- Any other casts: NOT OK
-checkCast castTy exprTy e =
-    let annot = (annotation e, castTy) in
-    recordError $ typeMismatch ("disallowed cast from " <>
-        show (pretty exprTy) <> " to " <> show (pretty castTy)) annot annot
+checkCast :: MonadTrav m => Type -> Type -> CExpr -> m ()
+checkCast castTy' exprTy' e
+    | isCharOrUint8T castTy' && isCharOrUint8T exprTy' = return ()
+    | otherwise = check (canonicalType castTy') (canonicalType exprTy')
+  where
+    isCharOrUint8T ty = case ty of
+        TY_char_ptr    -> True
+        TY_char_arr    -> True
+        TY_uint8_t_ptr -> True
+        TY_uint8_t_arr -> True
+        _              -> False
+
+    check castTy exprTy | sameType castTy exprTy = return ()
+    -- Casting from T* to const T* is OK. The other way around isn't, but is caught
+    -- by clang and other compilers.
+    check (PtrType castPointee _ _) (PtrType exprPointee _ _)
+        | sameType (unqual castPointee) (unqual exprPointee) = return ()
+    -- Casting from T[] to const T* is OK (array decay).
+    check (PtrType castPointee _ _) (ArrayType elemTy _ _ _)
+        | sameType (unqual castPointee) (unqual elemTy) = return ()
+    -- Cast to void: OK.
+    check (DirectType TyVoid _ _) _ = return ()
+    -- Casting between `void*` and `T*`: OK
+    check PtrType{} TY_void_ptr = return ()
+    check TY_void_ptr PtrType{} = return ()
+    -- Casting literal 0 to `T*`: OK
+    check PtrType{} _ | isNullPtr e = return ()
+    -- Casting sockaddr_storage to any of the sockaddr_... types: OK
+    check TY_sockaddr_ptr     TY_sockaddr_storage_ptr = return ()
+    check TY_sockaddr_in_ptr  TY_sockaddr_storage_ptr = return ()
+    check TY_sockaddr_in6_ptr TY_sockaddr_storage_ptr = return ()
+    -- Casting between numeric types: OK
+    check castTy exprTy | isNumeric castTy && isNumeric exprTy = return ()
+    -- Casting from enum to int: OK
+    check castTy exprTy | isIntegral castTy && isEnum exprTy = return ()
+    -- Casting between enums: check whether they have the same enumerators.
+    check castTy exprTy | isEnum castTy && isEnum exprTy = checkEnumCast castTy exprTy e
+    -- Casting to `Messenger**`: NOT OK, but toxav does this.
+    -- TODO(iphydf): Fix this.
+    check (PtrType (PtrType (TY_typedef "Messenger") _ _) _ _) _ = return ()
+    -- Casting to `void**`: probably not ok, but toxav also does this.
+    -- TODO(iphydf): Investigate.
+    check (PtrType TY_void_ptr _ _) _ = return ()
+    -- Casting from int to enum: actually NOT OK, but we do this a lot, so meh.
+    -- TODO(iphydf): Fix these.
+    check castTy exprTy | isEnum castTy && isIntegral exprTy = return ()
+
+    -- Any other casts: NOT OK
+    check _ _ =
+        let annot = (annotation e, castTy') in
+        recordError $ typeMismatch ("disallowed cast from " <>
+            show (pretty exprTy') <> " to " <> show (pretty castTy')) annot annot
+
+    isNullPtr (CConst (CIntConst (CInteger 0 _ _) _)) = True
+    isNullPtr _                                       = False
 
 
 -- | Some exemptions where weird casts like int* -> char* may happen.

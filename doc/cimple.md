@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 36 linters implemented, out of which 9 perform global analyses.
+There are currently 34 linters implemented, out of which 9 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -319,29 +319,11 @@ invalid null pointer representations) and `memcpy` should be replaced by an
 assignment, possibly in a loop, to avoid messing up the size argument of the
 `memcpy` call.
 
-## `-Wmissing-non-null`
-
-Checks that all function declarations have nullability annotations (`non_null`
-and/or `nullable`).
-
-**Reason:** in TokTok code, we want to be explicit about which pointer
-parameters can be passed a NULL pointer. This forces the developer to think
-about nullability and allows static analysers to ensure that all possibly-NULL
-pointers are checked before being dereferenced or passed to a non-NULL parameter.
-
 ## `-Wnesting`
 
 Warns if a function has more than 7 nesting levels.
 
 **Reason:** deep nesting makes functions more difficult to comprehend.
-
-## `-Wnon-null`
-
-Checks that all pointer parameters are listed in either `non_null` or
-`nullable`, and that none of the numbers in these annotations are non-pointers.
-
-**Reason:** see `-Wmissing-non-null` for more context. This check ensures that
-nullability annotations are updated when parameter lists change.
 
 ## `-Wparens`
 

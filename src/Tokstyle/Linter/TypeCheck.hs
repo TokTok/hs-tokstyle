@@ -344,6 +344,8 @@ inferTypes = \case
     TyForce ty -> return ty
     TyConst ty -> return ty
     TyOwner ty -> return ty
+    TyNonnull ty -> return ty
+    TyNullable ty -> return ty
     Ellipsis -> return T_Void
 
     VLA ty (L _ _ name) size -> do
