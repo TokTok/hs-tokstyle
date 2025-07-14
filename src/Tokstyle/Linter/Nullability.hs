@@ -299,7 +299,7 @@ analyse input =
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
 descr = (analyse, ("nullability", Text.unlines
-    [ "Warns when a _Nullable pointer is cast to a _Nonnull pointer without a null check."
+    [ "Warns when a `_Nullable` pointer is cast to a `_Nonnull` pointer without a null check."
     , ""
     , "**Reason:** Casting a nullable pointer to a non-null pointer without ensuring it's not"
     , "null can lead to null pointer dereferences and crashes."

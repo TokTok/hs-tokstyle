@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 34 linters implemented, out of which 9 perform global analyses.
+There are currently 35 linters implemented, out of which 9 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -325,6 +325,13 @@ Warns if a function has more than 7 nesting levels.
 
 **Reason:** deep nesting makes functions more difficult to comprehend.
 
+## `-Wnullability`
+
+Warns when a `_Nullable` pointer is cast to a `_Nonnull` pointer without a null check.
+
+**Reason:** Casting a nullable pointer to a non-null pointer without ensuring it's not
+null can lead to null pointer dereferences and crashes.
+
 ## `-Wparens`
 
 Suggests removing parentheses where they are not needed:
@@ -359,12 +366,8 @@ compilers.
 
 ## `-Wtype-check` (global)
 
-Performs Hindley-Milner like type checking.
-
-This is very much work in progress, so it may fail in cryptic ways. Talk to
-@iphydf if it produces an error.
-
-**Reason:** this allows us to validate various difficult to check aspects of C.
+A Hindley-Milner based type checker for Cimple.
+It checks for type consistency in expressions, assignments, and function calls.
 
 ## `-Wtypedef-name`
 
