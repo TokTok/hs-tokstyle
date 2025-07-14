@@ -23,12 +23,12 @@ checkBoolConversion :: MonadTrav m => CExpr -> m ()
 checkBoolConversion expr = do
     ty <- tExpr [] RValue expr
     case ty of
-        DirectType (TyIntegral TyBool) _ _ -> return ()
-        DirectType (TyIntegral TyInt) _ _ -> return ()
+        DirectType (TyIntegral _) _ _ -> return ()
         TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
-        _ ->
+        PtrType _ _ _ ->
             let annot = (annotation expr, ty) in
             recordError $ typeMismatch ("implicit conversion from " <> show (pretty ty) <> " to bool") annot annot
+        _ -> return ()
 
 
 linter :: AstActions (TravT Env Identity)

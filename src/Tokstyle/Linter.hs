@@ -36,6 +36,7 @@ import qualified Tokstyle.Linter.MallocCall       as MallocCall
 import qualified Tokstyle.Linter.MallocType       as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs    as MemcpyStructs
 import qualified Tokstyle.Linter.Nesting          as Nesting
+import qualified Tokstyle.Linter.Nullability      as Nullability
 import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.SwitchIf         as SwitchIf
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
@@ -85,6 +86,7 @@ localLinters =
     , MallocType.descr
     , MemcpyStructs.descr
     , Nesting.descr
+    , Nullability.descr
     , Parens.descr
     , SwitchIf.descr
     , TypedefName.descr

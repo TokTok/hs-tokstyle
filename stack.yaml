@@ -2,4 +2,4 @@
 packages: [.]
 resolver: lts-21.9
 extra-deps:
-  - cimple-0.0.24
+  - cimple-0.0.25

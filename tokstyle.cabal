@@ -61,6 +61,7 @@ library
     Tokstyle.Linter.MallocType
     Tokstyle.Linter.MemcpyStructs
     Tokstyle.Linter.Nesting
+    Tokstyle.Linter.Nullability
     Tokstyle.Linter.Parens
     Tokstyle.Linter.SwitchIf
     Tokstyle.Linter.TypeCheck
@@ -79,7 +80,7 @@ library
     , array           <0.6
     , base            >=4       && <5
     , bytestring      <0.13
-    , cimple          >=0.0.24
+    , cimple          >=0.0.25
     , casing          <0.2
     , containers      <0.8
     , data-fix        <0.4
@@ -160,6 +161,7 @@ test-suite testsuite
     Tokstyle.Linter.ConstnessSpec
     Tokstyle.Linter.EnumDefinesSpec
     Tokstyle.Linter.MallocCallSpec
+    Tokstyle.Linter.NullabilitySpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec
     Tokstyle.Linter.TypeCheckSpec
