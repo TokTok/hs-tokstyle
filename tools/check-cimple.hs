@@ -48,6 +48,8 @@ defaultFlags :: [String]
 defaultFlags =
     [ "-Wno-callback-names"
     , "-Wno-nullability"
+    , "-Wno-points-to"
+    , "-Wno-security-rank"
     , "-Wno-type-check"
     ]
 

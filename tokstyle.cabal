@@ -18,6 +18,16 @@ source-repository head
 library
   default-language: Haskell2010
   exposed-modules:
+    Tokstyle.Analysis.CallGraph
+    Tokstyle.Analysis.Context
+    Tokstyle.Analysis.DataFlow
+    Tokstyle.Analysis.PointsTo
+    Tokstyle.Analysis.Scope
+    Tokstyle.Analysis.SecurityRank
+    Tokstyle.Analysis.SecurityRank.Annotations
+    Tokstyle.Analysis.SecurityRank.Lattice
+    Tokstyle.Analysis.SecurityRank.Types
+    Tokstyle.Analysis.Types
     Tokstyle.C.Env
     Tokstyle.C.Linter
     Tokstyle.C.Linter.BoolConversion
@@ -63,6 +73,8 @@ library
     Tokstyle.Linter.Nesting
     Tokstyle.Linter.Nullability
     Tokstyle.Linter.Parens
+    Tokstyle.Linter.PointsTo
+    Tokstyle.Linter.SecurityRank
     Tokstyle.Linter.SwitchIf
     Tokstyle.Linter.TypeCheck
     Tokstyle.Linter.TypedefName
@@ -72,6 +84,7 @@ library
     Tokstyle.SemFmt.EnumToString
     Tokstyle.SemFmt.EnumUnpack
     Tokstyle.SemFmt.StructPack
+    Tokstyle.Worklist
 
   ghc-options:      -Wall
   hs-source-dirs:   src
@@ -80,7 +93,7 @@ library
     , array           <0.6
     , base            >=4       && <5
     , bytestring      <0.13
-    , cimple          >=0.0.25
+    , cimple          >=0.0.26
     , casing          <0.2
     , containers      <0.8
     , data-fix        <0.4
@@ -89,6 +102,7 @@ library
     , extra           <2
     , filepath        <2
     , groom           <0.2
+    , hashable        <2
     , language-c      <0.11
     , microlens       <0.5
     , microlens-th    <0.5
@@ -177,7 +191,12 @@ test-suite testsuite
   build-depends:
       base      <5
     , cimple
+    , containers
+    , data-fix
+    , groom
+    , hashable
     , hspec     <3
     , language-c
+    , mtl
     , text
     , tokstyle

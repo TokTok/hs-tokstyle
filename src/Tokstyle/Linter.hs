@@ -47,6 +47,8 @@ import qualified Tokstyle.Linter.Callgraph        as Callgraph
 import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns   as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments      as DocComments
+import qualified Tokstyle.Linter.PointsTo         as PointsTo
+import qualified Tokstyle.Linter.SecurityRank     as SecurityRank
 import qualified Tokstyle.Linter.TypeCheck        as TypeCheck
 import qualified Tokstyle.SemFmt.EnumFromInt      as EnumFromInt
 import qualified Tokstyle.SemFmt.EnumToString     as EnumToString
@@ -102,7 +104,9 @@ globalLinters =
     , DeclaredOnce.descr
     , DeclsHaveDefns.descr
     , DocComments.descr
+    , SecurityRank.descr
     , TypeCheck.descr
+    , PointsTo.descr
     -- Semantic formatters:
     , EnumFromInt.descr
     , EnumToString.descr

@@ -33,9 +33,8 @@ spec = do
             ]
         analyseGlobal ["doc-comments"] [("test.h", ast1), ("test.c", ast2)]
             `shouldBe`
-            [ "test.h:1: comment on definition of `mismatching_foo` does not match declaration:\n\ESC[0;33m/**\ESC[0m\ESC[0;36m @brief\ESC[0m\ESC[0;33m A\ESC[0m\ESC[0;33m foo\ESC[0m\ESC[0;33m.\ESC[0m\ESC[0;33m*/\ESC[0m\n [-Wdoc-comments]"
-            , "test.c:1: mismatching comment found here:\n\ESC[0;33m/**\ESC[0m\ESC[0;36m @brief\ESC[0m\ESC[0;33m A\ESC[0m\ESC[0;33m bar\ESC[0m\ESC[0;33m.\ESC[0m\ESC[0;33m*/\ESC[0m\n [-Wdoc-comments]"
-            ]
+            [ "test.h:1: comment on definition of `mismatching_foo` does not match declaration:\n\ESC[0;33m/**\ESC[0m \ESC[0;36m@brief\ESC[0m A foo. \n\ESC[0;33m */\ESC[0m\n [-Wdoc-comments]"
+            , "test.c:1: mismatching comment found here:\n\ESC[0;33m/**\ESC[0m \ESC[0;36m@brief\ESC[0m A bar. \n\ESC[0;33m */\ESC[0m\n [-Wdoc-comments]"]
 
     it "should not give diagnostics if only one has a doc comment" $ do
         ast1 <- mustParse
