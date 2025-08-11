@@ -55,6 +55,7 @@ linter = astActions
 
     scopeKeyword Global = "extern"
     scopeKeyword Static = "static"
+    scopeKeyword Local  = "local"
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
 analyse = reverse . diags . flip State.execState empty . traverseAst linter
