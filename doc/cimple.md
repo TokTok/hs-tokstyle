@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 35 linters implemented, out of which 9 perform global analyses.
+There are currently 37 linters implemented, out of which 11 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -344,6 +344,19 @@ Suggests removing parentheses where they are not needed:
 **Reason:** sometimes extra parentheses add clarity, so we don't forbid all
 redundant parentheses, but in the above cases, they don't add clarity and only
 add more syntax and confusion as to why there are extra parentheses there.
+
+## `-Wpoints-to` (global)
+
+Reports the set of functions that each function pointer can point to.
+
+**Reason:** To statically verify the possible targets of indirect calls.
+
+## `-Wsecurity-rank` (global)
+
+Performs a global taint analysis based on @security_rank annotations.
+
+**Reason:** to prevent data with a lower security rank from flowing into
+a sink that requires a higher security rank.
 
 ## `-Wstruct-pack` (global)
 

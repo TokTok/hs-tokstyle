@@ -31,10 +31,13 @@ haskell_library(
 haskell_library(
     name = "hs-tokstyle",
     srcs = glob(
-        ["src/**/*.*hs"],
+        ["src/**/*.hs"],
         exclude = ["src/Tokstyle/C/**"],
     ),
-    ghcopts = ["-j4"],
+    ghcopts = [
+        "-j4",
+        "-Wno-incomplete-uni-patterns",
+    ],
     src_strip_prefix = "src",
     tags = [
         "haskell",
@@ -56,6 +59,7 @@ haskell_library(
         "//third_party/haskell:extra",
         "//third_party/haskell:filepath",
         "//third_party/haskell:groom",
+        "//third_party/haskell:hashable",
         "//third_party/haskell:language-c",
         "//third_party/haskell:microlens",
         "//third_party/haskell:microlens-th",
@@ -69,13 +73,19 @@ haskell_library(
 hspec_test(
     name = "testsuite",
     size = "small",
+    ghcopts = ["-j4"],
     deps = [
         ":c-linters",
         ":hs-tokstyle",
         "//hs-cimple",
         "//third_party/haskell:base",
+        "//third_party/haskell:containers",
+        "//third_party/haskell:data-fix",
+        "//third_party/haskell:groom",
+        "//third_party/haskell:hashable",
         "//third_party/haskell:hspec",
         "//third_party/haskell:language-c",
+        "//third_party/haskell:mtl",
         "//third_party/haskell:text",
     ],
 )
