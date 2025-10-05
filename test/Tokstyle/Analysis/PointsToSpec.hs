@@ -90,8 +90,12 @@ spec = do
             let (finalMap, _) = analyzeStatementForPointers Map.empty ctx "f" Map.empty stmt
             -- The test assumes malloc is recognized and assigned a unique heap location.
             -- This will require extending the analysis.
-            let heapLoc = HeapLocation (-1351101430537696807) -- hard-coded hash for now
-            finalMap `shouldBe` Map.singleton pLoc (Set.singleton heapLoc)
+            case Map.lookup pLoc finalMap of
+                Just pointsToSet ->
+                    case Set.toList pointsToSet of
+                        [HeapLocation n] -> n `shouldNotBe` 0
+                        other -> expectationFailure $ "p should point to a single heap location, but got " ++ show other
+                Nothing -> expectationFailure "p not found in points-to map"
 
         it "handles pointer arithmetic" $ do
             stmt <- mustParseStmt ["q = p + 1;"]
