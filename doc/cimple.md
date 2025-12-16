@@ -347,16 +347,29 @@ add more syntax and confusion as to why there are extra parentheses there.
 
 ## `-Wpoints-to` (global)
 
-Reports the set of functions that each function pointer can point to.
+Checks for use of return values from unsummarized external functions.
 
-**Reason:** To statically verify the possible targets of indirect calls.
+**Reason:** Calling an external function that is not summarized and using its
+return value can lead to a loss of precision in the points-to analysis,
+potentially hiding bugs. It's better to provide a summary for the function.
 
-## `-Wsecurity-rank` (global)
+## `-Wpoints-to-asserts` (global)
 
-Performs a global taint analysis based on @security_rank annotations.
+Checks for static analysis assertions in the code.
 
-**Reason:** to prevent data with a lower security rank from flowing into
-a sink that requires a higher security rank.
+**Reason:** Allows developers to enforce invariants about pointer properties
+(e.g., whether a pointer refers to heap or stack memory) that are
+verified at compile time by the points-to analysis.
+
+Supported checks:
+
+- `mem_is_heap(p)`: asserts that `p` points to a heap location.
+- `mem_is_stack(p)`: asserts that `p` points to a stack location.
+- `mem_is_not_null(p)`: asserts that `p` is not null.
+- `mem_is_external_param(p)`: asserts that `p` points to an external parameter.
+
+Checks can be combined with `&&` and `||`, and negated with `!`.
+For example: `assert(!(mem_is_heap(p) || mem_is_stack(p)))`
 
 ## `-Wstruct-pack` (global)
 

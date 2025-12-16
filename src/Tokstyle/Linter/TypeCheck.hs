@@ -10,7 +10,8 @@ module Tokstyle.Linter.TypeCheck (descr) where
 import           Control.Monad               (forM, forM_, void, when, zipWithM,
                                               zipWithM_)
 import           Control.Monad.Except        hiding (catchError)
-import           Control.Monad.State.Strict
+import           Control.Monad.State.Strict  (State, StateT, evalStateT, get,
+                                              gets, lift, modify, put, runState)
 import           Data.Fix                    (Fix (..))
 import           Data.Map.Strict             (Map)
 import qualified Data.Map.Strict             as Map

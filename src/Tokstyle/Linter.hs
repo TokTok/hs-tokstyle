@@ -48,7 +48,7 @@ import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns   as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments      as DocComments
 import qualified Tokstyle.Linter.PointsTo         as PointsTo
-import qualified Tokstyle.Linter.SecurityRank     as SecurityRank
+import qualified Tokstyle.Linter.PointsToAsserts  as PointsToAsserts
 import qualified Tokstyle.Linter.TypeCheck        as TypeCheck
 import qualified Tokstyle.SemFmt.EnumFromInt      as EnumFromInt
 import qualified Tokstyle.SemFmt.EnumToString     as EnumToString
@@ -104,9 +104,9 @@ globalLinters =
     , DeclaredOnce.descr
     , DeclsHaveDefns.descr
     , DocComments.descr
-    , SecurityRank.descr
-    , TypeCheck.descr
     , PointsTo.descr
+    , PointsToAsserts.descr
+    , TypeCheck.descr
     -- Semantic formatters:
     , EnumFromInt.descr
     , EnumToString.descr
@@ -118,7 +118,16 @@ analyseLocal :: [Text] -> TranslationUnit -> [Text]
 analyseLocal = run localLinters
 
 analyseGlobal :: [Text] -> [TranslationUnit] -> [Text]
-analyseGlobal = run globalLinters
+analyseGlobal linters tus = run globalLinters linters (sortTUs tus)
+
+sortTUs :: [TranslationUnit] -> [TranslationUnit]
+sortTUs = List.sortBy compareTUs
+  where
+    compareTUs (fp1, _) (fp2, _) =
+        case (List.isSuffixOf ".h" fp1, List.isSuffixOf ".h" fp2) of
+            (True, False) -> LT
+            (False, True) -> GT
+            _             -> compare fp1 fp2
 
 analyse :: [Text] -> [TranslationUnit] -> [Text]
 analyse linters tus = concat $ analyseGlobal linters tus : parMap rpar (analyseLocal linters) tus

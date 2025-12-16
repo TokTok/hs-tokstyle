@@ -639,6 +639,7 @@ analyse = reverse . flip State.execState [] . linter . (builtins <>) . callgraph
         , "VPX_CODEC_OK"
         , "VPX_CODEC_USE_FRAME_THREADING"
         , "VPX_CODEC_USE_POSTPROC"
+        , "VPX_DL_REALTIME"
         , "VPX_EFLAG_FORCE_KF"
         , "VPX_ERROR_RESILIENT_DEFAULT"
         , "VPX_ERROR_RESILIENT_PARTITIONS"

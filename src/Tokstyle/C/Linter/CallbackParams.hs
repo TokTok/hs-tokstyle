@@ -23,7 +23,7 @@ import           Tokstyle.C.TraverseAst          (AstActions (..), astActions,
 
 paramNames :: (Int, ParamDecl, ParamDecl) -> Maybe (Int, String, String)
 paramNames (i, ParamName a, ParamName b) | a /= b = Just (i, a, b)
-paramNames _ = Nothing
+paramNames _                             = Nothing
 
 funPtrParams :: Type -> [ParamDecl]
 funPtrParams (FunPtrParams params) = params

@@ -3,6 +3,8 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Tokstyle.Analysis.DataFlowSpec where
 
+import           Control.Monad              (foldM)
+import           Control.Monad.Identity     (Identity (..), runIdentity)
 import           Data.Fix                   (Fix (..))
 import           Data.List                  (find)
 import           Data.Map.Strict            (Map)
@@ -29,16 +31,16 @@ data Empty l = Empty
 empty :: Empty Text
 empty = Empty
 
-instance DataFlow Empty Text ReachingDefs where
-    emptyFacts _ = ReachingDefs Map.empty
-    transfer _ _ (ReachingDefs facts) (Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ name))) _ rhs)))) =
-        (ReachingDefs $ Map.insert name (evalExpr rhs facts) facts, Set.empty)
-    transfer _ _ (ReachingDefs facts) (Fix (C.VarDeclStmt (Fix (C.VarDecl _ (C.L _ _ name) _)) (Just rhs))) =
-        (ReachingDefs $ Map.insert name (evalExpr rhs facts) facts, Set.empty)
-    transfer _ _ (ReachingDefs facts) (Fix (C.VarDeclStmt (Fix (C.VarDecl _ (C.L _ _ name) _)) Nothing)) =
-        (ReachingDefs $ Map.insert name (Set.singleton "uninitialized") facts, Set.empty)
-    transfer _ _ facts _ = (facts, Set.empty)
-    join _ (ReachingDefs a) (ReachingDefs b) = ReachingDefs $ Map.unionWith Set.union a b
+instance DataFlow Identity Empty Text ReachingDefs () where
+    emptyFacts _ = return $ ReachingDefs Map.empty
+    join _ (ReachingDefs a) (ReachingDefs b) = return $ ReachingDefs (Map.unionWith Set.union a b)
+    transfer _ _ _ (ReachingDefs facts) (Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ name))) _ rhs)))) =
+        return (ReachingDefs $ Map.insert name (evalExpr rhs facts) facts, Set.empty)
+    transfer _ _ _ (ReachingDefs facts) (Fix (C.VarDeclStmt (Fix (C.VarDecl _ (C.L _ _ name) _)) (Just rhs))) =
+        return (ReachingDefs $ Map.insert name (evalExpr rhs facts) facts, Set.empty)
+    transfer _ _ _ (ReachingDefs facts) (Fix (C.VarDeclStmt (Fix (C.VarDecl _ (C.L _ _ name) _)) Nothing)) =
+        return (ReachingDefs $ Map.insert name (Set.singleton "uninitialized") facts, Set.empty)
+    transfer _ _ _ facts _ = return (facts, Set.empty)
 
 evalExpr :: C.Node (C.Lexeme Text) -> Map Text (Set Text) -> Set Text
 evalExpr (Fix (C.VarExpr (C.L _ _ name))) facts = fromMaybe (Set.singleton "uninitialized") (Map.lookup name facts)
@@ -53,11 +55,11 @@ evalExpr _ _ = Set.singleton "literal"
 data StatementCoverage = StatementCoverage (Set Text)
     deriving (Eq, Show)
 
-instance DataFlow Empty Text StatementCoverage where
-    emptyFacts _ = StatementCoverage Set.empty
-    transfer _ _ (StatementCoverage facts) stmt =
-        (StatementCoverage $ Set.insert (showNodePlain stmt) facts, Set.empty)
-    join _ (StatementCoverage a) (StatementCoverage b) = StatementCoverage $ Set.union a b
+instance DataFlow Identity Empty Text StatementCoverage () where
+    emptyFacts _ = return $ StatementCoverage Set.empty
+    join _ (StatementCoverage a) (StatementCoverage b) = return $ StatementCoverage (Set.union a b)
+    transfer _ _ _ (StatementCoverage facts) stmt =
+        return (StatementCoverage $ Set.insert (showNodePlain stmt) facts, Set.empty)
 
 -- | Find the unique exit node of a CFG.
 findExitNodeId :: CFG Text a -> Int
@@ -100,8 +102,8 @@ spec = do
                 , "  x = y;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["2"]), ("y", Set.fromList ["2"])])
@@ -117,8 +119,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["2", "3"])])
@@ -132,8 +134,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"])])
@@ -146,8 +148,8 @@ spec = do
                 , "  x = 2;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"])])
@@ -165,8 +167,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1", "2", "3"])])
@@ -184,8 +186,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let isAssignXPlus2 = \case
                     Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) C.AopEq (Fix (C.BinaryExpr (Fix (C.VarExpr (C.L _ _ x'))) C.BopPlus (Fix (C.LiteralExpr C.Int (C.L _ _ "2")))))))) | ("x"::Text) == x' -> True
                     _ -> False
@@ -202,8 +204,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["0", "1"]), ("i", Set.fromList ["0"])])
@@ -217,8 +219,8 @@ spec = do
                 , "  } while (x < 10);"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let isAssignXPlus1 = \case
                     Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) C.AopEq (Fix (C.BinaryExpr (Fix (C.VarExpr (C.L _ _ x'))) C.BopPlus (Fix (C.LiteralExpr C.Int (C.L _ _ "1")))))))) | ("x"::Text) == x' -> True
                     _ -> False
@@ -238,8 +240,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let isBreak = \case Fix C.Break -> True; _ -> False
             let finalNodeId = findElseNodeIdOfIfContainingStmt isBreak finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
@@ -252,8 +254,8 @@ spec = do
                 , "  int y = x;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["1"])])
@@ -279,8 +281,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["2", "3", "4"])])
@@ -292,8 +294,8 @@ spec = do
                 , "  int y = (x > 0) ? 2 : 3;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["2", "3"])])
@@ -308,8 +310,8 @@ spec = do
                 , "  x = 3;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["3"])])
@@ -328,8 +330,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["0", "1"]), ("i", Set.fromList ["0", "1"])])
@@ -354,8 +356,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["3", "4"])])
@@ -372,8 +374,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["0", "1"])])
@@ -391,8 +393,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["4"])])
@@ -415,8 +417,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["4"])])
@@ -429,8 +431,8 @@ spec = do
                 , "  x = 2;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let isAssignX2 = \case
                     Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) _ (Fix (C.LiteralExpr C.Int (C.L _ _ "2")))))) -> True
                     _ -> False
@@ -454,8 +456,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["1", "2", "3"])])
@@ -476,8 +478,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["4"])])
@@ -492,9 +494,9 @@ spec = do
             ]
         let funcBody = head ast
         let stmts = case unFix funcBody of C.FunctionDefn _ _ (Fix (C.CompoundStmt s)) -> s; _ -> []
-        let cfg = buildCFG empty funcBody (emptyFacts empty) :: CFG Text StatementCoverage
-        let (finalCfg, _) = fixpoint empty "f" cfg
-        let (StatementCoverage finalFacts) = foldr (join empty) (emptyFacts empty) (map cfgOutFacts (Map.elems finalCfg))
+        let cfg = runIdentity $ buildCFG empty funcBody (runIdentity $ emptyFacts empty) :: CFG Text StatementCoverage
+        let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
+        let (StatementCoverage finalFacts) = runIdentity $ foldM (join empty) (runIdentity $ emptyFacts empty) (map cfgOutFacts (Map.elems finalCfg))
 
         let findStmtRecursive predicate _stmts' =
                 let find' _ [] = Nothing
@@ -527,8 +529,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let isAssignXPlus1 = \case
                     Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) C.AopEq (Fix (C.BinaryExpr (Fix (C.VarExpr (C.L _ _ x'))) C.BopPlus (Fix (C.LiteralExpr C.Int (C.L _ _ "1")))))))) | ("x"::Text) == x' -> True
                     _ -> False
@@ -556,8 +558,8 @@ spec = do
             , "  }"
             , "}"
             ]
-        let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-        let (finalCfg, _) = fixpoint empty "f" cfg
+        let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+        let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
         let finalNodeId = findExitNodeId finalCfg
         let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
         finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["1"]), ("y", Set.fromList ["0", "10", "20"])])
@@ -582,8 +584,8 @@ spec = do
             , "  }"
             , "}"
             ]
-        let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-        let (finalCfg, _) = fixpoint empty "f" cfg
+        let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+        let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
         let finalNodeId = findExitNodeId finalCfg
         let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
         finalFacts `shouldBe` ReachingDefs (Map.fromList [("x", Set.fromList ["0", "1"]), ("y", Set.fromList ["0", "1", "5"])])
@@ -591,11 +593,11 @@ spec = do
     describe "Fixpoint Solver" $ do
         it "should solve a simple linear CFG" $ do
             let
-                node0 = CFGNode 0 [] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node1 = CFGNode 1 [0] [2] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node2 = CFGNode 2 [1] [] [] (emptyFacts empty) (emptyFacts empty)
+                node0 = CFGNode 0 [] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node1 = CFGNode 1 [0] [2] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node2 = CFGNode 2 [1] [] [] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
                 cfg = Map.fromList [(0, node0), (1, node1), (2, node2)] :: CFG Text ReachingDefs
-                (finalCfg, _) = fixpoint empty "f" cfg
+                (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
                 finalFacts0 = cfgOutFacts (fromJust (Map.lookup 0 finalCfg))
                 finalFacts1 = cfgOutFacts (fromJust (Map.lookup 1 finalCfg))
             finalFacts0 `shouldBe` ReachingDefs (Map.fromList [("x", Set.singleton "uninitialized")])
@@ -603,13 +605,13 @@ spec = do
 
         it "should solve a diamond-shaped CFG" $ do
             let
-                node0 = CFGNode 0 [] [1, 2] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node1 = CFGNode 1 [0] [3] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node2 = CFGNode 2 [0] [3] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "z") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node3 = CFGNode 3 [1, 2] [4] [] (emptyFacts empty) (emptyFacts empty)
-                node4 = CFGNode 4 [3] [] [] (emptyFacts empty) (emptyFacts empty)
+                node0 = CFGNode 0 [] [1, 2] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node1 = CFGNode 1 [0] [3] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node2 = CFGNode 2 [0] [3] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "z") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node3 = CFGNode 3 [1, 2] [4] [] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node4 = CFGNode 4 [3] [] [] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
                 cfg = Map.fromList [(0, node0), (1, node1), (2, node2), (3, node3), (4, node4)] :: CFG Text ReachingDefs
-                (finalCfg, _) = fixpoint empty "f" cfg
+                (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
                 finalFacts3 = cfgOutFacts (fromJust (Map.lookup 3 finalCfg))
             finalFacts3 `shouldBe` ReachingDefs (Map.fromList [("x", Set.singleton "uninitialized"), ("y", Set.singleton "uninitialized"), ("z", Set.singleton "uninitialized")])
 
@@ -621,8 +623,8 @@ spec = do
                 , "  int c = a + b;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList
@@ -639,8 +641,8 @@ spec = do
                 , "  int z = y;"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let finalFacts = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             finalFacts `shouldBe` ReachingDefs (Map.fromList
@@ -659,13 +661,13 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
             let isDeclY = \case
                     Fix (C.VarDeclStmt (Fix (C.VarDecl _ (C.L _ _ "y") _)) _) -> True
                     _ -> False
             let thenNodeId = findNodeIdByStmt isDeclY cfg
             let thenNode = fromJust (Map.lookup thenNodeId cfg)
-            cfgInFacts thenNode `shouldBe` emptyFacts empty
+            cfgInFacts thenNode `shouldBe` runIdentity (emptyFacts empty)
 
         it "should join definitions from if/else branches" $ do
             ast <- mustParse
@@ -678,8 +680,8 @@ spec = do
                 , "  }"
                 , "}"
                 ]
-            let cfg = buildCFG empty (head ast) (emptyFacts empty) :: CFG Text ReachingDefs
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty (head ast) (runIdentity $ emptyFacts empty) :: CFG Text ReachingDefs
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
 
             let isAssignX1 = \case
                     Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) _ (Fix (C.LiteralExpr C.Int (C.L _ _ "1")))))) -> True
@@ -702,12 +704,12 @@ spec = do
 
         it "should solve a CFG with a loop" $ do
             let
-                node0 = CFGNode 0 [] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node1 = CFGNode 1 [0, 2] [2, 3] [] (emptyFacts empty) (emptyFacts empty)
-                node2 = CFGNode 2 [1] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (emptyFacts empty) (emptyFacts empty)
-                node3 = CFGNode 3 [1] [] [] (emptyFacts empty) (emptyFacts empty)
+                node0 = CFGNode 0 [] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "x") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node1 = CFGNode 1 [0, 2] [2, 3] [] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node2 = CFGNode 2 [1] [1] [Fix (C.VarDeclStmt (Fix (C.VarDecl (Fix (C.TyStd (C.L (C.AlexPn 0 0 0) C.IdStdType "int"))) (C.L (C.AlexPn 0 0 0) C.IdVar "y") [])) Nothing)] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
+                node3 = CFGNode 3 [1] [] [] (runIdentity $ emptyFacts empty) (runIdentity $ emptyFacts empty)
                 cfg = Map.fromList [(0, node0), (1, node1), (2, node2), (3, node3)] :: CFG Text ReachingDefs
-                (finalCfg, _) = fixpoint empty "f" cfg
+                (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
                 finalFacts1 = cfgOutFacts (fromJust (Map.lookup 1 finalCfg))
                 finalFacts3 = cfgInFacts (fromJust (Map.lookup 3 finalCfg))
             finalFacts1 `shouldBe` ReachingDefs (Map.fromList [("x", Set.singleton "uninitialized"), ("y", Set.singleton "uninitialized")])
@@ -724,8 +726,8 @@ spec = do
                 ]
             let funcBody = head ast
             let stmts = case unFix funcBody of C.FunctionDefn _ _ (Fix (C.CompoundStmt s)) -> s; _ -> []
-            let cfg = buildCFG empty funcBody (emptyFacts empty) :: CFG Text StatementCoverage
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty funcBody (runIdentity $ emptyFacts empty) :: CFG Text StatementCoverage
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let (StatementCoverage finalFacts) = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             let expectedStmts = Set.fromList $ map showNodePlain stmts
@@ -745,8 +747,8 @@ spec = do
                 ]
             let funcBody = head ast
             let stmts = case unFix funcBody of C.FunctionDefn _ _ (Fix (C.CompoundStmt s)) -> s; _ -> []
-            let cfg = buildCFG empty funcBody (emptyFacts empty) :: CFG Text StatementCoverage
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty funcBody (runIdentity $ emptyFacts empty) :: CFG Text StatementCoverage
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let (StatementCoverage finalFacts) = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             let expectedStmts = Set.fromList $ map showNodePlain (filter (\s -> case unFix s of C.IfStmt {} -> False; _ -> True) stmts)
@@ -764,8 +766,8 @@ spec = do
                 ]
             let funcBody = head ast
             let stmts = case unFix funcBody of C.FunctionDefn _ _ (Fix (C.CompoundStmt s)) -> s; _ -> []
-            let cfg = buildCFG empty funcBody (emptyFacts empty) :: CFG Text StatementCoverage
-            let (finalCfg, _) = fixpoint empty "f" cfg
+            let cfg = runIdentity $ buildCFG empty funcBody (runIdentity $ emptyFacts empty) :: CFG Text StatementCoverage
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
             let finalNodeId = findExitNodeId finalCfg
             let (StatementCoverage finalFacts) = cfgOutFacts (fromJust (Map.lookup finalNodeId finalCfg))
             let expectedStmts = Set.fromList $ map showNodePlain (filter (\s -> case unFix s of C.WhileStmt {} -> False; _ -> True) stmts)
@@ -784,9 +786,9 @@ spec = do
                 ]
             let funcBody = head ast
             let stmts = case unFix funcBody of C.FunctionDefn _ _ (Fix (C.CompoundStmt s)) -> s; _ -> []
-            let cfg = buildCFG empty funcBody (emptyFacts empty) :: CFG Text StatementCoverage
-            let (finalCfg, _) = fixpoint empty "f" cfg
-            let (StatementCoverage finalFacts) = foldr (join empty) (emptyFacts empty) (map cfgOutFacts (Map.elems finalCfg))
+            let cfg = runIdentity $ buildCFG empty funcBody (runIdentity $ emptyFacts empty) :: CFG Text StatementCoverage
+            let (finalCfg, _) = runIdentity $ fixpoint empty "f" cfg
+            let (StatementCoverage finalFacts) = runIdentity $ foldM (join empty) (runIdentity $ emptyFacts empty) (map cfgOutFacts (Map.elems finalCfg))
             let isAssignX2 = \case Fix (C.ExprStmt (Fix (C.AssignExpr (Fix (C.VarExpr (C.L _ _ "x"))) _ (Fix (C.LiteralExpr C.Int (C.L _ _ "2")))))) -> True; _ -> False
             let unreachableStmt = showNodePlain (head (filter isAssignX2 stmts))
             Set.member unreachableStmt finalFacts `shouldBe` False
