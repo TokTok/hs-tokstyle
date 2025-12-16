@@ -1,115 +1,110 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE Strict            #-}
 module Tokstyle.Linter.PointsTo (descr) where
 
-import           Control.Monad.State.Strict  (State)
-import qualified Control.Monad.State.Strict  as State
-import           Data.Fix                    (Fix (..))
-import qualified Data.Map.Strict             as Map
-import           Data.Maybe                  (fromMaybe, mapMaybe)
-import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
-import           Data.Text                   (Text)
-import qualified Data.Text                   as Text
-import           Language.Cimple             (Lexeme (..), Node,
-                                              NodeF (FunctionPrototype, MemberDecl, TyFunc, TyPointer, VarDecl))
-import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
-                                              traverseAst)
-import           Text.Groom                  (groom)
+import           Control.Monad                       (foldM)
+import           Control.Monad.State.Strict
+import           Data.Fix
+import           Data.IntMap.Strict                  (IntMap)
+import qualified Data.IntMap.Strict                  as IntMap
+import           Data.IntSet                         (IntSet)
+import qualified Data.IntSet                         as IntSet
+import           Data.List                           (foldl', splitAt)
+import qualified Data.Map                            as Map
+import           Data.Maybe                          (fromMaybe)
+import           Data.Set                            (Set)
+import qualified Data.Set                            as Set
+import           Data.Text                           (Text)
+import qualified Data.Text                           as Text
+import qualified Language.Cimple                     as C
+import qualified Language.Cimple.Diagnostics         as Diagnostics
+import           Language.Cimple.TraverseAst
+import           Tokstyle.Analysis.DataFlow          (CFGNode (..), buildCFG,
+                                                      fixpoint, transfer)
+import           Tokstyle.Analysis.PointsTo          (evalExpr)
+import           Tokstyle.Analysis.PointsTo.Fixpoint (findEntryPointsAndFuncMap,
+                                                      runGlobalFixpoint)
+import           Tokstyle.Analysis.PointsTo.Types
+import           Tokstyle.Analysis.Scope             (ScopedId (..),
+                                                      runScopePass)
+import           Tokstyle.Analysis.VTable            (resolveVTables)
+import           Tokstyle.Common.TypeSystem          (collect)
 
-import           Tokstyle.Analysis.CallGraph (buildCallGraph)
-import           Tokstyle.Analysis.DataFlow  (cfgOutFacts)
-import           Tokstyle.Analysis.PointsTo  (PointsToContext (..),
-                                              PointsToState (..),
-                                              buildPointsToContext)
-import           Tokstyle.Analysis.Types     (AbstractLocation (..),
-                                              PointsToMap)
+analyse :: [(FilePath, [C.Node (C.Lexeme Text)])] -> [Text]
+analyse sources =
+    let
+        -- 1. Setup
+        flatAst = concatMap snd sources
+        (scopedAsts, _) = runScopePass flatAst
+        typeSystem = collect (("test.c", flatAst) : map (\(fp, ast) -> (fp, ast)) sources)
+        vtableMap = resolveVTables scopedAsts typeSystem
+        (_, funcMap) = findEntryPointsAndFuncMap scopedAsts
 
+        -- 2. Run global points-to analysis
+        filePath = fst (head sources)
+        dummyId = ScopedId 0 "" C.Global
+        ctx = PointsToContext filePath typeSystem vtableMap (GlobalEnv Map.empty) funcMap dummyId Map.empty
+        (gEnv, _, cfgCache, pool) = runGlobalFixpoint ctx scopedAsts
 
-findPointerDecls :: [(FilePath, [Node (Lexeme Text)])] -> Map.Map Text (FilePath, Lexeme Text)
-findPointerDecls tus = State.execState (traverseAst collector tus) Map.empty
+        -- 3. Lint each function using the analysis results
+        (GlobalEnv globalEnvMap) = gEnv
+        allFuncContextPairs = Map.keys globalEnvMap
+
+        lintFunction (funcId, relevantState) =
+            case Map.lookup (funcId, relevantState) cfgCache of
+                Just (cfgs, _) ->
+                    let lintCtx = ctx { pcGlobalEnv = gEnv, pcCurrentFunc = funcId }
+                    in concatMap (\cfg -> concatMap (checkNode lintCtx pool) (Map.elems cfg)) cfgs
+                Nothing -> []
+
+        lintResults = concatMap lintFunction allFuncContextPairs
+    in
+        lintResults
+
+checkNode :: PointsToContext ScopedId -> MemLocPool -> CFGNode ScopedId PointsToFact -> [Text]
+checkNode ctx pool node =
+    let
+        folder (facts, diags) stmt = do
+            (nextFacts, _) <- transfer ctx (pcCurrentFunc ctx) (cfgNodeId node) facts stmt
+            newDiags <- checkStmt ctx (cfgNodeId node) facts stmt
+            return (nextFacts, diags ++ newDiags)
+        ((_, allDiags), _) = runState (foldM folder (cfgInFacts node, []) (cfgStmts node)) pool
+    in
+        allDiags
+
+checkStmt :: PointsToContext ScopedId -> Int -> PointsToFact -> C.Node (C.Lexeme ScopedId) -> PointsToAnalysis [Text]
+checkStmt ctx nodeId facts stmt =
+    case unFix stmt of
+        C.VarDeclStmt _ (Just rhs)              -> checkRhs rhs
+        C.ExprStmt (Fix (C.AssignExpr _ _ rhs)) -> checkRhs rhs
+        C.Return (Just expr)                    -> checkRhs expr
+        _                                       -> return []
   where
-    collector :: AstActions (State (Map.Map Text (FilePath, Lexeme Text))) Text
-    collector = astActions
-        { doNode = \file node act -> do
-            case unFix node of
-                VarDecl (Fix (TyPointer _)) l@(L _ _ name) _ -> State.modify (Map.insert name (file, l))
-                MemberDecl (Fix (VarDecl (Fix (TyPointer _)) l@(L _ _ name) _)) _ -> State.modify (Map.insert name (file, l))
-                _                                             -> return ()
-            act
-        }
+    checkRhs rhs =
+        let
+            -- Helper to find the actual function call's callee expression
+            findCallee :: C.Node (C.Lexeme ScopedId) -> Maybe (C.Node (C.Lexeme ScopedId))
+            findCallee (Fix (C.FunctionCall callee _)) = Just callee
+            findCallee (Fix (C.CastExpr _ inner))      = findCallee inner
+            findCallee _                               = Nothing
+        in
+            case findCallee rhs of
+                Just (Fix (C.VarExpr lexeme@(C.L _ _ sid))) -> do
+                    returnValueLocs <- evalExpr facts ctx nodeId rhs
+                    pool <- get
+                    unknownLoc <- intern UnknownLoc
+                    let isUnresolved = IntSet.member (unIMemLoc unknownLoc) returnValueLocs
+                    if isUnresolved then
+                        return [Diagnostics.sloc (pcFilePath ctx) lexeme <> ": The return value of function '" <> sidName sid <> "' is used here, but its value could not be determined by the analysis."]
+                    else
+                        return []
+                _ -> return [] -- Not a direct call or a call we want to check
 
-isFunctionParameter :: Text -> [(FilePath, [Node (Lexeme Text)])] -> Bool
-isFunctionParameter name tus = State.execState (traverseAst collector tus) False
-  where
-    collector :: AstActions (State Bool) Text
-    collector = astActions
-        { doNode = \_ node act -> do
-            case unFix node of
-                FunctionPrototype _ _ params ->
-                    let paramNames = Set.fromList $ mapMaybe (\case
-                            Fix (VarDecl _ (L _ _ pname) _) -> Just pname
-                            _                               -> Nothing
-                            ) params
-                    in if Set.member name paramNames
-                       then State.put True
-                       else act
-                _ -> act
-        }
-
-prettyAbstractLocation :: AbstractLocation -> Text
-prettyAbstractLocation (VarLocation name) = name
-prettyAbstractLocation (FieldLocation base field) = prettyAbstractLocation base <> "." <> field
-prettyAbstractLocation (DerefLocation ptr) = "(*" <> prettyAbstractLocation ptr <> ")"
-prettyAbstractLocation (GlobalVarLocation name) = name
-prettyAbstractLocation (ReturnLocation name) = "ret:" <> name
-prettyAbstractLocation (HeapLocation _) = "heap"
-prettyAbstractLocation (FunctionLocation name) = "&" <> name
-
-formatPointsToSet :: Set AbstractLocation -> Text
-formatPointsToSet set =
-    let locations = Set.toList $ Set.map (\case
-            FunctionLocation name -> name
-            VarLocation name      -> name
-            _                     -> ""
-            ) set
-    in "{" <> Text.intercalate ", " (filter (not . Text.null) locations) <> "}"
-
-analyse :: [(FilePath, [Node (Lexeme Text)])] -> [Text]
-analyse tus =
-    let initialCallGraph = buildCallGraph tus Map.empty
-        pointsToCtx = buildPointsToContext tus initialCallGraph Map.empty
-        allOutFacts = map ptsMap $ concatMap (map cfgOutFacts . Map.elems) (Map.elems (ptcAnalyzedCfgs pointsToCtx))
-        finalPointsToMap = Map.unionsWith Set.union allOutFacts
-        ptrDecls = findPointerDecls tus
-
-        warnings = mapMaybe (\(loc, pointsToSet) ->
-            let mname = case loc of
-                    VarLocation n -> Just n
-                    FieldLocation base n -> case base of
-                        DerefLocation _ -> Nothing
-                        _               -> Just n
-                    ReturnLocation n  -> Just n
-                    _                 -> Nothing
-            in case mname of
-                Just name ->
-                   if not (Set.null pointsToSet) && not (isFunctionParameter name tus)
-                   then let (file, lexeme) = fromMaybe (error $ "impossible: " <> show name) (Map.lookup name ptrDecls)
-                        in Just $ Diagnostics.sloc file lexeme <> ": `" <> prettyAbstractLocation loc <> "` points to: " <> formatPointsToSet pointsToSet
-                   else Nothing
-                Nothing -> Nothing
-            ) (Map.toList finalPointsToMap)
-
-    in if null warnings
-       then []
-       else warnings
-
-descr :: ([(FilePath, [Node (Lexeme Text)])] -> [Text], (Text, Text))
+descr :: ([(FilePath, [C.Node (C.Lexeme Text)])] -> [Text], (Text, Text))
 descr = (analyse, ("points-to", Text.unlines
-    [ "Reports the set of functions that each function pointer can point to."
+    [ "Checks for use of return values from unsummarized external functions."
     , ""
-    , "**Reason:** To statically verify the possible targets of indirect calls."
+    , "**Reason:** Calling an external function that is not summarized and using its"
+    , "return value can lead to a loss of precision in the points-to analysis,"
+    , "potentially hiding bugs. It's better to provide a summary for the function."
     ]))

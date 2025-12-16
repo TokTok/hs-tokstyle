@@ -12,8 +12,8 @@ import           Language.Cimple             (Lexeme (..), Node, NodeF (..))
 import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               doNodes, traverseAst)
-import qualified Tokstyle.Common             as Common
 import           Tokstyle.Common             ((>+>))
+import qualified Tokstyle.Common             as Common
 
 
 mallocFuncs :: [Text]

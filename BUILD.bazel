@@ -37,6 +37,7 @@ haskell_library(
     ghcopts = [
         "-j4",
         "-Wno-incomplete-uni-patterns",
+        "-Wno-unused-matches",
     ],
     src_strip_prefix = "src",
     tags = [
@@ -73,7 +74,10 @@ haskell_library(
 hspec_test(
     name = "testsuite",
     size = "small",
-    ghcopts = ["-j4"],
+    ghcopts = [
+        "-j4",
+        "-Wno-unused-matches",
+    ],
     deps = [
         ":c-linters",
         ":hs-tokstyle",

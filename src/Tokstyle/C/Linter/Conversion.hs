@@ -22,8 +22,8 @@ import           Language.C.Pretty               (pretty)
 import           Language.C.Syntax.AST           (Annotated, CAssignOp (..),
                                                   CExpr, CExpression (..),
                                                   CStatement (..), annotation)
-import qualified Tokstyle.C.Env                  as Env
 import           Tokstyle.C.Env                  (Env)
+import qualified Tokstyle.C.Env                  as Env
 import           Tokstyle.C.Patterns
 import           Tokstyle.C.TraverseAst          (AstActions (..), astActions,
                                                   traverseAst)

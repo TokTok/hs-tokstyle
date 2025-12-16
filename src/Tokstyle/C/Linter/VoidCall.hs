@@ -7,8 +7,7 @@ module Tokstyle.C.Linter.VoidCall (analyse) where
 import           Data.Functor.Identity           (Identity)
 import           Data.List                       (isPrefixOf)
 import           Data.Maybe                      (mapMaybe)
-import           Language.C                      (Annotated (annotation),
-                                                  CCompoundBlockItem (CBlockDecl),
+import           Language.C                      (Annotated (annotation), CCompoundBlockItem (CBlockDecl),
                                                   CDeclaration (CDecl),
                                                   CDeclarator (CDeclr),
                                                   CDerivedDeclarator (CPtrDeclr),

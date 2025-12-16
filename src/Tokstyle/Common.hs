@@ -49,7 +49,7 @@ semEq a b = removeSloc a == removeSloc b
 -- Don't apply the linter to certain files.
 skip :: [FilePath] -> (FilePath, [Node (Lexeme Text)]) -> (FilePath, [Node (Lexeme Text)])
 skip fps (fp, _) | any (`List.isSuffixOf` fp) fps = (fp, [])
-skip _ tu = tu
+skip _ tu        = tu
 
 (>+>) :: Monad m => (t -> m ()) -> (t -> m ()) -> t -> m ()
 (>+>) f g x = f x >> g x

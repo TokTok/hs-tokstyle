@@ -14,8 +14,8 @@ import           Language.Cimple.Diagnostics (warn)
 import           Language.Cimple.Pretty      (showNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
-import qualified Tokstyle.Common             as Common
 import           Tokstyle.Common             (semEq)
+import qualified Tokstyle.Common             as Common
 import           Tokstyle.Common.Patterns
 
 

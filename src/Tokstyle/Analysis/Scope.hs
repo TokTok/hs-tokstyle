@@ -15,14 +15,15 @@ module Tokstyle.Analysis.Scope
     , dummyScopedId
     ) where
 
-import           Control.Monad              (forM, msum, when)
+import           Control.Monad              (forM, forM_, msum, when)
 import           Control.Monad.State.Strict (State, get, gets, modify, put,
                                              runState)
 import           Data.Fix                   (Fix (..), unFix)
+import           Data.Hashable              (Hashable (..))
 import           Data.List                  (permutations)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
-import           Data.Maybe                 (fromMaybe)
+import           Data.Maybe                 (catMaybes, fromMaybe, mapMaybe)
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 import           Debug.Trace                (trace)
@@ -42,7 +43,16 @@ data ScopedId = ScopedId
     { sidUniqueId :: Int    -- ^ The globally unique ID.
     , sidName     :: Text   -- ^ The original name, for debugging.
     , sidScope    :: C.Scope -- ^ The scope it was defined in (Global or Static).
-    } deriving (Show, Eq, Ord)
+    } deriving (Show)
+
+instance Eq ScopedId where
+    a == b = sidUniqueId a == sidUniqueId b
+
+instance Ord ScopedId where
+    compare a b = compare (sidUniqueId a) (sidUniqueId b)
+
+instance Hashable ScopedId where
+    hashWithSalt salt sid = hashWithSalt salt (sidUniqueId sid)
 
 instance Pretty ScopedId where
     pretty sid | sidUniqueId sid == 0 = pretty (sidName sid)
@@ -58,11 +68,12 @@ data ScopeState = ScopeState
     , ssNextId       :: Int         -- ^ The next available unique ID.
     , ssCurrentScope :: C.Scope     -- ^ The scope of the current function.
     , ssErrors       :: [String]    -- ^ A list of errors encountered.
+    , ssFuncParamIds :: Map Text [ScopedId]
     } deriving (Show)
 
 -- | The initial state for the scope analysis.
 initialScopeState :: ScopeState
-initialScopeState = ScopeState [Map.empty] 1 C.Global []
+initialScopeState = ScopeState [Map.empty] 1 C.Global [] Map.empty
 
 -- | Runs the scope binding pass on a list of translation units.
 runScopePass :: [C.Node (C.Lexeme Text)] -> ([C.Node (C.Lexeme ScopedId)], ScopeState)
@@ -83,10 +94,11 @@ popScope = do
     dtrace ("popScope: new depth = " ++ show (length (ssTable newSt))) $ put newSt
 
 -- | Adds a new variable to the current scope.
-addVarToScope :: C.Scope -> Text -> State ScopeState ScopedId
-addVarToScope scope name = do
+addVarToScope :: Text -> State ScopeState ScopedId
+addVarToScope name = do
     st <- get
     let newId = ssNextId st
+    let scope = if length (ssTable st) == 1 then C.Global else C.Local
     let scopedId = ScopedId newId name scope
     let newTable = case ssTable st of
             []             -> error "Symbol table stack is empty"
@@ -94,6 +106,14 @@ addVarToScope scope name = do
     dtrace ("addVarToScope: " ++ groom name ++ " -> " ++ groom scopedId ++ " in scope " ++ show scope ++ "\n  TABLE_BEFORE: " ++ groom (ssTable st) ++ "\n  TABLE_AFTER: " ++ groom newTable) $
         put $ st { ssTable = newTable, ssNextId = newId + 1 }
     return scopedId
+
+addScopedIdToScope :: Text -> ScopedId -> State ScopeState ()
+addScopedIdToScope name scopedId = do
+    st <- get
+    let newTable = case ssTable st of
+            []             -> error "Symbol table stack is empty"
+            (current:rest) -> Map.insert name scopedId current : rest
+    put $ st { ssTable = newTable }
 
 -- | Adds a variable to the global scope (the last element in the symbol table stack)
 addVarToGlobalScope :: C.Scope -> Text -> State ScopeState ScopedId
@@ -147,12 +167,50 @@ transformToplevels = mapM transformNode
 transformLexeme :: C.Lexeme Text -> State ScopeState (C.Lexeme ScopedId)
 transformLexeme (C.L pos cls text) = return $ C.L pos cls (dummyScopedId text)
 
+transformComment :: C.Comment (C.Lexeme Text) -> State ScopeState (C.Comment (C.Lexeme ScopedId))
+transformComment (Fix commentNode) = Fix <$> case commentNode of
+    C.DocComment as -> C.DocComment <$> mapM transformComment as
+    C.DocAttention -> return C.DocAttention
+    C.DocBrief -> return C.DocBrief
+    C.DocDeprecated -> return C.DocDeprecated
+    C.DocExtends l -> C.DocExtends <$> transformLexeme l
+    C.DocFile -> return C.DocFile
+    C.DocImplements l -> C.DocImplements <$> transformLexeme l
+    C.DocNote -> return C.DocNote
+    C.DocParam ml l -> C.DocParam <$> traverse transformLexeme ml <*> transformLexeme l
+    C.DocReturn -> return C.DocReturn
+    C.DocRetval -> return C.DocRetval
+    C.DocSection l -> C.DocSection <$> transformLexeme l
+    C.DocSecurityRank l ml' l' -> C.DocSecurityRank <$> transformLexeme l <*> traverse transformLexeme ml' <*> transformLexeme l'
+    C.DocSee l -> C.DocSee <$> transformLexeme l
+    C.DocSubsection l -> C.DocSubsection <$> transformLexeme l
+    C.DocPrivate -> return C.DocPrivate
+    C.DocLine as -> C.DocLine <$> mapM transformComment as
+    C.DocCode l as l' -> C.DocCode <$> transformLexeme l <*> mapM transformComment as <*> transformLexeme l'
+    C.DocWord l -> C.DocWord <$> transformLexeme l
+    C.DocRef l -> C.DocRef <$> transformLexeme l
+    C.DocP l -> C.DocP <$> transformLexeme l
+
 transformNode :: C.Node (C.Lexeme Text) -> State ScopeState (C.Node (C.Lexeme ScopedId))
 transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePlain (Fix node))) $ Fix <$> case node of
     C.FunctionDefn fScope (Fix (C.FunctionPrototype ty (C.L pos cls name) params)) body -> do
         funcSid <- findOrCreateToplevelId C.Global name
         modify $ \st -> st { ssCurrentScope = fScope }
         pushScope
+        mParamIds <- gets (Map.lookup name . ssFuncParamIds)
+        case mParamIds of
+            Just pids -> do
+                let namedParams = mapMaybe (\case (Fix (C.VarDecl _ (C.L _ _ paramName) _)) -> Just paramName; _ -> Nothing) params
+                when (length pids /= length namedParams) $
+                    error $ "Function " ++ show name ++ " has multiple definitions with different number of parameters."
+                forM_ (zip namedParams pids) $ \(paramName, pid) -> do
+                    addScopedIdToScope paramName pid
+            Nothing -> do
+                newPids <- forM params $ \paramNode -> do
+                    case unFix paramNode of
+                        C.VarDecl _ (C.L _ _ paramName) _ -> Just <$> addVarToScope paramName
+                        _                                 -> return Nothing
+                modify $ \st -> st { ssFuncParamIds = Map.insert name (catMaybes newPids) (ssFuncParamIds st) }
         transformedParams <- mapM transformNode params
         transformedBody <- transformNode body
         popScope
@@ -161,14 +219,18 @@ transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePla
         let transformedProto = C.FunctionPrototype transformedTy (C.L pos cls funcSid) transformedParams
         return (C.FunctionDefn fScope (Fix transformedProto) transformedBody)
 
-    C.FunctionDecl scope (Fix (C.FunctionPrototype ty (C.L pos cls name) params)) -> do
-        funcSid <- findOrCreateToplevelId scope name
-        pushScope
-        transformedParams <- mapM transformNode params
-        popScope
-        transformedTy <- transformNode ty
-        let transformedProto = C.FunctionPrototype transformedTy (C.L pos cls funcSid) transformedParams
-        return (C.FunctionDecl scope (Fix transformedProto))
+    C.FunctionDecl scope childNode -> do
+        let transformedNode = case unFix childNode of
+                C.FunctionPrototype ty (C.L pos cls name) params -> do
+                    funcSid <- findOrCreateToplevelId scope name
+                    pushScope
+                    transformedParams <- mapM transformNode params
+                    popScope
+                    transformedTy <- transformNode ty
+                    let transformedProto = C.FunctionPrototype transformedTy (C.L pos cls funcSid) transformedParams
+                    return (Fix transformedProto)
+                _ -> transformNode childNode
+        C.FunctionDecl scope <$> transformedNode
 
     C.CompoundStmt stmts -> do
         pushScope
@@ -186,8 +248,11 @@ transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePla
         return (C.ForStmt transformedInit transformedCond transformedNext transformedBody)
 
     C.VarDecl ty (C.L pos cls name) arr -> do
-        scope <- gets ssCurrentScope
-        scopedId <- addVarToScope scope name
+        st <- get
+        let currentScope = head (ssTable st)
+        scopedId <- case Map.lookup name currentScope of
+            Just sid -> return sid
+            Nothing  -> addVarToScope name
         C.VarDecl <$> transformNode ty
                    <*> pure (C.L pos cls scopedId)
                    <*> mapM transformNode arr
@@ -208,7 +273,7 @@ transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePla
         return (C.IfStmt transformedCond transformedThenB transformedMElseB)
 
     C.ConstDefn scope ty (C.L pos cls name) val -> do
-        scopedId <- addVarToScope scope name
+        scopedId <- addVarToScope name
         C.ConstDefn scope <$> transformNode ty
                            <*> pure (C.L pos cls scopedId)
                            <*> transformNode val
@@ -296,9 +361,97 @@ transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePla
     C.Case cond stmt -> C.Case <$> transformNode cond <*> transformNode stmt
     C.Default stmt -> C.Default <$> transformNode stmt
     C.InitialiserList exprs -> C.InitialiserList <$> mapM transformNode exprs
-    C.Commented c e -> C.Commented <$> transformNode c <*> transformNode e
     C.TyConst ty -> C.TyConst <$> transformNode ty
     C.TyFunc l -> return $ C.TyFunc (fmap dummyScopedId l)
     C.Ellipsis -> return C.Ellipsis
+
+    C.PreprocIf cond thenNodes elseNode -> C.PreprocIf <$> transformNode cond <*> mapM transformNode thenNodes <*> transformNode elseNode
+    C.PreprocIfdef (C.L pos cls name) thenNodes elseNode -> C.PreprocIfdef . C.L pos cls <$> lookupVar name <*> mapM transformNode thenNodes <*> transformNode elseNode
+    C.PreprocIfndef (C.L pos cls name) thenNodes elseNode -> C.PreprocIfndef . C.L pos cls <$> lookupVar name <*> mapM transformNode thenNodes <*> transformNode elseNode
+    C.PreprocElse nodes -> C.PreprocElse <$> mapM transformNode nodes
+
+    C.Commented c e -> C.Commented <$> transformNode c <*> transformNode e
+    C.Comment style start contents end -> C.Comment style <$> transformLexeme start <*> mapM transformLexeme contents <*> transformLexeme end
+    C.Group nodes -> C.Group <$> mapM transformNode nodes
+    C.ExternC nodes -> C.ExternC <$> mapM transformNode nodes
+
+    C.LicenseDecl l nodes -> C.LicenseDecl <$> transformLexeme l <*> mapM transformNode nodes
+
+    C.CopyrightDecl l ml ls -> C.CopyrightDecl <$> transformLexeme l <*> traverse transformLexeme ml <*> mapM transformLexeme ls
+
+    C.PreprocInclude l -> C.PreprocInclude <$> transformLexeme l
+
+    C.PreprocDefineConst (C.L pos cls name) val -> do
+        scopedId <- addVarToGlobalScope C.Global name
+        C.PreprocDefineConst (C.L pos cls scopedId) <$> transformNode val
+
+    C.DeclSpecArray ma -> C.DeclSpecArray <$> traverse transformNode ma
+
+    C.ArrayDim n a -> C.ArrayDim n <$> transformNode a
+
+    C.PreprocDefine (C.L pos cls name) -> do
+        scopedId <- addVarToGlobalScope C.Global name
+        return $ C.PreprocDefine (C.L pos cls scopedId)
+
+    C.CommentInfo c -> C.CommentInfo <$> transformComment c
+
+    C.CommentExpr a b -> C.CommentExpr <$> transformNode a <*> transformNode b
+
+    C.VLA ty (C.L pos cls name) size -> do
+        scopedId <- addVarToScope name
+        C.VLA <$> transformNode ty
+              <*> pure (C.L pos cls scopedId)
+              <*> transformNode size
+
+    C.CommentSection a as b -> C.CommentSection <$> transformNode a <*> mapM transformNode as <*> transformNode b
+
+    C.CommentSectionEnd l -> C.CommentSectionEnd <$> transformLexeme l
+
+    C.TyNonnull a -> C.TyNonnull <$> transformNode a
+
+    C.TyNullable a -> C.TyNullable <$> transformNode a
+
+    C.StaticAssert a l -> C.StaticAssert <$> transformNode a <*> transformLexeme l
+
+    C.PreprocDefined (C.L pos cls name) -> do
+        scopedId <- lookupVar name
+        return $ C.PreprocDefined (C.L pos cls scopedId)
+
+    C.PreprocElif a as b -> C.PreprocElif <$> transformNode a <*> mapM transformNode as <*> transformNode b
+
+    C.PreprocScopedDefine a as b -> C.PreprocScopedDefine <$> transformNode a <*> mapM transformNode as <*> transformNode b
+
+    C.PreprocDefineMacro (C.L pos cls name) params body -> do
+        scopedId <- addVarToGlobalScope C.Global name
+        pushScope
+        transformedParams <- mapM transformNode params
+        transformedBody <- transformNode body
+        popScope
+        return $ C.PreprocDefineMacro (C.L pos cls scopedId) transformedParams transformedBody
+
+    C.MacroParam (C.L pos cls name) -> do
+        scopedId <- addVarToScope name
+        return $ C.MacroParam (C.L pos cls scopedId)
+
+    C.MacroBodyStmt a -> C.MacroBodyStmt <$> transformNode a
+
+    C.PreprocUndef (C.L pos cls name) -> do
+        scopedId <- lookupVar name
+        return $ C.PreprocUndef (C.L pos cls scopedId)
+
+    C.CallbackDecl typeLexeme (C.L pos cls name) -> do
+        scopedId <- lookupVar name
+        C.CallbackDecl <$> transformLexeme typeLexeme
+                       <*> pure (C.L pos cls scopedId)
+
+    C.CompoundLiteral a b -> C.CompoundLiteral <$> transformNode a <*> transformNode b
+
+    C.TyForce a -> C.TyForce <$> transformNode a
+
+    C.TyBitwise a -> C.TyBitwise <$> transformNode a
+
+    C.AttrPrintf l l' a -> C.AttrPrintf <$> transformLexeme l <*> transformLexeme l' <*> transformNode a
+
+    C.MacroBodyFunCall a -> C.MacroBodyFunCall <$> transformNode a
 
     other -> error $ "transformNode: Unhandled AST node: " ++ show (fmap (const ()) other)

@@ -20,8 +20,8 @@ import           Language.Cimple.Pretty      (ppTranslationUnit, render)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import           Tokstyle.Common             (semEq)
-import qualified Tokstyle.Common.TypeSystem  as TypeSystem
 import           Tokstyle.Common.TypeSystem  (TypeDescr (..), TypeSystem)
+import qualified Tokstyle.Common.TypeSystem  as TypeSystem
 
 newtype Linter = Linter
     { diags :: [Text]

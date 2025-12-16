@@ -49,7 +49,7 @@ defaultFlags =
     [ "-Wno-callback-names"
     , "-Wno-nullability"
     , "-Wno-points-to"
-    , "-Wno-security-rank"
+    , "-Wno-points-to-asserts"
     , "-Wno-type-check"
     ]
 

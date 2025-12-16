@@ -26,8 +26,8 @@ import           Language.C.Pretty               (pretty)
 import           Language.C.Syntax.AST           (CConstant (..), CExpr,
                                                   CExpression (..), annotation)
 import           Language.C.Syntax.Constants     (CInteger (..))
-import qualified Tokstyle.C.Env                  as Env
 import           Tokstyle.C.Env                  (Env)
+import qualified Tokstyle.C.Env                  as Env
 import           Tokstyle.C.Patterns
 import           Tokstyle.C.TraverseAst          (AstActions (..), astActions,
                                                   traverseAst)
