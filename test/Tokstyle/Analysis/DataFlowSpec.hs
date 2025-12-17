@@ -13,6 +13,7 @@ import           Data.Maybe                 (fromJust, fromMaybe)
 import           Data.Set                   (Set)
 import qualified Data.Set                   as Set
 import           Data.Text                  (Text)
+import qualified Data.Text                  as Text
 import           Language.Cimple            (NodeF (..))
 import qualified Language.Cimple            as C
 import           Language.Cimple.Pretty     (showNode, showNodePlain)
@@ -59,7 +60,9 @@ instance DataFlow Identity Empty Text StatementCoverage () where
     emptyFacts _ = return $ StatementCoverage Set.empty
     join _ (StatementCoverage a) (StatementCoverage b) = return $ StatementCoverage (Set.union a b)
     transfer _ _ _ (StatementCoverage facts) stmt =
-        return (StatementCoverage $ Set.insert (showNodePlain stmt) facts, Set.empty)
+        if "__tokstyle_assume" `Text.isPrefixOf` showNodePlain stmt
+        then return (StatementCoverage facts, Set.empty)
+        else return (StatementCoverage $ Set.insert (showNodePlain stmt) facts, Set.empty)
 
 -- | Find the unique exit node of a CFG.
 findExitNodeId :: CFG Text a -> Int

@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 37 linters implemented, out of which 11 perform global analyses.
+There are currently 39 linters implemented, out of which 13 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -332,6 +332,15 @@ Warns when a `_Nullable` pointer is cast to a `_Nonnull` pointer without a null 
 **Reason:** Casting a nullable pointer to a non-null pointer without ensuring it's not
 null can lead to null pointer dereferences and crashes.
 
+## `-Wownership-decls` (global)
+
+Checks that `_Owner`, `_Nullable`, and `_Nonnull` are only set on declarations,
+not definitions, unless it's a static definition without prior declaration.
+
+**Reason:** keeping qualifiers on declarations only reduces clutter in the
+implementation and ensures that the interface is the single source of truth
+for ownership or nullability information.
+
 ## `-Wparens`
 
 Suggests removing parentheses where they are not needed:
@@ -389,6 +398,11 @@ comparing a variable to a constant.
 **Reason:** switch-case statements are clearer in expressing long sequences of
 comparisons against constants. They also come with duplication checks in most C
 compilers.
+
+## `-Wtagged-union` (global)
+
+Checks that all unions with incompatible types (pointers) in them are tagged,
+and when accessing their members, the tag is checked.
 
 ## `-Wtype-check` (global)
 

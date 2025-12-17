@@ -24,6 +24,7 @@ import           Data.List                  (permutations)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (catMaybes, fromMaybe, mapMaybe)
+import           Data.String                (IsString (..))
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
 import           Debug.Trace                (trace)
@@ -57,6 +58,9 @@ instance Hashable ScopedId where
 instance Pretty ScopedId where
     pretty sid | sidUniqueId sid == 0 = pretty (sidName sid)
                | otherwise            = pretty (sidName sid) <> "_" <> pretty (sidUniqueId sid)
+
+instance IsString ScopedId where
+    fromString = dummyScopedId . Text.pack
 
 
 -- | A stack of symbol tables, one for each scope.
@@ -410,6 +414,8 @@ transformNode (Fix node) = dtrace ("transformNode: " ++ Text.unpack (showNodePla
     C.TyNonnull a -> C.TyNonnull <$> transformNode a
 
     C.TyNullable a -> C.TyNullable <$> transformNode a
+
+    C.TyOwner a -> C.TyOwner <$> transformNode a
 
     C.StaticAssert a l -> C.StaticAssert <$> transformNode a <*> transformLexeme l
 

@@ -67,7 +67,11 @@ packFunName (Pointer (TypeRef StructRef (L _ _ name))) =
 packFunName (TypeRef StructRef (L _ _ name)) =
     Just $ Right (Fix . UnaryExpr UopAddress, Text.toLower name <> "_pack")
 packFunName (Pointer Const{})    = Nothing
+packFunName (Pointer _)          = Nothing
 packFunName (TypeRef UnionRef _) = Nothing  -- TODO(iphydf): Union pack.
+packFunName (Owner ty)           = packFunName ty
+packFunName (Nonnull ty)         = packFunName ty
+packFunName (Nullable ty)        = packFunName ty
 packFunName x                    = error $ show x
 
 -- bin_pack_bin(bp, var->mem, size)
@@ -80,7 +84,16 @@ mkPackBin varName memName size =
         ])
 
 mkPackMember :: Lexeme Text -> (Lexeme Text, TypeInfo) -> Maybe (Node (Lexeme Text))
+mkPackMember varName (memName, Owner ty) = mkPackMember varName (memName, ty)
+mkPackMember varName (memName, Nonnull ty) = mkPackMember varName (memName, ty)
+mkPackMember varName (memName, Nullable ty) = mkPackMember varName (memName, ty)
 mkPackMember varName (memName, Sized (Pointer (BuiltinType U08Ty)) arrSize) = Just $
+    mkPackBin varName memName $ Fix (PointerAccess (Fix (VarExpr varName)) arrSize)
+mkPackMember varName (memName, Sized (Owner (Pointer (BuiltinType U08Ty))) arrSize) = Just $
+    mkPackBin varName memName $ Fix (PointerAccess (Fix (VarExpr varName)) arrSize)
+mkPackMember varName (memName, Sized (Nonnull (Pointer (BuiltinType U08Ty))) arrSize) = Just $
+    mkPackBin varName memName $ Fix (PointerAccess (Fix (VarExpr varName)) arrSize)
+mkPackMember varName (memName, Sized (Nullable (Pointer (BuiltinType U08Ty))) arrSize) = Just $
     mkPackBin varName memName $ Fix (PointerAccess (Fix (VarExpr varName)) arrSize)
 mkPackMember varName (memName, Sized (Array (Just (BuiltinType U08Ty)) _) arrSize) = Just $
     mkPackBin varName memName $ Fix (PointerAccess (Fix (VarExpr varName)) arrSize)

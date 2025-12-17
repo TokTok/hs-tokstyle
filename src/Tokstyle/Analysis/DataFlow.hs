@@ -51,6 +51,7 @@ import qualified Data.Map.Strict         as Map
 import           Data.Maybe              (mapMaybe)
 import           Data.Set                (Set)
 import qualified Data.Set                as Set
+import           Data.String             (IsString)
 import           Debug.Trace             (trace)
 import           Language.Cimple         (NodeF (..))
 import qualified Language.Cimple         as C
@@ -141,7 +142,7 @@ fixpoint ctx funcName (cfg :: CFG l a) =
 
 -- | Build a control flow graph for a function definition. This is the main
 -- entry point for constructing a CFG from a Cimple AST.
-buildCFG :: forall m c l a callCtx. (DataFlow m c l a callCtx, Pretty l, Ord l, Show l) => c l -> C.Node (C.Lexeme l) -> a -> m (CFG l a)
+buildCFG :: forall m c l a callCtx. (DataFlow m c l a callCtx, Pretty l, Ord l, Show l, IsString l) => c l -> C.Node (C.Lexeme l) -> a -> m (CFG l a)
 buildCFG ctx cNode@(Fix (C.FunctionDefn _ (Fix (C.FunctionPrototype _ (C.L _ _ funcName) _)) _)) initialFacts = do
     let structuralCFG = CFGBuilder.buildCFG cNode
 

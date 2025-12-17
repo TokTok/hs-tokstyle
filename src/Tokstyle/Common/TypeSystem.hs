@@ -1,18 +1,31 @@
 {-# OPTIONS_GHC -Wwarn #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
 module Tokstyle.Common.TypeSystem where
 
 import           Control.Arrow              (second)
+import           Control.Monad              (forM_)
 import           Control.Monad.State.Strict (State)
 import qualified Control.Monad.State.Strict as State
-import           Data.Fix                   (foldFixM)
+import           Data.Fix                   (Fix (..), foldFixM)
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
+import           Data.Set                   (Set)
+import qualified Data.Set                   as Set
 import           Data.Text                  (Text)
 import qualified Data.Text                  as Text
+import qualified Debug.Trace                as Debug
 import           Language.Cimple            (Lexeme (..), LiteralType (..),
                                              Node, NodeF (..), lexemeText)
+import qualified Language.Cimple            as C
+
+
+debugging :: Bool
+debugging = False
+
+dtrace :: String -> a -> a
+dtrace msg = if debugging then Debug.trace msg else id
 
 
 data StdType
@@ -30,7 +43,7 @@ data StdType
     | SizeTy
     | F32Ty
     | F64Ty
-    deriving (Show)
+    deriving (Show, Eq, Ord)
 
 
 data TypeRef
@@ -49,11 +62,15 @@ data TypeInfo
     | Pointer TypeInfo
     | Sized TypeInfo (Lexeme Text)
     | Const TypeInfo
+    | Owner TypeInfo
+    | Nonnull TypeInfo
+    | Nullable TypeInfo
     | BuiltinType StdType
     | ExternalType (Lexeme Text)
     | Array (Maybe TypeInfo) [TypeInfo]
 
     | Var (Lexeme Text) TypeInfo
+    | Function TypeInfo [TypeInfo]
     | IntLit (Lexeme Text)
     | NameLit (Lexeme Text)
     | EnumMem (Lexeme Text)
@@ -65,19 +82,56 @@ data TypeDescr
     | UnionDescr (Lexeme Text) [(Lexeme Text, TypeInfo)]
     | EnumDescr (Lexeme Text) [TypeInfo]
     | IntDescr (Lexeme Text) StdType
+    | FuncDescr (Lexeme Text) TypeInfo [TypeInfo]
+    | AliasDescr (Lexeme Text) TypeInfo
     deriving (Show)
 
 
 type TypeSystem = Map Text TypeDescr
 
 
+getTypeRefName :: TypeInfo -> Maybe Text
+getTypeRefName = \case
+    TypeRef _ (L _ _ name) -> Just name
+    Pointer t              -> getTypeRefName t
+    Const t                -> getTypeRefName t
+    Owner t                -> getTypeRefName t
+    Nonnull t              -> getTypeRefName t
+    Nullable t             -> getTypeRefName t
+    _                      -> Nothing
+
+
 lookupType :: Text -> TypeSystem -> Maybe TypeDescr
-lookupType = Map.lookup . Text.toLower
+lookupType name ts = go Set.empty name
+  where
+    go visited n
+        | Set.member (Text.toLower n) visited = Nothing
+        | otherwise =
+            let res = case Map.lookup (Text.toLower n) ts of
+                    Just (AliasDescr _ target) ->
+                        case getTypeRefName target of
+                            Just next -> go (Set.insert (Text.toLower n) visited) next
+                            Nothing   -> case target of
+                                TypeRef StructRef (L _ _ "") -> Map.lookup "" ts
+                                TypeRef UnionRef  (L _ _ "") -> Map.lookup "" ts
+                                _ -> Just (AliasDescr (L (C.AlexPn 0 0 0) C.IdVar n) target)
+                    r -> r
+            in dtrace ("lookupType: name=" ++ Text.unpack n ++ " res=" ++ show res) res
 
 insert :: Lexeme Text -> TypeDescr -> State TypeSystem [TypeInfo]
 insert name ty = do
-    State.modify $ Map.insert (Text.toLower $ lexemeText name) ty
-    return []
+    let nameText = Text.toLower $ lexemeText name
+    existing <- State.gets (Map.lookup nameText)
+    case (ty, existing) of
+        (AliasDescr _ (TypeRef _ (L _ _ target)), Just StructDescr{}) | Text.toLower target == nameText ->
+            return [TypeRef UnresolvedRef name]
+        (AliasDescr _ (TypeRef _ (L _ _ target)), Just UnionDescr{})  | Text.toLower target == nameText ->
+            return [TypeRef UnresolvedRef name]
+        (AliasDescr _ (TypeRef _ (L _ _ target)), Just EnumDescr{})   | Text.toLower target == nameText ->
+            return [TypeRef UnresolvedRef name]
+        _ -> do
+            State.modify $ Map.insert nameText ty
+            return [TypeRef UnresolvedRef name]
 
 foldArray :: Lexeme Text -> [[TypeInfo]] -> TypeInfo -> TypeInfo
 foldArray name arrs baseTy = Var name (merge baseTy (concat arrs))
@@ -96,11 +150,23 @@ vars = joinSizer . map go . concat
     joinSizer (d@(dn@(L _ _ dname), dty@Array{}):s@(sn@(L _ _ sname), BuiltinType U32Ty):xs)
         | sname `elem` [dname <> "_length", dname <> "_size"] =
             (dn, Sized dty sn) : joinSizer xs
-        | otherwise = (d:s:joinSizer xs)
+        | otherwise = d : joinSizer (s:xs)
     joinSizer (d@(dn@(L _ _ dname), dty@Pointer{}):s@(sn@(L _ _ sname), BuiltinType U32Ty):xs)
         | sname `elem` [dname <> "_length", dname <> "_size"] =
             (dn, Sized dty sn) : joinSizer xs
-        | otherwise = (d:s:joinSizer xs)
+        | otherwise = d : joinSizer (s:xs)
+    joinSizer (d@(dn@(L _ _ dname), dty@(Owner Pointer{})):s@(sn@(L _ _ sname), BuiltinType U32Ty):xs)
+        | sname `elem` [dname <> "_length", dname <> "_size"] =
+            (dn, Sized dty sn) : joinSizer xs
+        | otherwise = d : joinSizer (s:xs)
+    joinSizer (d@(dn@(L _ _ dname), dty@(Nonnull Pointer{})):s@(sn@(L _ _ sname), BuiltinType U32Ty):xs)
+        | sname `elem` [dname <> "_length", dname <> "_size"] =
+            (dn, Sized dty sn) : joinSizer xs
+        | otherwise = d : joinSizer (s:xs)
+    joinSizer (d@(dn@(L _ _ dname), dty@(Nullable Pointer{})):s@(sn@(L _ _ sname), BuiltinType U32Ty):xs)
+        | sname `elem` [dname <> "_length", dname <> "_size"] =
+            (dn, Sized dty sn) : joinSizer xs
+        | otherwise = d : joinSizer (s:xs)
     joinSizer (x:xs) = x:joinSizer xs
     joinSizer []     = []
 
@@ -155,12 +221,25 @@ collectTypes node = case node of
     EnumConsts (Just dcl) mems   -> enum dcl mems
     EnumDecl dcl mems _          -> enum dcl mems
     Typedef [BuiltinType ty] dcl -> int dcl ty
+    Typedef [ty] dcl             -> insert dcl (AliasDescr dcl ty)
+
+    FunctionPrototype ty name params -> return [Var name (Function t (concat params)) | t <- ty]
+    TypedefFunction a -> do
+        forM_ a $ \case
+            Var name (Function ret params) ->
+                State.modify $ Map.insert (Text.toLower $ lexemeText name) (FuncDescr name ret params)
+            _ -> return ()
+        return a
 
     TyUserDefined name           -> return [TypeRef UnresolvedRef name]
     TyStruct name                -> return [TypeRef StructRef name]
+    TyUnion name                 -> return [TypeRef UnionRef name]
     TyFunc name                  -> return [TypeRef FuncRef name]
     TyPointer ns                 -> return $ map Pointer ns
     TyConst ns                   -> return $ map Const ns
+    TyOwner ns                   -> return $ map Owner ns
+    TyNonnull ns                 -> return $ map Nonnull ns
+    TyNullable ns                -> return $ map Nullable ns
 
     TyStd name                   -> return [builtin name]
 
@@ -191,20 +270,31 @@ collect = resolve . flip State.execState Map.empty . mapM_ (mapM_ (foldFixM coll
 resolve :: TypeSystem -> TypeSystem
 resolve tys = Map.map go tys
   where
-    go (StructDescr dcl mems) = StructDescr dcl (map (second resolveRef) mems)
-    go (UnionDescr  dcl mems) = UnionDescr  dcl (map (second resolveRef) mems)
+    go (StructDescr dcl mems) = StructDescr dcl (map (second (resolveRef tys)) mems)
+    go (UnionDescr  dcl mems) = UnionDescr  dcl (map (second (resolveRef tys)) mems)
+    go (FuncDescr dcl ret params) = FuncDescr dcl (resolveRef tys ret) (map (resolveRef tys) params)
+    go (AliasDescr dcl ty) = AliasDescr dcl (resolveRef tys ty)
     go ty@EnumDescr{}         = ty
     go ty@IntDescr{}          = ty
 
-    resolveRef ty@(TypeRef UnresolvedRef l@(L _ _ name)) =
+
+resolveRef :: TypeSystem -> TypeInfo -> TypeInfo
+resolveRef tys = \case
+    ty@(TypeRef UnresolvedRef l@(L _ _ name)) ->
         case lookupType name tys of
-            Nothing            -> ty
-            Just StructDescr{} -> TypeRef StructRef l
-            Just UnionDescr{}  -> TypeRef UnionRef l
-            Just EnumDescr{}   -> TypeRef EnumRef l
-            Just IntDescr{}    -> TypeRef IntRef l
-    resolveRef (Const   ty)           = Const   (resolveRef ty)
-    resolveRef (Pointer ty)           = Pointer (resolveRef ty)
-    resolveRef (Sized ty size)        = Sized (resolveRef ty) size
-    resolveRef (Array (Just ty) dims) = Array (Just $ resolveRef ty) dims
-    resolveRef ty = ty
+            Nothing                    -> ty
+            Just StructDescr{}         -> TypeRef StructRef l
+            Just UnionDescr{}          -> TypeRef UnionRef l
+            Just EnumDescr{}           -> TypeRef EnumRef l
+            Just IntDescr{}            -> TypeRef IntRef l
+            Just FuncDescr{}           -> TypeRef FuncRef l
+            Just (AliasDescr _ target) -> resolveRef tys target
+    Const   ty           -> Const   (resolveRef tys ty)
+    Owner   ty           -> Owner   (resolveRef tys ty)
+    Nonnull ty           -> Nonnull (resolveRef tys ty)
+    Nullable ty          -> Nullable (resolveRef tys ty)
+    Pointer ty           -> Pointer (resolveRef tys ty)
+    Sized ty size        -> Sized (resolveRef tys ty) size
+    Array (Just ty) dims -> Array (Just $ resolveRef tys ty) dims
+    Function ret params  -> Function (resolveRef tys ret) (map (resolveRef tys) params)
+    ty -> ty

@@ -20,7 +20,6 @@ import           Data.Set                    (Set)
 import qualified Data.Set                    as Set
 import           Data.Text                   (Text)
 import qualified Data.Text                   as Text
-import qualified Debug.Trace                 as Debug
 import           Language.Cimple             (AssignOp (..), BinaryOp (..),
                                               HasLocation, Lexeme (..),
                                               LiteralType (..), Node,

@@ -37,8 +37,10 @@ import qualified Tokstyle.Linter.MallocType       as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs    as MemcpyStructs
 import qualified Tokstyle.Linter.Nesting          as Nesting
 import qualified Tokstyle.Linter.Nullability      as Nullability
+import qualified Tokstyle.Linter.OwnershipDecls   as OwnershipDecls
 import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.SwitchIf         as SwitchIf
+import qualified Tokstyle.Linter.TaggedUnion      as TaggedUnion
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc       as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope as VarUnusedInScope
@@ -104,9 +106,11 @@ globalLinters =
     , DeclaredOnce.descr
     , DeclsHaveDefns.descr
     , DocComments.descr
+    , OwnershipDecls.descr
     , PointsTo.descr
     , PointsToAsserts.descr
     , TypeCheck.descr
+    , TaggedUnion.descr
     -- Semantic formatters:
     , EnumFromInt.descr
     , EnumToString.descr

@@ -78,6 +78,7 @@ analyse = reverse . flip State.execState [] . traverseAst linter . Common.skip
     [ "toxav/rtp.c"
     , "toxcore/list.c"
     , "toxcore/mem.c"
+    , "toxcore/os_memory.c"
     ]
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))

@@ -71,10 +71,12 @@ library
     Tokstyle.Linter.MemcpyStructs
     Tokstyle.Linter.Nesting
     Tokstyle.Linter.Nullability
+    Tokstyle.Linter.OwnershipDecls
     Tokstyle.Linter.Parens
     Tokstyle.Linter.PointsTo
     Tokstyle.Linter.PointsToAsserts
     Tokstyle.Linter.SwitchIf
+    Tokstyle.Linter.TaggedUnion
     Tokstyle.Linter.TypeCheck
     Tokstyle.Linter.TypedefName
     Tokstyle.Linter.UnsafeFunc
@@ -160,24 +162,53 @@ test-suite testsuite
   hs-source-dirs:     test
   main-is:            testsuite.hs
   other-modules:
+    Tokstyle.Analysis.DataFlowSpec
+    Tokstyle.Analysis.PointsToSpec
+    Tokstyle.Analysis.ScopeSpec
+    Tokstyle.Analysis.VTableSpec
+    Tokstyle.C.Linter.BoolConversionSpec
     Tokstyle.C.Linter.CallbackParamsSpec
+    Tokstyle.C.Linter.CastSpec
+    Tokstyle.C.Linter.ConversionSpec
     Tokstyle.C.Linter.MemsetSpec
     Tokstyle.C.Linter.SizeArgSpec
     Tokstyle.C.Linter.SizeofSpec
     Tokstyle.C.Linter.VoidCallSpec
     Tokstyle.C.LinterSpec
+    Tokstyle.Linter.AssertSpec
     Tokstyle.Linter.BooleanReturnSpec
     Tokstyle.Linter.BooleansSpec
+    Tokstyle.Linter.CallbackNamesSpec
     Tokstyle.Linter.CallgraphSpec
+    Tokstyle.Linter.CallocArgsSpec
     Tokstyle.Linter.CallocTypeSpec
     Tokstyle.Linter.CompoundInitSpec
     Tokstyle.Linter.ConstnessSpec
+    Tokstyle.Linter.DeclaredOnceSpec
+    Tokstyle.Linter.DeclsHaveDefnsSpec
+    Tokstyle.Linter.DocCommentsSpec
     Tokstyle.Linter.EnumDefinesSpec
+    Tokstyle.Linter.EnumNamesSpec
+    Tokstyle.Linter.FuncPrototypesSpec
+    Tokstyle.Linter.FuncScopesSpec
+    Tokstyle.Linter.GlobalFuncsSpec
+    Tokstyle.Linter.LoggerCallsSpec
+    Tokstyle.Linter.LoggerConstSpec
+    Tokstyle.Linter.LoggerNoEscapesSpec
     Tokstyle.Linter.MallocCallSpec
+    Tokstyle.Linter.MallocTypeSpec
+    Tokstyle.Linter.MemcpyStructsSpec
+    Tokstyle.Linter.NestingSpec
     Tokstyle.Linter.NullabilitySpec
+    Tokstyle.Linter.OwnershipDeclsSpec
     Tokstyle.Linter.ParensSpec
+    Tokstyle.Linter.PointsToAssertsSpec
+    Tokstyle.Linter.PointsToSpec
     Tokstyle.Linter.SwitchIfSpec
+    Tokstyle.Linter.TaggedUnionSpec
     Tokstyle.Linter.TypeCheckSpec
+    Tokstyle.Linter.TypedefNameSpec
+    Tokstyle.Linter.UnsafeFuncSpec
     Tokstyle.Linter.VarUnusedInScopeSpec
     Tokstyle.LinterSpec
     Tokstyle.SemFmt.EnumFromIntSpec

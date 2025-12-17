@@ -34,6 +34,7 @@ import qualified Data.Map.Strict            as Map
 import           Data.Maybe                 (fromMaybe)
 import           Data.Set                   (Set)
 import qualified Data.Set                   as Set
+import           Data.String                (IsString (..))
 import qualified Data.Text                  as T
 import           Debug.Trace                (trace)
 import           Language.Cimple            (NodeF (..))
@@ -73,12 +74,12 @@ data BuilderState l = BuilderState
 
 -- | Build a control flow graph for a function definition. This is the main
 -- entry point for constructing a CFG from a Cimple AST.
-buildCFG :: (Pretty l, Ord l, Show l) => C.Node (C.Lexeme l) -> CFG l
+buildCFG :: (Pretty l, Ord l, Show l, IsString l) => C.Node (C.Lexeme l) -> CFG l
 buildCFG (Fix (C.FunctionDefn _ (Fix (C.FunctionPrototype _ (C.L _ _ funcName) _)) body)) =
     buildCFG' funcName body
 buildCFG _ = Map.empty
 
-buildCFG' :: (Pretty l, Ord l, Show l) => l -> C.Node (C.Lexeme l) -> CFG l
+buildCFG' :: (Pretty l, Ord l, Show l, IsString l) => l -> C.Node (C.Lexeme l) -> CFG l
 buildCFG' funcName (Fix (C.CompoundStmt stmts)) =
     let
         (labelMap, maxNodeId) = buildLabelMap stmts 1
@@ -156,7 +157,7 @@ buildLabelMap stmts startId =
             foldl' go (acc, nodeId) stmts'
         go (acc, nodeId) _ = (acc, nodeId)
 
-buildStmts :: (Pretty l, Ord l, Show l) => [C.Node (C.Lexeme l)] -> Int -> State (BuilderState l) Int
+buildStmts :: (Pretty l, Ord l, Show l, IsString l) => [C.Node (C.Lexeme l)] -> Int -> State (BuilderState l) Int
 buildStmts stmts currNodeId = foldM buildStmt currNodeId stmts
 
 newDisconnectedNode :: State (BuilderState l) Int
@@ -167,7 +168,7 @@ newDisconnectedNode = do
     put $ st { bsCfg = Map.insert newNodeId newNode (bsCfg st), bsNextNodeId = newNodeId + 1 }
     return newNodeId
 
-buildStmt :: forall l. (Pretty l, Ord l, Show l) => Int -> C.Node (C.Lexeme l) -> State (BuilderState l) Int
+buildStmt :: forall l. (Pretty l, Ord l, Show l, IsString l) => Int -> C.Node (C.Lexeme l) -> State (BuilderState l) Int
 buildStmt currNodeId stmt@(Fix s') = dtrace ("buildStmt processing: " <> T.unpack (showNodePlain stmt)) $ case s' of
     C.CompoundStmt stmts' -> buildStmts stmts' currNodeId
     C.Label (C.L _ _ label) innerStmt -> do
@@ -192,12 +193,14 @@ buildStmt currNodeId stmt@(Fix s') = dtrace ("buildStmt processing: " <> T.unpac
         modify $ \st -> st { bsCfg = Map.adjust (\n -> n { cfgStmts = cfgStmts n ++ [cond] }) currNodeId (bsCfg st) }
         st <- get
         let thenNodeId = bsNextNodeId st
+        let assumeTrue = Fix (C.ExprStmt (Fix (C.FunctionCall (Fix (C.VarExpr (C.L (C.AlexPn 0 0 0) C.IdVar "__tokstyle_assume_true"))) [cond])))
+        let assumeFalse = Fix (C.ExprStmt (Fix (C.FunctionCall (Fix (C.VarExpr (C.L (C.AlexPn 0 0 0) C.IdVar "__tokstyle_assume_false"))) [cond])))
         case mElseB of
             Just elseB -> do
                 let elseNodeId = thenNodeId + 1
                 let mergeNodeId = elseNodeId + 1
-                let thenNode = CFGNode thenNodeId [currNodeId] [] []
-                let elseNode = CFGNode elseNodeId [currNodeId] [] []
+                let thenNode = CFGNode thenNodeId [currNodeId] [] [assumeTrue]
+                let elseNode = CFGNode elseNodeId [currNodeId] [] [assumeFalse]
                 let mergeNode = CFGNode mergeNodeId [] [] []
                 let updatedCfg = Map.insert thenNodeId thenNode $ Map.insert elseNodeId elseNode $ Map.insert mergeNodeId mergeNode (bsCfg st)
                 let cfgWithSuccs = Map.adjust (\n -> n { cfgSuccs = [thenNodeId, elseNodeId] }) currNodeId updatedCfg
@@ -220,8 +223,8 @@ buildStmt currNodeId stmt@(Fix s') = dtrace ("buildStmt processing: " <> T.unpac
                 return mergeNodeId
             Nothing -> do
                 let mergeNodeId = thenNodeId + 1
-                let thenNode = CFGNode thenNodeId [currNodeId] [] []
-                let mergeNode = CFGNode mergeNodeId [currNodeId] [] []
+                let thenNode = CFGNode thenNodeId [currNodeId] [] [assumeTrue]
+                let mergeNode = CFGNode mergeNodeId [currNodeId] [] [assumeFalse]
                 let updatedCfg = Map.insert thenNodeId thenNode $ Map.insert mergeNodeId mergeNode (bsCfg st)
                 let cfgWithSuccs = Map.adjust (\n -> n { cfgSuccs = [thenNodeId, mergeNodeId] }) currNodeId updatedCfg
                 put $ st { bsCfg = cfgWithSuccs, bsNextNodeId = mergeNodeId + 1 }
@@ -237,10 +240,12 @@ buildStmt currNodeId stmt@(Fix s') = dtrace ("buildStmt processing: " <> T.unpac
         modify $ \st -> st { bsCfg = Map.adjust (\n -> n { cfgStmts = cfgStmts n ++ [cond] }) currNodeId (bsCfg st) }
         st <- get
         let thenNodeId = bsNextNodeId st
+        let assumeTrue = Fix (C.ExprStmt (Fix (C.FunctionCall (Fix (C.VarExpr (C.L (C.AlexPn 0 0 0) C.IdVar "__tokstyle_assume_true"))) [cond])))
+        let assumeFalse = Fix (C.ExprStmt (Fix (C.FunctionCall (Fix (C.VarExpr (C.L (C.AlexPn 0 0 0) C.IdVar "__tokstyle_assume_false"))) [cond])))
         let elseNodeId = thenNodeId + 1
         let mergeNodeId = elseNodeId + 1
-        let thenNode = CFGNode thenNodeId [currNodeId] [] []
-        let elseNode = CFGNode elseNodeId [currNodeId] [] []
+        let thenNode = CFGNode thenNodeId [currNodeId] [] [assumeTrue]
+        let elseNode = CFGNode elseNodeId [currNodeId] [] [assumeFalse]
         let mergeNode = CFGNode mergeNodeId [] [] []
         let updatedCfg = Map.insert thenNodeId thenNode $ Map.insert elseNodeId elseNode $ Map.insert mergeNodeId mergeNode (bsCfg st)
         let cfgWithSuccs = Map.adjust (\n -> n { cfgSuccs = [thenNodeId, elseNodeId] }) currNodeId updatedCfg

@@ -100,7 +100,10 @@ linter = astActions
     }
 
 analyse :: (FilePath, [Node (Lexeme Text)]) -> [Text]
-analyse = reverse . flip State.execState [] . traverseAst linter . skip ["toxcore/mem.c"]
+analyse = reverse . flip State.execState [] . traverseAst linter . skip
+    [ "toxcore/mem.c"
+    , "toxcore/os_memory.c"
+    ]
 
 descr :: ((FilePath, [Node (Lexeme Text)]) -> [Text], (Text, Text))
 descr = (analyse, ("malloc-type", Text.unlines

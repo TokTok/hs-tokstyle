@@ -12,7 +12,6 @@ import qualified Data.Map.Strict                  as Map
 import           Data.Set                         (Set)
 import qualified Data.Set                         as Set
 import           Data.Text                        (Text, pack)
-import           Debug.Trace                      (traceShow)
 import           Language.Cimple                  (AlexPosn (..), NodeF (..))
 import qualified Language.Cimple                  as C
 import           Tokstyle.Analysis.PointsTo.Types

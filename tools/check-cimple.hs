@@ -37,7 +37,9 @@ parseArgs :: [String] -> ([Text], [FilePath])
 parseArgs = first (processFlags . map (drop 2)) . partition ("-W" `isPrefixOf`)
   where
     processFlags :: [String] -> [Text]
-    processFlags = foldr processFlag allWarnings . reverse
+    processFlags flags =
+        let initial = if any (not . ("no-" `isPrefixOf`)) flags then [] else allWarnings
+        in foldr processFlag initial . reverse $ flags
 
     processFlag :: String -> [Text] -> [Text]
     processFlag ('n':'o':'-':flag) = filter (/= Text.pack flag)
@@ -48,6 +50,7 @@ defaultFlags :: [String]
 defaultFlags =
     [ "-Wno-callback-names"
     , "-Wno-nullability"
+    , "-Wno-ownership-decls"
     , "-Wno-points-to"
     , "-Wno-points-to-asserts"
     , "-Wno-type-check"
