@@ -37,6 +37,7 @@ library
     Tokstyle.C.Linter.Conversion
     Tokstyle.C.Linter.Memcpy
     Tokstyle.C.Linter.Memset
+    Tokstyle.C.Linter.Memzero
     Tokstyle.C.Linter.SizeArg
     Tokstyle.C.Linter.Sizeof
     Tokstyle.C.Linter.StrictTypedef
@@ -187,6 +188,7 @@ test-suite testsuite
     Tokstyle.C.Linter.ConversionSpec
     Tokstyle.C.Linter.MemcpySpec
     Tokstyle.C.Linter.MemsetSpec
+    Tokstyle.C.Linter.MemzeroSpec
     Tokstyle.C.Linter.SizeArgSpec
     Tokstyle.C.Linter.SizeofSpec
     Tokstyle.C.Linter.StrictTypedefSpec

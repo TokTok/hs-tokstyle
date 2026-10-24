@@ -1,6 +1,6 @@
 # C-based linters (`check-c`)
 
-There are currently 13 linters implemented.
+There are currently 14 linters implemented.
 
 ## `-Wbool-conversion`
 
@@ -48,6 +48,15 @@ Checks compatibility of dst and src in memcpy/memcmp.
 ## `-Wmemset`
 
 Checks for memset calls on types that contain pointers.
+
+## `-Wmemzero`
+
+Checks that a local wiped with `crypto_memzero` on some paths through a
+function is wiped on every path that returns after writing it.
+
+**Reason:** a wipe says the local holds a secret, such as a key or a
+password. An early return that skips the wipe, often on an error path,
+leaves that secret on the stack.
 
 ## `-Wsize-arg`
 
