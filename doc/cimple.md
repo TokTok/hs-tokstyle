@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 37 linters implemented, out of which 12 perform global analyses.
+There are currently 38 linters implemented, out of which 13 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -324,6 +324,26 @@ assignment, possibly in a loop, to avoid messing up the size argument of the
 Warns if a function has more than 7 nesting levels.
 
 **Reason:** deep nesting makes functions more difficult to comprehend.
+
+## `-Wnul-terminated` (global)
+
+Checks that `%s` conversions get NUL-terminated strings.
+
+It warns where it can show that the argument's bytes can have no NUL before
+the end of the object they're in: they're a copy of a runtime number of
+bytes, that copy can fill the object to its end, and nothing writes a NUL
+into it. Where the argument is a parameter, a caller shows it.
+
+It also warns where the argument is a call returning a buffer it was given,
+the caller gives it one nothing has written, and the function has a path
+that doesn't write it, decided only by things like `errno` (e.g. GNU
+`strerror_r`, which can return its own string). It says which `#if`s have
+to hold for that, and says nothing where they can't hold together.
+
+**Reason:** `%s` reads until it finds a NUL byte, past the end of the object
+if there's none in it. Byte arrays with a length, such as names and
+messages from the network, have no NUL of their own, and memory nothing
+wrote holds whatever was there before.
 
 ## `-Wnullability` (global)
 

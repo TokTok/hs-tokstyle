@@ -43,6 +43,7 @@ import qualified Tokstyle.Linter.MallocType       as MallocType
 import qualified Tokstyle.Linter.MemcpyStructs    as MemcpyStructs
 import qualified Tokstyle.Linter.Nesting          as Nesting
 import qualified Tokstyle.Linter.Nullability      as Nullability
+import qualified Tokstyle.Linter.NulTerminated    as NulTerminated
 import qualified Tokstyle.Linter.OwnershipDecls   as OwnershipDecls
 import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.SwitchIf         as SwitchIf
@@ -110,6 +111,7 @@ globalLinters =
     , DeclsHaveDefns.descr
     , DocComments.descr
     , Nullability.descr
+    , NulTerminated.descr
     , OwnershipDecls.descr
     , TypeCheck.descr
     , TaggedUnion.descr

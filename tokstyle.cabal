@@ -75,6 +75,7 @@ library
     Tokstyle.Linter.MemcpyStructs
     Tokstyle.Linter.Nesting
     Tokstyle.Linter.Nullability
+    Tokstyle.Linter.NulTerminated
     Tokstyle.Linter.OwnershipDecls
     Tokstyle.Linter.Parens
     Tokstyle.Linter.SwitchIf
@@ -216,6 +217,7 @@ test-suite testsuite
     Tokstyle.Linter.MemcpyStructsSpec
     Tokstyle.Linter.NestingSpec
     Tokstyle.Linter.NullabilitySpec
+    Tokstyle.Linter.NulTerminatedSpec
     Tokstyle.Linter.OwnershipDeclsSpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec

@@ -22,4 +22,6 @@ restylers:
       image: ghcr.io/toktok/restyler-shellharden:v4.3.2
   - shfmt:
       image: ghcr.io/toktok/restyler-shfmt:v3.14.1
+  - stylish-haskell:
+      image: ghcr.io/toktok/restyler-stylish-haskell:v0.14.3.0
   - "*"
