@@ -1,6 +1,6 @@
 # C-based linters (`check-c`)
 
-There are currently 16 linters implemented.
+There are currently 17 linters implemented.
 
 ## `-Wbool-conversion`
 
@@ -101,3 +101,20 @@ role-based types.
 ## `-Wvoid-call`
 
 Checks that the first statement of a function with a `void*` parameter casts it to a specific type.
+
+## `-Wwraparound`
+
+Checks for integer arithmetic that wraps around where it is used as an index:
+compared to an index reduced with `%` or `&`, reduced with `%` by a size that
+doesn't divide the type's range, or used to index an array it can be past the
+end of. Also checks for the difference of two 16-bit values that wraps around
+at 32 bits because integer promotion computes it in `int`, and for such a
+difference compared in `int`, where it is negative instead of wrapping around.
+
+The checks follow values through locals and fields, take the conditions that
+guard them into account, and know which values the program stores in struct
+fields, returns from functions, and passes to static functions.
+
+**Reason:** in a ring buffer of size `N`, `(uint16_t)(start - 1)` wraps to
+65535 when `start` is 0, not to `N - 1`. Comparing it to `id % N` then never
+matches. Use `(start + N - 1) % N` instead.

@@ -38,6 +38,7 @@ module Tokstyle.C.Analysis.Interval
     , assume
     , effects
     , subTerms
+    , subTermsWith
     , normalise
     , convert
     , intType
@@ -428,6 +429,18 @@ binaryType op a b
 
 subTerms :: Term -> [Term]
 subTerms t = t : concatMap subTerms (children t)
+
+-- | Each term within a term, with the facts where it is evaluated. The right
+-- operand of @&&@ or @||@ and the branches of @?:@ are only evaluated where
+-- what comes before them has the value that leads to them.
+subTermsWith :: Facts -> Term -> [(Facts, Term)]
+subTermsWith facts t = (facts, t) : case termKind t of
+    TBin CLndOp a b -> subTermsWith facts a ++ after True a b
+    TBin CLorOp a b -> subTermsWith facts a ++ after False a b
+    TCond c m f     -> subTermsWith facts c ++ maybe [] (after True c) m ++ after False c f
+    _               -> concatMap (subTermsWith facts) (children t)
+  where
+    after truth c x = maybe [] (`subTermsWith` x) (assume truth c facts)
 
 ------------------------------------------------------------------------------
 -- Evaluating terms

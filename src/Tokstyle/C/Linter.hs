@@ -76,6 +76,8 @@ import qualified Tokstyle.C.Linter.SizeArg            as SizeArg (descr)
 import qualified Tokstyle.C.Linter.Sizeof             as Sizeof (descr)
 import qualified Tokstyle.C.Linter.StrictTypedef      as StrictTypedef (descr)
 import qualified Tokstyle.C.Linter.VoidCall           as VoidCall (descr)
+import qualified Tokstyle.C.Linter.Wraparound         as Wraparound (descr,
+                                                                     looksAt)
 
 
 type Linter = (GlobalDecls -> Trav Env (), (Text, Text))
@@ -98,6 +100,7 @@ linters =
     , Sizeof.descr
     , StrictTypedef.descr
     , VoidCall.descr
+    , Wraparound.descr
     ]
 
 
@@ -106,6 +109,7 @@ linters =
 intervalLinters :: [(Text, FunDef -> Bool)]
 intervalLinters =
     [ ("buffer-size", BufferSize.looksAt)
+    , ("wraparound", Wraparound.looksAt)
     ]
 
 
