@@ -25,6 +25,10 @@ library
     Tokstyle.Analysis.Dataflow
     Tokstyle.Analysis.Symbolic
     Tokstyle.C.Analysis.CFG
+    Tokstyle.C.Analysis.Interval
+    Tokstyle.C.Analysis.Program
+    Tokstyle.C.Analysis.Syntax
+    Tokstyle.C.Analysis.Types
     Tokstyle.C.Analysis.Liveness
     Tokstyle.Cimple.Analysis.CFG
     Tokstyle.Cimple.Analysis.Liveness
@@ -42,6 +46,7 @@ library
     Tokstyle.C.Linter.Sizeof
     Tokstyle.C.Linter.StrictTypedef
     Tokstyle.C.Linter.VoidCall
+    Tokstyle.C.Linter.Wraparound
     Tokstyle.C.Patterns
     Tokstyle.C.TravUtils
     Tokstyle.C.TraverseAst
@@ -193,6 +198,7 @@ test-suite testsuite
     Tokstyle.C.Linter.SizeofSpec
     Tokstyle.C.Linter.StrictTypedefSpec
     Tokstyle.C.Linter.VoidCallSpec
+    Tokstyle.C.Linter.WraparoundSpec
     Tokstyle.C.LinterSpec
     Tokstyle.Linter.AssertSpec
     Tokstyle.Linter.BooleanReturnSpec
