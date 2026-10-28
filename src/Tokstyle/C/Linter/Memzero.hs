@@ -25,6 +25,7 @@ import           Prettyprinter                 (pretty, (<+>))
 import           Tokstyle.Analysis.Dataflow    (Dataflow (..), solve)
 import           Tokstyle.C.Analysis.CFG       (CFG, Node (..), NodeKind (..),
                                                 fromFunDef)
+import           Tokstyle.C.Analysis.Syntax    (stats)
 import           Tokstyle.C.Env                (DiagnosticLevel (..), Env,
                                                 posAndLen, recordRichError)
 import           Tokstyle.C.TravUtils          (backticks)
@@ -207,20 +208,6 @@ untouchedFrom cfg v start = all untouched (Set.toList (reachable Set.empty [star
         | n `Set.member` seen = reachable seen ns
         | otherwise = reachable (Set.insert n seen) (map snd (Map.findWithDefault [] n cfg) ++ ns)
     untouched n = maybe False (notElem v . concatMap mentions) (nodeExprs n)
-
--- | The statements of a function body, recursively.
-stats :: CStat -> [CStat]
-stats s = s : case s of
-    CLabel _ t _ _      -> stats t
-    CCase _ t _         -> stats t
-    CCases _ _ t _      -> stats t
-    CDefault t _        -> stats t
-    CCompound _ items _ -> concat [ stats t | CBlockStmt t <- items ]
-    CIf _ t e _         -> stats t ++ maybe [] stats e
-    CSwitch _ t _       -> stats t
-    CWhile _ t _ _      -> stats t
-    CFor _ _ _ t _      -> stats t
-    _                   -> []
 
 -- | Every expression a statement evaluates, including in nested statements.
 statExprs :: CStat -> [CExpr]

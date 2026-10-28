@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.C.Linter
     ( analyse
@@ -21,13 +22,19 @@ import           Data.Text                            (Text)
 import qualified Data.Text                            as Text
 import qualified Data.Text.Encoding                   as Text
 import           Language.C.Analysis.AstAnalysis      (analyseAST)
-import           Language.C.Analysis.SemRep           (GlobalDecls)
+import           Language.C.Analysis.SemRep           (DeclEvent (..),
+                                                       FunDef (..), GlobalDecls,
+                                                       IdentDecl (..),
+                                                       VarDecl (..),
+                                                       VarName (..))
 import           Language.C.Analysis.TravMonad        (CLanguage (..), Trav,
                                                        TravOptions (..),
                                                        modifyOptions,
                                                        modifyUserState, runTrav,
-                                                       userState)
+                                                       userState,
+                                                       withExtDeclHandler)
 import           Language.C.Data.Error                (CError, errorPos)
+import           Language.C.Data.Ident                (identToString)
 import           Language.C.Data.Position             (isSourcePos)
 import qualified Language.C.Data.Position             as C
 import           Language.C.Syntax.AST                (CTranslUnit)
@@ -55,6 +62,7 @@ import qualified Tokstyle.C.Linter.Conversion         as Conversion (descr)
 import qualified Tokstyle.C.Linter.Memcpy             as Memcpy (descr)
 import qualified Tokstyle.C.Linter.Memset             as Memset (descr)
 import qualified Tokstyle.C.Linter.Memzero            as Memzero (descr)
+import qualified Tokstyle.C.Linter.SilentFree         as SilentFree (descr)
 import qualified Tokstyle.C.Linter.SizeArg            as SizeArg (descr)
 import qualified Tokstyle.C.Linter.Sizeof             as Sizeof (descr)
 import qualified Tokstyle.C.Linter.StrictTypedef      as StrictTypedef (descr)
@@ -75,6 +83,7 @@ linters =
     , Memcpy.descr
     , Memset.descr
     , Memzero.descr
+    , SilentFree.descr
     , SizeArg.descr
     , Sizeof.descr
     , StrictTypedef.descr
@@ -99,11 +108,22 @@ analyse enabled tu =
   where
     analysis = runTrav defaultEnv $ do
         modifyOptions (\opts -> opts { language = GNU99 })
-        decls <- analyseAST tu
+        decls <- analyseAST tu `withExtDeclHandler` recordLocals
         runLinters enabled decls
 
     toLinterError :: CError -> LinterError
     toLinterError err = Diagnostic (Env.CPosition (errorPos err)) 1 ErrorLevel (pretty (show err)) Nothing [] []
+
+-- | Remembers the locals each function declares, which language-c forgets
+-- once it leaves the function.
+recordLocals :: DeclEvent -> Trav Env ()
+recordLocals = \case
+    LocalEvent d -> modifyUserState $ \env -> env{Env.pendingLocals = d : Env.pendingLocals env}
+    DeclEvent (FunctionDef (FunDef (VarDecl (VarName i _) _ _) _ _)) -> modifyUserState $ \env -> env
+        { Env.localsOf = Map.insert (identToString i) (reverse (Env.pendingLocals env)) (Env.localsOf env)
+        , Env.pendingLocals = []
+        }
+    _ -> return ()
 
 
 analyseText :: [Text] -> CTranslUnit -> [Text]

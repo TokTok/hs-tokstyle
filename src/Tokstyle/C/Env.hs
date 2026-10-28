@@ -23,7 +23,7 @@ module Tokstyle.C.Env
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as Map
 import           Data.Text                     (Text)
-import           Language.C.Analysis.SemRep    (GlobalDecls, Type)
+import           Language.C.Analysis.SemRep    (GlobalDecls, IdentDecl, Type)
 import           Language.C.Analysis.TravMonad (Trav, getUserState,
                                                 modifyUserState)
 import           Language.C.Data.Ident         (Ident, SUERef)
@@ -58,10 +58,14 @@ data Env = Env
     , globalDecls   :: Maybe GlobalDecls
     , linterErrors  :: [LinterError]
     , currentFlag   :: Maybe Text
+    , localsOf      :: Map String [IdentDecl]
+    -- ^ The locals each function declares.
+    , pendingLocals :: [IdentDecl]
+    -- ^ The locals of the function being analysed, in reverse.
     }
 
 defaultEnv :: Env
-defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing
+defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing Map.empty []
 
 bracketUserState :: (Env -> Env) -> Trav Env a -> Trav Env a
 bracketUserState f act = do
