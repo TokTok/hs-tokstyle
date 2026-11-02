@@ -41,6 +41,8 @@ haskell_library(
     name = "analysis",
     srcs = [
         "src/Tokstyle/Cimple/Analysis/CFG.hs",
+        "src/Tokstyle/Cimple/Analysis/Destructors.hs",
+        "src/Tokstyle/Cimple/Analysis/Functions.hs",
         "src/Tokstyle/Cimple/Analysis/Liveness.hs",
     ] + glob(["src/Tokstyle/C/Analysis/**/*.hs"]),
     ghcopts = [

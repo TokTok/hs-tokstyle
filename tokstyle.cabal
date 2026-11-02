@@ -27,6 +27,8 @@ library
     Tokstyle.C.Analysis.CFG
     Tokstyle.C.Analysis.Liveness
     Tokstyle.Cimple.Analysis.CFG
+    Tokstyle.Cimple.Analysis.Destructors
+    Tokstyle.Cimple.Analysis.Functions
     Tokstyle.Cimple.Analysis.Liveness
     Tokstyle.C.Linter.BoolConversion
     Tokstyle.C.Linter.BorrowCheck
@@ -60,6 +62,7 @@ library
     Tokstyle.Linter.CallocType
     Tokstyle.Linter.CompoundInit
     Tokstyle.Linter.Constness
+    Tokstyle.Linter.DanglingField
     Tokstyle.Linter.DeclaredOnce
     Tokstyle.Linter.DeclsHaveDefns
     Tokstyle.Linter.DocComments
@@ -78,6 +81,7 @@ library
     Tokstyle.Linter.Nullability
     Tokstyle.Linter.NulTerminated
     Tokstyle.Linter.OwnershipDecls
+    Tokstyle.Linter.PartialFailure
     Tokstyle.Linter.Parens
     Tokstyle.Linter.SwitchIf
     Tokstyle.Linter.TaggedUnion
@@ -178,6 +182,7 @@ test-suite testsuite
     Tokstyle.Analysis.DataflowSpec
     Tokstyle.Analysis.SymbolicSpec
     Tokstyle.Cimple.Analysis.CFGSpec
+    Tokstyle.Cimple.Analysis.DestructorsSpec
     Tokstyle.Cimple.Analysis.LivenessSpec
     Tokstyle.C.Linter.BoolConversionSpec
     Tokstyle.C.Linter.BorrowCheckSpec
@@ -203,6 +208,7 @@ test-suite testsuite
     Tokstyle.Linter.CallocTypeSpec
     Tokstyle.Linter.CompoundInitSpec
     Tokstyle.Linter.ConstnessSpec
+    Tokstyle.Linter.DanglingFieldSpec
     Tokstyle.Linter.DeclaredOnceSpec
     Tokstyle.Linter.DeclsHaveDefnsSpec
     Tokstyle.Linter.DocCommentsSpec
@@ -221,6 +227,7 @@ test-suite testsuite
     Tokstyle.Linter.NullabilitySpec
     Tokstyle.Linter.NulTerminatedSpec
     Tokstyle.Linter.OwnershipDeclsSpec
+    Tokstyle.Linter.PartialFailureSpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec
     Tokstyle.Linter.TaggedUnionSpec

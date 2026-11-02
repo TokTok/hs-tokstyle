@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 38 linters implemented, out of which 13 perform global analyses.
+There are currently 40 linters implemented, out of which 15 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -142,6 +142,14 @@ is fine and doesn't need to be written as `int *const p = get_p();`, but
 types at the moment, because making that change in toxcore would be a lot of
 work and we perceive less value in that than in local integer constants, since
 pointers, especially aggregate object pointers, already change less often.
+
+## `-Wdangling-field` (global)
+
+Checks that a struct field whose object gets freed is set to something else
+before the struct is used again.
+
+**Reason:** the struct outlives the function, and the next code that reads
+the field uses freed memory.
 
 ## `-Wdeclared-once` (global)
 
@@ -373,6 +381,19 @@ Suggests removing parentheses where they are not needed:
 **Reason:** sometimes extra parentheses add clarity, so we don't forbid all
 redundant parentheses, but in the above cases, they don't add clarity and only
 add more syntax and confusion as to why there are extra parentheses there.
+
+## `-Wpartial-failure` (global)
+
+Checks that a function that fails leaves the lengths of the arrays it was
+given as they were.
+
+**Reason:** a caller that sees the failure goes on as if nothing changed.
+A length changed anyway no longer matches the array, and the work that was
+meant to go with the change, such as telling a callback, never happens.
+
+Also checks that a failure destroys what the failures before it destroy, so
+that what the function made is not left behind for a caller who was told
+nothing was made.
 
 ## `-Wstruct-pack` (global)
 

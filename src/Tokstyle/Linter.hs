@@ -46,6 +46,7 @@ import qualified Tokstyle.Linter.Nullability      as Nullability
 import qualified Tokstyle.Linter.NulTerminated    as NulTerminated
 import qualified Tokstyle.Linter.OwnershipDecls   as OwnershipDecls
 import qualified Tokstyle.Linter.Parens           as Parens
+import qualified Tokstyle.Linter.PartialFailure   as PartialFailure
 import qualified Tokstyle.Linter.SwitchIf         as SwitchIf
 import qualified Tokstyle.Linter.TaggedUnion      as TaggedUnion
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
@@ -53,6 +54,7 @@ import qualified Tokstyle.Linter.UnsafeFunc       as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope as VarUnusedInScope
 
 import qualified Tokstyle.Linter.Callgraph        as Callgraph
+import qualified Tokstyle.Linter.DanglingField    as DanglingField
 import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns   as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments      as DocComments
@@ -108,11 +110,13 @@ globalLinters :: [GlobalLinter]
 globalLinters =
     [ Callgraph.descr
     , DeclaredOnce.descr
+    , DanglingField.descr
     , DeclsHaveDefns.descr
     , DocComments.descr
     , Nullability.descr
     , NulTerminated.descr
     , OwnershipDecls.descr
+    , PartialFailure.descr
     , TypeCheck.descr
     , TaggedUnion.descr
     -- Semantic formatters:
