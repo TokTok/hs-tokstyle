@@ -2,7 +2,9 @@
 -- | The parts of statements and expressions.
 module Tokstyle.C.Analysis.Syntax
     ( exprChildren
+    , statExprs
     , initExprs
+    , localDecls
     , stats
     ) where
 
@@ -22,6 +24,32 @@ exprChildren = \case
     CSizeofExpr e _ -> [e]
     _               -> []
 
+-- | Every expression a statement evaluates, including in nested statements.
+statExprs :: CStat -> [CExpr]
+statExprs = \case
+    CExpr e _ -> maybe [] pure e
+    CReturn e _ -> maybe [] pure e
+    CCompound _ items _ -> concatMap item items
+    CIf c t e _ -> c : statExprs t ++ maybe [] statExprs e
+    CSwitch c s _ -> c : statExprs s
+    CWhile c s _ _ -> c : statExprs s
+    CFor i c st s _ -> either (maybe [] pure) declExprs i ++ maybe [] pure c ++ maybe [] pure st ++ statExprs s
+    CLabel _ s _ _ -> statExprs s
+    CCase e s _ -> e : statExprs s
+    CCases a b s _ -> a : b : statExprs s
+    CDefault s _ -> statExprs s
+    _ -> []
+  where
+    item = \case
+        CBlockDecl d -> declExprs d
+        CBlockStmt s -> statExprs s
+        _            -> []
+
+declExprs :: CDecl -> [CExpr]
+declExprs = \case
+    CDecl _ ds _ -> concat [ initExprs ini | (_, Just ini, _) <- ds ]
+    _            -> []
+
 initExprs :: CInit -> [CExpr]
 initExprs = \case
     CInitExpr e _ -> [e]
@@ -40,3 +68,22 @@ stats s = s : case s of
     CWhile _ t _ _      -> stats t
     CFor _ _ _ t _      -> stats t
     _                   -> []
+
+-- | The declarations in a function body, in the order they appear.
+localDecls :: CStat -> [CDecl]
+localDecls = \case
+    CCompound _ items _ -> concatMap item items
+    CIf _ t e _         -> localDecls t ++ maybe [] localDecls e
+    CSwitch _ s _       -> localDecls s
+    CWhile _ s _ _      -> localDecls s
+    CFor i _ _ s _      -> either (const []) pure i ++ localDecls s
+    CLabel _ s _ _      -> localDecls s
+    CCase _ s _         -> localDecls s
+    CCases _ _ s _      -> localDecls s
+    CDefault s _        -> localDecls s
+    _                   -> []
+  where
+    item = \case
+        CBlockDecl d -> [d]
+        CBlockStmt s -> localDecls s
+        _            -> []

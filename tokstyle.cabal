@@ -19,13 +19,19 @@ library
   default-language: Haskell2010
   exposed-modules:
     Tokstyle.C.Env
+    Tokstyle.C.IntervalLinter
     Tokstyle.C.Linter
     Tokstyle.C.ObjectSystem
     Tokstyle.Analysis.AccessPath
     Tokstyle.Analysis.Dataflow
     Tokstyle.Analysis.Symbolic
+    Tokstyle.C.Analysis.Access
     Tokstyle.C.Analysis.CFG
+    Tokstyle.C.Analysis.Interval
+    Tokstyle.C.Analysis.Known
+    Tokstyle.C.Analysis.Program
     Tokstyle.C.Analysis.Syntax
+    Tokstyle.C.Analysis.Types
     Tokstyle.C.Analysis.Liveness
     Tokstyle.Cimple.Analysis.CFG
     Tokstyle.Cimple.Analysis.Destructors
@@ -33,6 +39,7 @@ library
     Tokstyle.Cimple.Analysis.Liveness
     Tokstyle.C.Linter.BoolConversion
     Tokstyle.C.Linter.BorrowCheck
+    Tokstyle.C.Linter.BufferSize
     Tokstyle.C.Linter.CallbackData
     Tokstyle.C.Linter.CallbackDiscipline
     Tokstyle.C.Linter.CallbackParams
@@ -181,6 +188,7 @@ test-suite testsuite
   main-is:            testsuite.hs
   other-modules:
     Tokstyle.C.Analysis.CFGSpec
+    Tokstyle.C.Analysis.IntervalSpec
     Tokstyle.Analysis.DataflowSpec
     Tokstyle.Analysis.SymbolicSpec
     Tokstyle.Cimple.Analysis.CFGSpec
@@ -188,6 +196,7 @@ test-suite testsuite
     Tokstyle.Cimple.Analysis.LivenessSpec
     Tokstyle.C.Linter.BoolConversionSpec
     Tokstyle.C.Linter.BorrowCheckSpec
+    Tokstyle.C.Linter.BufferSizeSpec
     Tokstyle.C.Linter.CallbackDataSpec
     Tokstyle.C.Linter.CallbackDisciplineSpec
     Tokstyle.C.Linter.CallbackParamsSpec

@@ -5,6 +5,7 @@ module Tokstyle.C.Analysis.CFG
     , EdgeType (..)
     , Edge
     , CFG
+    , endsPath
     , fromFunDef
     ) where
 
@@ -14,10 +15,11 @@ import           Control.Monad.State
 import           Data.Map.Strict            (Map)
 import qualified Data.Map.Strict            as Map
 import           Language.C.Analysis.SemRep (FunDef (..))
-import           Language.C.Data.Ident      (Ident)
+import           Language.C.Data.Ident      (Ident, identToString)
 import           Language.C.Data.Name       (Name)
 import           Language.C.Data.Node       (NodeInfo, nameOfNode)
 import           Language.C.Syntax.AST
+import           Tokstyle.C.Analysis.Known  (noReturn)
 
 -- | A node in the Control Flow Graph.
 data Node = Node Int NodeKind
@@ -271,3 +273,10 @@ caseStat s ni next = do
             lift $ addEdgeM node Unconditional sEntry
             return node
         Nothing -> return sEntry
+
+-- | Whether a node calls a function that never returns.
+endsPath :: Node -> Bool
+endsPath = \case
+    Node _ (StatNode (CExpr (Just (CCall (CVar f _) _ _)) _)) ->
+        identToString f `elem` noReturn
+    _ -> False

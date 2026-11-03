@@ -1,6 +1,6 @@
 # C-based linters (`check-c`)
 
-There are currently 15 linters implemented.
+There are currently 16 linters implemented.
 
 ## `-Wbool-conversion`
 
@@ -16,6 +16,18 @@ moves, and borrows of pointers marked with `__attribute__((owned))`.
 It also makes conservative assumptions about un-annotated functions to ensure
 soundness: it assumes the return value of a function borrows from all its
 non-owned pointer arguments.
+
+## `-Wbuffer-size`
+
+Checks for local byte buffers whose size can wrap around and that are then
+accessed past that size, by indexing or by a call that reads or writes them,
+such as `memcpy` or a function that accesses its buffer argument up to another
+argument.
+
+**Reason:** `const uint16_t size = length + HEADER_SIZE;` truncates to a small
+value when `length` is close to 65536, and copying `length` bytes into a
+buffer of that size writes past its end. Compute sizes in a type that can hold
+them, and limit them before making the buffer.
 
 ## `-Wcallback-data`
 

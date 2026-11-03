@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Tokstyle.C.Linter
     ( analyse
+    , analyseProgram
     , analyseText
     , allWarnings
     , markdown
@@ -14,7 +15,9 @@ module Tokstyle.C.Linter
     , diagToText
     ) where
 
+import           Control.Parallel.Strategies          (parMap, rpar)
 import qualified Data.ByteString                      as BS
+import           Data.Functor.Identity                (Identity, runIdentity)
 import           Data.List                            (sortBy)
 import           Data.Map.Strict                      (Map)
 import qualified Data.Map.Strict                      as Map
@@ -29,8 +32,9 @@ import           Language.C.Analysis.SemRep           (DeclEvent (..),
                                                        VarName (..))
 import           Language.C.Analysis.TravMonad        (CLanguage (..), Trav,
                                                        TravOptions (..),
-                                                       modifyOptions,
+                                                       TravState, modifyOptions,
                                                        modifyUserState, runTrav,
+                                                       runTravTWithTravState,
                                                        userState,
                                                        withExtDeclHandler)
 import           Language.C.Data.Error                (CError, errorPos)
@@ -43,6 +47,9 @@ import           Language.Cimple.Diagnostics          (Diagnostic (..),
                                                        IsPosition (..),
                                                        diagToText)
 import qualified Language.Cimple.Diagnostics          as Diagnostics
+import           Tokstyle.C.Analysis.Interval         (Program, emptyProgram)
+import           Tokstyle.C.Analysis.Program          (Analysed, Observed,
+                                                       observe, programFrom)
 
 import           Prettyprinter                        (Doc, pretty)
 import           Prettyprinter.Render.Terminal        (AnsiStyle)
@@ -54,6 +61,8 @@ import           Tokstyle.C.Env                       (DiagnosticLevel (..),
 import           Data.Function                        (on)
 import qualified Tokstyle.C.Linter.BoolConversion     as BoolConversion (descr)
 import qualified Tokstyle.C.Linter.BorrowCheck        as BorrowCheck (descr)
+import qualified Tokstyle.C.Linter.BufferSize         as BufferSize (descr,
+                                                                     looksAt)
 import qualified Tokstyle.C.Linter.CallbackData       as CallbackData (descr)
 import qualified Tokstyle.C.Linter.CallbackDiscipline as CallbackDiscipline (descr)
 import qualified Tokstyle.C.Linter.CallbackParams     as CallbackParams (descr)
@@ -75,6 +84,7 @@ linters :: [Linter]
 linters =
     [ BoolConversion.descr
     , BorrowCheck.descr
+    , BufferSize.descr
     , CallbackData.descr
     , CallbackDiscipline.descr
     , CallbackParams.descr
@@ -91,6 +101,14 @@ linters =
     ]
 
 
+-- | The linters built on the interval analysis, with the functions each looks
+-- at.
+intervalLinters :: [(Text, FunDef -> Bool)]
+intervalLinters =
+    [ ("buffer-size", BufferSize.looksAt)
+    ]
+
+
 runLinters :: [Text] -> GlobalDecls -> Trav Env ()
 runLinters flags tu =
     mapM_ (\(f, (flag, _)) -> do
@@ -101,18 +119,35 @@ runLinters flags tu =
 
 
 analyse :: [Text] -> CTranslUnit -> [LinterError]
-analyse enabled tu =
-    case analysis of
+analyse enabled tu = concat $ analyseProgram enabled [("test.c", tu)]
+
+
+analyseProgram :: [Text] -> [(FilePath, CTranslUnit)] -> [[LinterError]]
+analyseProgram enabled units = parMap rpar check (zip analysed observed)
+  where
+    analysed = parMap rpar (\(file, tu) -> (file, analyseUnit tu)) units
+
+    looksAt = [ p | (flag, p) <- intervalLinters, flag `elem` enabled ]
+    observed
+        | null looksAt = map (const ([], [])) analysed
+        | otherwise = parMap rpar (observeUnit (\fd -> any ($ fd) looksAt)) analysed
+    prog = programFrom (concatMap fst observed)
+
+    check ((_, Left errs), _) = map toLinterError errs
+    check ((_, Right (decls, st)), (_, fns)) = case resume st prog fns (runLinters enabled decls) of
         Left errs        -> map toLinterError errs
         Right (_, state) -> reverse . linterErrors $ userState state
-  where
-    analysis = runTrav defaultEnv $ do
-        modifyOptions (\opts -> opts { language = GNU99 })
-        decls <- analyseAST tu `withExtDeclHandler` recordLocals
-        runLinters enabled decls
 
     toLinterError :: CError -> LinterError
     toLinterError err = Diagnostic (Env.CPosition (errorPos err)) 1 ErrorLevel (pretty (show err)) Nothing [] []
+
+
+-- | The declarations of a translation unit, with the state of their analysis
+-- to go on from.
+analyseUnit :: CTranslUnit -> Either [CError] (GlobalDecls, TravState Identity Env)
+analyseUnit tu = runTrav defaultEnv $ do
+    modifyOptions (\opts -> opts { language = GNU99 })
+    analyseAST tu `withExtDeclHandler` recordLocals
 
 -- | Remembers the locals each function declares, which language-c forgets
 -- once it leaves the function.
@@ -124,6 +159,20 @@ recordLocals = \case
         , Env.pendingLocals = []
         }
     _ -> return ()
+
+-- | Continues analysing a translation unit, knowing what the whole program
+-- shows, with its functions as analysed without that knowledge.
+resume :: TravState Identity Env -> Program -> [Analysed] -> Trav Env a -> Either [CError] (a, TravState Identity Env)
+resume st p fns act = runIdentity . runTravTWithTravState st $ do
+    modifyUserState $ \env -> env{Env.program = p, Env.analysed = fns}
+    act
+
+-- | 'observe' run on a translation unit, knowing nothing about the rest of the
+-- program.
+observeUnit :: (FunDef -> Bool) -> (FilePath, Either [CError] (GlobalDecls, TravState Identity Env)) -> (Observed, [Analysed])
+observeUnit wanted = \case
+    (file, Right (decls, st)) | Right (o, _) <- resume st emptyProgram [] (observe wanted file (Env.localsOf (userState st)) decls) -> o
+    _ -> ([], [])
 
 
 analyseText :: [Text] -> CTranslUnit -> [Text]

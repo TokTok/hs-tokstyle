@@ -33,7 +33,8 @@ import           Language.Cimple.Diagnostics   (DiagnosticSpan (..))
 import           Prettyprinter                 (pretty, (<+>))
 import           Tokstyle.Analysis.Dataflow    (Dataflow (..), solve)
 import           Tokstyle.C.Analysis.CFG       (CFG, EdgeType (..), Node (..),
-                                                NodeKind (..), fromFunDef)
+                                                NodeKind (..), endsPath,
+                                                fromFunDef)
 import           Tokstyle.C.Analysis.Syntax    (exprChildren, initExprs, stats)
 import           Tokstyle.C.Env                (DiagnosticLevel (..), Env,
                                                 localsOf, posAndLen,
@@ -47,9 +48,6 @@ freers = [("free", 0), ("mem_delete", 1)]
 
 allocators :: [String]
 allocators = ["malloc", "calloc", "realloc", "mem_alloc", "mem_balloc", "mem_valloc", "mem_vrealloc", "mem_brealloc"]
-
-noReturn :: [String]
-noReturn = ["__assert_fail", "abort", "exit", "_Exit", "logger_abort"]
 
 -- | Where an object gets freed: the calls it goes through, from the one in
 -- the function at hand to the one that frees it.
@@ -164,11 +162,6 @@ nodeExprs (Node _ kind) = case kind of
     BranchNode e           -> [e]
     DeclNode d             -> concatMap (maybe [] initExprs . snd) (declItems d)
     _                      -> []
-
-endsPath :: Node -> Bool
-endsPath = \case
-    Node _ (StatNode (CExpr (Just (CCall (CVar f _) _ _)) _)) -> name f `elem` noReturn
-    _ -> False
 
 -- | What a function does to the pointers to exposed objects it has.
 data Findings = Findings

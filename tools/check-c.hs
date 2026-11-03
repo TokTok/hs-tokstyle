@@ -4,11 +4,13 @@ module Main (main) where
 
 import           Control.Monad                 (unless)
 import qualified Control.Monad.Parallel        as Par
+import           Data.Either                   (lefts, rights)
 import           Data.List                     (isPrefixOf, isSuffixOf)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as Text
 import qualified Data.Text.IO                  as Text
-import           Language.C                    (parseCFile, parseCFilePre)
+import           Language.C                    (CTranslUnit, parseCFile,
+                                                parseCFilePre)
 import           Language.C.System.GCC         (newGCC)
 import           Options.Applicative
 import           Prettyprinter                 (Doc, defaultLayoutOptions,
@@ -18,7 +20,7 @@ import           System.Exit                   (ExitCode (..), exitWith)
 import           System.IO                     (hSetEncoding, stderr, stdout,
                                                 utf8)
 import qualified Tokstyle.C.Linter             as Linter
-import           Tokstyle.C.Linter             (allWarnings, analyse)
+import           Tokstyle.C.Linter             (allWarnings, analyseProgram)
 
 
 data Options = Options
@@ -63,18 +65,14 @@ defaultCppOpts sysInclude =
     ]
 
 
-processFile :: String -> String -> [Text] -> [String] -> FilePath -> IO (Bool, [Doc AnsiStyle])
-processFile cc sysInclude flags cppOpts file = do
+parseFile :: String -> String -> [String] -> FilePath -> IO (Either (Doc AnsiStyle) (FilePath, CTranslUnit))
+parseFile cc sysInclude cppOpts file = do
     result <- if ".i" `isSuffixOf` file
               then parseCFilePre file
               else parseCFile (newGCC cc) Nothing (defaultCppOpts sysInclude ++ cppOpts) file
-    case result of
-        Left err -> return (False, [pretty file <> ": Parse Error: " <> pretty (show err)])
-        Right tu -> do
-            errs <- Linter.renderIO $ analyse flags tu
-            case errs of
-                [] -> return (True, [])
-                _  -> return (False, errs)
+    return $ case result of
+        Left err -> Left (pretty file <> ": Parse Error: " <> pretty (show err))
+        Right tu -> Right (file, tu)
 
 
 main :: IO ()
@@ -85,8 +83,10 @@ main = do
     if optMarkdown opts
         then Text.putStr Linter.markdown
         else do
-            result <- Par.mapM (processFile (optCC opts) (optInclude opts) (optWarnings opts) (optCppOptions opts)) (optFiles opts)
-            mapM_ (mapM_ render . snd) result
-            unless (all fst result) $ exitWith (ExitFailure 1)
+            parsed <- Par.mapM (parseFile (optCC opts) (optInclude opts) (optCppOptions opts)) (optFiles opts)
+            let parseErrors = lefts parsed
+            errs <- concat <$> mapM Linter.renderIO (analyseProgram (optWarnings opts) (rights parsed))
+            mapM_ render (parseErrors ++ errs)
+            unless (null parseErrors && null errs) $ exitWith (ExitFailure 1)
   where
     render doc = renderIO stderr (layoutSmart defaultLayoutOptions doc) >> Text.hPutStrLn stderr ""

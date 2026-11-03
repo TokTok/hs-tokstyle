@@ -36,6 +36,8 @@ import           Language.Cimple.Diagnostics   (Diagnostic (..),
 import           Prettyprinter                 (Doc)
 
 import           Prettyprinter.Render.Terminal (AnsiStyle)
+import           Tokstyle.C.Analysis.Interval  (Program, emptyProgram)
+import           Tokstyle.C.Analysis.Program   (Analysed)
 import           Tokstyle.C.TravUtils          (getJust)
 
 newtype CPosition = CPosition { unCPosition :: Position }
@@ -58,14 +60,20 @@ data Env = Env
     , globalDecls   :: Maybe GlobalDecls
     , linterErrors  :: [LinterError]
     , currentFlag   :: Maybe Text
+    , program       :: Program
+    -- ^ What is known about the program the translation unit is part of.
     , localsOf      :: Map String [IdentDecl]
     -- ^ The locals each function declares.
     , pendingLocals :: [IdentDecl]
     -- ^ The locals of the function being analysed, in reverse.
+    , analysed      :: [Analysed]
+    -- ^ The functions of the translation unit the interval linters look at,
+    -- analysed knowing nothing about the rest of the program.
     }
 
 defaultEnv :: Env
-defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing Map.empty []
+defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing emptyProgram Map.empty [] []
+
 
 bracketUserState :: (Env -> Env) -> Trav Env a -> Trav Env a
 bracketUserState f act = do

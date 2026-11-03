@@ -25,7 +25,7 @@ import           Prettyprinter                 (pretty, (<+>))
 import           Tokstyle.Analysis.Dataflow    (Dataflow (..), solve)
 import           Tokstyle.C.Analysis.CFG       (CFG, Node (..), NodeKind (..),
                                                 fromFunDef)
-import           Tokstyle.C.Analysis.Syntax    (stats)
+import           Tokstyle.C.Analysis.Syntax    (initExprs, statExprs, stats)
 import           Tokstyle.C.Env                (DiagnosticLevel (..), Env,
                                                 posAndLen, recordRichError)
 import           Tokstyle.C.TravUtils          (backticks)
@@ -150,11 +150,6 @@ declItems = \case
     CDecl _ ds _ -> [ (i, d, ini) | (Just d@(CDeclr (Just i) _ _ _ _), ini, _) <- ds ]
     _            -> []
 
-initExprs :: CInit -> [CExpr]
-initExprs = \case
-    CInitExpr e _ -> [e]
-    CInitList l _ -> concatMap (initExprs . snd) l
-
 isZero :: CInit -> Bool
 isZero = \case
     CInitExpr (CConst (CIntConst i _)) _ -> getCInteger i == 0
@@ -208,21 +203,6 @@ untouchedFrom cfg v start = all untouched (Set.toList (reachable Set.empty [star
         | n `Set.member` seen = reachable seen ns
         | otherwise = reachable (Set.insert n seen) (map snd (Map.findWithDefault [] n cfg) ++ ns)
     untouched n = maybe False (notElem v . concatMap mentions) (nodeExprs n)
-
--- | Every expression a statement evaluates, including in nested statements.
-statExprs :: CStat -> [CExpr]
-statExprs s = concatMap own (stats s)
-  where
-    own = \case
-        CExpr e _           -> maybe [] pure e
-        CReturn e _         -> maybe [] pure e
-        CIf c _ _ _         -> [c]
-        CSwitch c _ _       -> [c]
-        CWhile c _ _ _      -> [c]
-        CFor i c st _ _     -> either (maybe [] pure) declInits i ++ maybe [] pure c ++ maybe [] pure st
-        CCompound _ items _ -> concat [ declInits d | CBlockDecl d <- items ]
-        _                   -> []
-    declInits d = concat [ maybe [] initExprs ini | (_, _, ini) <- declItems d ]
 
 -- | The locals a body declares, with their declarators.
 localDecls :: CStat -> [(Ident, CDeclr)]
