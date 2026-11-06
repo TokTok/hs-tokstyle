@@ -87,6 +87,7 @@ library
     Tokstyle.Linter.MallocCall
     Tokstyle.Linter.MallocType
     Tokstyle.Linter.MemcpyStructs
+    Tokstyle.Linter.MemoryLifetime
     Tokstyle.Linter.Nesting
     Tokstyle.Linter.Nullability
     Tokstyle.Linter.NulTerminated
@@ -237,6 +238,7 @@ test-suite testsuite
     Tokstyle.Linter.MallocCallSpec
     Tokstyle.Linter.MallocTypeSpec
     Tokstyle.Linter.MemcpyStructsSpec
+    Tokstyle.Linter.MemoryLifetimeSpec
     Tokstyle.Linter.NestingSpec
     Tokstyle.Linter.NullabilitySpec
     Tokstyle.Linter.NulTerminatedSpec

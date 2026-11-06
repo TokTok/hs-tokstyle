@@ -26,6 +26,7 @@ module Tokstyle.Cimple.Analysis.Functions
     , isNullLit
     , nullTest
     , isEnumConst
+    , flagHolds
     , localDecls
     , assignments
     , nodeExprs
@@ -130,6 +131,19 @@ nullTest view cond = case unFix' (strip cond) of
 isEnumConst :: Text -> Bool
 isEnumConst t = Text.all (\c -> c == '_' || c `elem` ['A'..'Z'] || c `elem` ['0'..'9']) t
     && Text.any (`elem` ['A'..'Z']) t
+
+-- | Whether a branch on an error flag can be taken with the enum constants
+-- the flags hold.
+flagHolds :: Map String Text -> C.Node (Lexeme Text) -> EdgeType -> Bool
+flagHolds flags cond e = case unFix' (strip cond) of
+    BinaryExpr (Fix (VarExpr (L _ _ v))) op r
+        | Just c <- constName r, Just c' <- Map.lookup (Text.unpack v) flags, op `elem` [BopEq, BopNe] ->
+            let equal = c == c'
+            in case e of
+                TrueBranch  -> if op == BopEq then equal else not equal
+                FalseBranch -> if op == BopEq then not equal else equal
+                _           -> True
+    _ -> True
 
 shapeOf :: C.Node (Lexeme Text) -> C.Node (Lexeme Text) -> Shape
 shapeOf retType body
