@@ -58,6 +58,7 @@ import qualified Tokstyle.Linter.DanglingField    as DanglingField
 import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
 import qualified Tokstyle.Linter.DeclsHaveDefns   as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments      as DocComments
+import qualified Tokstyle.Linter.MemoryLifetime   as MemoryLifetime
 import qualified Tokstyle.Linter.TypeCheck        as TypeCheck
 import qualified Tokstyle.SemFmt.EnumFromInt      as EnumFromInt
 import qualified Tokstyle.SemFmt.EnumToString     as EnumToString
@@ -113,6 +114,7 @@ globalLinters =
     , DanglingField.descr
     , DeclsHaveDefns.descr
     , DocComments.descr
+    , MemoryLifetime.descr
     , Nullability.descr
     , NulTerminated.descr
     , OwnershipDecls.descr

@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 40 linters implemented, out of which 15 perform global analyses.
+There are currently 41 linters implemented, out of which 16 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -326,6 +326,17 @@ Exemptions are:
 invalid null pointer representations) and `memcpy` should be replaced by an
 assignment, possibly in a loop, to avoid messing up the size argument of the
 `memcpy` call.
+
+## `-Wmemory-lifetime` (global)
+
+Checks that memory a function gets is freed, returned or handed on before
+it returns, that a field's memory is freed before its struct, and that
+memory is not freed while a call has stored it somewhere that outlives
+the caller.
+
+**Reason:** memory nothing points to is never freed, as on an error path
+that returns early, and memory freed while still stored is then used or
+freed again through the stored pointer.
 
 ## `-Wnesting`
 
