@@ -9,6 +9,7 @@ import           Data.Fix                             (Fix (..))
 import qualified Data.List                            as List
 import           Data.Map.Strict                      (Map)
 import qualified Data.Map.Strict                      as Map
+import           Data.Maybe                           (mapMaybe)
 import           Data.Set                             (Set)
 import qualified Data.Set                             as Set
 import           Data.Text                            (Text)
@@ -21,6 +22,7 @@ import qualified Language.Cimple                      as C
 import           Language.Cimple.Diagnostics          (CimplePos,
                                                        Diagnostic (..),
                                                        DiagnosticLevel (..),
+                                                       DiagnosticSpan (..),
                                                        HasDiagnosticInfo (..),
                                                        IsPosition (..),
                                                        warnRich)
@@ -81,8 +83,37 @@ anchor (Fix node) = case node of
     ArrayAccess e _   -> anchor e
     _                 -> Nothing
 
-evalExpr :: (AccessPath -> Bool) -> C.Node (Lexeme Text) -> Changes -> Changes
-evalExpr outlives = go
+-- | How much each function adds to array lengths when it succeeds, by the
+-- parameter they're reached through. Only lengths that removals lower count.
+type Grows = Map Text (Map AccessPath Integer)
+
+data Context = Context
+    { ctxShapes      :: Map Text Shape
+    , ctxGrows       :: Grows
+    , ctxLengths     :: Set Text
+    , ctxDestructors :: Destructors
+    , ctxUndoers     :: Set Text
+    -- ^ Functions that failure returns call to undo a call that grew a length.
+    }
+
+-- | Replace the variable or parameter a path starts at.
+reroot :: AccessPath -> AccessPath -> AccessPath
+reroot new = \case
+    PathField p m -> PathField (reroot new p) m
+    PathIndex p i -> PathIndex (reroot new p) i
+    PathDeref p   -> PathDeref (reroot new p)
+    _             -> new
+
+paramOf :: AccessPath -> Maybe Int
+paramOf = \case
+    PathParam i   -> Just i
+    PathField p _ -> paramOf p
+    PathIndex p _ -> paramOf p
+    PathDeref p   -> paramOf p
+    _             -> Nothing
+
+evalExpr :: Context -> (AccessPath -> Bool) -> C.Node (Lexeme Text) -> Changes -> Changes
+evalExpr ctx outlives = go
   where
     go (Fix node) s = case node of
         UnaryExpr op x | op `elem` [UopIncr, UopDecr] ->
@@ -91,57 +122,210 @@ evalExpr outlives = go
         AssignExpr l AopMinus r | Just n <- intLit r -> change l (negate n) (go r s)
         AssignExpr l _ r -> maybe id under (accessPath l) (go r s)
         FunctionCall callee args
-            | Just name <- calleeName callee, Just i <- Map.lookup name freers, (a : _) <- drop i args, Just p <- accessPath a ->
-                under p (List.foldl' (flip go) s args)
+            | gone@(_ : _) <- mapMaybe accessPath (destroyed (ctxDestructors ctx) (Fix node)) ->
+                List.foldl' (flip under) (List.foldl' (flip go) s args) gone
+            | L _ _ name <- calleeLexeme callee, Just m <- Map.lookup name (ctxGrows ctx) ->
+                List.foldl' (\acc (q, n) -> maybe acc (\p -> changeAt p n (calleeLexeme callee) acc) (argPath args q))
+                    (List.foldl' (flip go) s args) (Map.toList m)
         _ -> List.foldl' (flip go) s (foldr (:) [] node)
-    -- Forget what is known about a path once it is reassigned or freed.
+    -- Forget what is known about a path once it is reassigned or destroyed.
     under p = Map.filterWithKey (\k _ -> not (p `isPathPrefixOf` k))
-    calleeName c = case calleeLexeme c of
-        L _ _ t | not (Text.null t) -> Just t
-        _                           -> Nothing
+    argPath args q = do
+        i <- paramOf q
+        (a : _) <- pure (drop i args)
+        base <- accessPath a
+        pure (reroot base q)
     change x n s = case (accessPath x, anchor x) of
-        (Just p, Just at) | outlives p -> Map.alter (bump n at) p s
-        _                              -> s
+        (Just p, Just at) -> changeAt p n at s
+        _                 -> s
+    changeAt p n at s
+        | outlives p = Map.alter (bump n at) p s
+        | otherwise  = s
     bump n at = \case
         Nothing        -> Just (n, at)
         Just (m, at')  | m + n == 0 -> Nothing
                        | otherwise  -> Just (m + n, at')
 
--- | Find the failure returns of a function with the array lengths changed and
--- not restored on the way there.
-failures :: Set Text -> Function -> [(C.Node (Lexeme Text), Changes)]
-failures lengths fn =
-    [ (ret, changes)
-    | (n@(Node _ (StmtNode ret@(Fix (Return e)))), _) <- Map.toList cfg
-    , isFailure fn e
-    , Just s <- [Map.lookup n result]
-    , let changes = step n s
-    , not (Map.null changes)
+-- | Dataflow state: the length changes, the calls each local may hold the
+-- result of, and the calls each local was looked up from.
+type St = (Changes, Map Text (Set (Lexeme Text)), Map Text (Set (Lexeme Text)))
+
+-- | The state at each exit of a function, with the expression it returns.
+exits :: Context -> Function -> [(Node, Maybe (C.Node (Lexeme Text)), Changes)]
+exits ctx fn =
+    [ (n, returned n, if cleaned n then Map.filter (not . grown . snd) s else s)
+    | (n, out) <- Map.toList cfg
+    , any (isExit . snd) out
+    , Just st <- [Map.lookup n result]
+    , let (s, _, _) = stepSt n st
     ]
   where
     (entry, cfg) = fromFunction (fnDefn fn)
-    outlives p = throughPointer p && maybe False (`Set.member` lengths) (lastField p)
-    step n s = List.foldl' (flip (evalExpr outlives)) s (nodeExprs n)
+    outlives p = throughPointer p && maybe False (`Set.member` ctxLengths ctx) (lastField p)
+    isExit (Node _ ExitNode) = True
+    isExit _                 = False
+    returned = \case
+        Node _ (StmtNode (Fix (Return e))) -> e
+        _                                  -> Nothing
+
+    stepSt :: Node -> St -> St
+    stepSt n (s, rs, found) =
+        (List.foldl' (flip (evalExpr ctx outlives)) s (nodeExprs n), results rs n, derive rs found n)
+    assigned n = case n of
+        Node _ (StmtNode (Fix (VarDeclStmt (Fix (VarDecl _ (L _ _ v) _)) ini))) -> [(v, bare <$> ini)]
+        _ -> [ (v, Just (bare r)) | e <- nodeExprs n, Fix (AssignExpr (Fix (VarExpr (L _ _ v))) _ r) <- universe e ]
+    results rs n = List.foldl' (\m (v, r) -> case r of
+        Just (Fix (FunctionCall callee _)) -> Map.insert v (Set.singleton (calleeLexeme callee)) m
+        _                                  -> Map.delete v m) rs (assigned n)
+    derive rs found n = List.foldl' (\m (v, r) ->
+        let ls = Set.unions [ l | Just (Fix (FunctionCall _ args)) <- [r], Fix (VarExpr (L _ _ w)) <- map bare args, Just l <- [Map.lookup w rs] ]
+        in if Set.null ls then Map.delete v m else Map.insert v ls m) found (assigned n)
+    dropFrom ls = Map.filter ((`Set.notMember` ls) . snd)
+    -- Calling what other failure returns call to undo a call counts as undoing
+    -- it.
+    grown (L _ _ g) = g `Map.member` ctxGrows ctx
+    cleaned = \case
+        Node _ (StmtNode ret) -> maybe False (not . Set.null . Set.intersection (ctxUndoers ctx)) (lookup ret (cleanupsIn ctx fn))
+        _                     -> False
+
+    -- Nothing changed where a call failed or a lookup of its result found
+    -- nothing, and nothing is left to undo where an array is empty.
+    edge n e (s, rs, found) = case n of
+        Node _ (BranchNode cond) ->
+            let failed = Set.fromList [ l | c <- resolve rs cond, (l, Failure) <- knownOn c e ]
+                missing = Set.unions [ ls | Just (v, nullOn) <- [nullTest var cond], nullOn == e, Just ls <- [Map.lookup v found] ]
+            in (emptied cond e (dropFrom (Set.union failed missing) s), rs, found)
+        _ -> (s, rs, found)
+    emptied cond e s = case (unFix' (strip cond), e) of
+        (BinaryExpr x BopEq r, TrueBranch) | intLit r == Just 0, Just p <- accessPath x -> Map.delete p s
+        (BinaryExpr x BopNe r, FalseBranch) | intLit r == Just 0, Just p <- accessPath x -> Map.delete p s
+        _ -> s
+    var x = case unFix' (strip x) of
+        VarExpr (L _ _ v) -> Just v
+        _                 -> Nothing
+    knownOn cond e = case (unFix' (strip cond), e) of
+        (BinaryExpr l BopAnd r, TrueBranch) -> knownOn l e ++ knownOn r e
+        (BinaryExpr l BopOr r, FalseBranch) -> knownOn l e ++ knownOn r e
+        -- Comparing an ID with the one we expect treats any other as failure.
+        (BinaryExpr (Fix (FunctionCall callee _)) op r, _)
+            | L _ _ g <- calleeLexeme callee, Just IdShape <- Map.lookup g (ctxShapes ctx)
+            , Just k <- intLit r, k >= 0, op `elem` [BopEq, BopNe] ->
+                [(calleeLexeme callee, if (op == BopEq) == (e == TrueBranch) then Success else Failure)]
+        _ -> case (branchOn (ctxShapes ctx) cond, e) of
+            (Just (l, o), TrueBranch)  -> [(l, o)]
+            (Just (l, o), FalseBranch) -> [(l, if o == Success then Failure else Success)]
+            _                          -> []
+    -- Also read the condition with each local replaced by the call it came
+    -- from, so `if (rc < 0)` tests that call.
+    resolve rs cond = cond :
+        [ subst v l cond | (v, ls) <- Map.toList rs, l <- Set.toList ls ]
+    subst v l (Fix node) = case node of
+        VarExpr (L _ _ v') | v' == v -> Fix (FunctionCall (Fix (VarExpr l)) [])
+        _                            -> Fix (fmap (subst v l) node)
+
     result = solve entry cfg Dataflow
-        { transfer     = step
-        , edgeTransfer = \_ _ s -> s
-        , merge        = Map.unionWith (\a b -> if fst a /= 0 then a else b)
-        , initial      = Map.empty
+        { transfer     = stepSt
+        , edgeTransfer = edge
+        , merge        = \(a, ra, fa) (b, rb, fb) ->
+            (Map.unionWith (\x y -> if fst x /= 0 then x else y) a b, Map.unionWith Set.union ra rb, Map.unionWith Set.union fa fb)
+        , initial      = (Map.empty, Map.empty, Map.empty)
         }
 
--- | Find destructor calls on a local immediately before failure returns.
--- Only calls preceding at least two failure returns count as the function's
--- cleanup convention.
-failureCleanups :: Destructors -> Function -> Set (Text, String)
-failureCleanups ds fn = Map.keysSet . Map.filter (>= (2 :: Int)) $ Map.fromListWith (+)
-    [ ((name, v), 1)
-    | Fix (CompoundStmt stmts) <- universe (fnDefn fn)
-    , (i, Fix (Return e)) <- zip [0 :: Int ..] stmts
+-- | Find the calls each failure return makes on something looked up from the
+-- result of a call that grew a length.
+cleanupsIn :: Context -> Function -> [(C.Node (Lexeme Text), Set Text)]
+cleanupsIn ctx fn =
+    [ (ret, Set.fromList [ name | Fix (FunctionCall callee args) <- concatMap onTheWay before
+                                , L _ _ name <- [calleeLexeme callee], any (localIn found) args ])
+    | (ret, before) <- failureReturns fn ]
+  where
+    found = Set.fromList [ v | (v, Fix (FunctionCall _ args)) <- given, any (localIn grown) args ]
+    grown = Set.fromList
+        [ v | (v, Fix (FunctionCall callee _)) <- given, L _ _ g <- [calleeLexeme callee], g `Map.member` ctxGrows ctx ]
+    given = [ (v, bare r) | (v, Just r) <- localDecls (fnDefn fn) ]
+        ++ [ (v, bare r) | (v, rs) <- Map.toList (assignments (fnDefn fn)), r <- rs ]
+    localIn vs a = case bare a of
+        Fix (VarExpr (L _ _ v)) -> Text.unpack v `Set.member` vs
+        _                       -> False
+
+-- | Find the failure returns of a function with the array lengths changed and
+-- not restored on the way there.
+failures :: Context -> Function -> [(C.Node (Lexeme Text), Changes)]
+failures ctx fn =
+    [ (ret, changes)
+    | (Node _ (StmtNode ret@(Fix (Return e))), _, changes) <- exits ctx fn
     , isFailure fn e
-    , Fix (ExprStmt call@(Fix (FunctionCall callee _))) <- take i stmts
-    , L _ _ name <- [calleeLexeme callee]
-    , Fix (VarExpr (L _ _ v')) <- map strip (destroyed ds call)
-    , let v = Text.unpack v', v `Set.member` locals
+    , ret `notElem` stopped
+    , not (Map.null changes)
+    ]
+  where
+    -- A return after `abort` or `LOGGER_FATAL` never runs.
+    stopped = [ ret | (ret, before) <- failureReturns fn
+                    , L _ _ g <- [ calleeLexeme callee | Fix (FunctionCall callee _) <- concatMap universe before ]
+                    , g `elem` ["abort", "LOGGER_FATAL"] ]
+
+-- | Find how each function changes the lengths in @shrunk@ when it succeeds.
+growers :: Context -> Set Text -> [Function] -> Grows
+growers ctx shrunk fns = Map.fromList
+    [ (fnName f, m)
+    | f <- fns
+    , let param p = rootOf p >>= \v -> List.elemIndex (Text.pack v) (fnParams f)
+          m = Map.unionsWith const
+            [ Map.fromList [ (reroot (PathParam i) p, d) | (p, (d, _)) <- Map.toList changes
+                           , maybe False (`Set.member` shrunk) (lastField p), Just i <- [param p] ]
+            | (_, e, changes) <- exits ctx f
+            , Success `elem` returnOutcomes (fnShape f) e ]
+    , not (Map.null m)
+    ]
+
+-- | Find the fields some function lowers by a constant, as removing an entry
+-- lowers a count.
+shrunkFields :: [Function] -> Set Text
+shrunkFields fns = Set.fromList
+    [ Text.pack m
+    | f <- fns, Fix node <- universe (fnDefn f)
+    , Just x <- [lowered node], Just (PathField _ m) <- [accessPath x] ]
+  where
+    lowered = \case
+        UnaryExpr UopDecr x                          -> Just x
+        AssignExpr x AopMinus r | Just _ <- intLit r -> Just x
+        _                                            -> Nothing
+
+-- | Find the failure returns of a function, each with the statements before
+-- it in its block.
+failureReturns :: Function -> [(C.Node (Lexeme Text), [C.Node (Lexeme Text)])]
+failureReturns fn =
+    [ (ret, take i stmts)
+    | Fix (CompoundStmt stmts) <- universe (fnDefn fn)
+    , (i, ret@(Fix (Return e))) <- zip [0 :: Int ..] stmts
+    , isFailure fn e
+    ]
+
+-- | The parts of a statement that can run before the statement after it,
+-- leaving out blocks that end in a return.
+onTheWay :: C.Node (Lexeme Text) -> [C.Node (Lexeme Text)]
+onTheWay node@(Fix n) = case n of
+    CompoundStmt stmts | (Fix Return{} : _) <- reverse stmts -> []
+    _ -> node : concatMap onTheWay (foldr (:) [] n)
+
+-- | What comes before at least two failure returns: the function's cleanup
+-- convention.
+conventions :: Ord a => [Set a] -> Set a
+conventions befores = Map.keysSet . Map.filter (>= (2 :: Int)) $
+    Map.fromListWith (+) [ (x, 1) | xs <- befores, x <- Set.toList xs ]
+
+-- | Find destructor calls on a local immediately before failure returns that
+-- are the function's cleanup convention.
+failureCleanups :: Destructors -> Function -> Set (Text, String)
+failureCleanups ds fn = conventions
+    [ Set.fromList
+        [ (name, v)
+        | Fix (ExprStmt call@(Fix (FunctionCall callee _))) <- before
+        , L _ _ name <- [calleeLexeme callee]
+        , Fix (VarExpr (L _ _ v')) <- map strip (destroyed ds call)
+        , let v = Text.unpack v', v `Set.member` locals
+        ]
+    | (_, before) <- failureReturns fn
     ]
   where
     locals = pointerLocals fn
@@ -284,10 +468,14 @@ analyse tus = reverse $ State.execState (mapM_ report reports >> mapM_ reportSki
   where
     fns = definitions tus
     lengths = lengthFields fns
+    shapes = Map.fromList [ (fnName f, fnShape f) | f <- fns ]
+    direct = Context shapes Map.empty lengths ds Set.empty
+    grows = direct { ctxGrows = growers direct (Set.intersection lengths (shrunkFields fns)) fns }
+    ctx = grows { ctxUndoers = Set.unions [ conventions (map snd (cleanupsIn grows f)) | f <- fns ] }
     reports = Map.toList $ Map.fromListWith (++)
         [ ((fnFile f, at), [(fnName f, p, ret)])
         | f <- fns
-        , (ret, changes) <- failures lengths f
+        , (ret, changes) <- failures ctx f
         , (p, (_, at)) <- Map.toList changes ]
     statuses = statusFunctions fns
     ds = destructors tus
@@ -295,22 +483,31 @@ analyse tus = reverse $ State.execState (mapM_ report reports >> mapM_ reportSki
 
 reportSkipped :: (Function, C.Node (Lexeme Text), (Text, String)) -> State [Diagnostic CimplePos] ()
 reportSkipped (fn, ret, (name, v)) = do
-    let (pos, len) = getDiagnosticInfo (fnFile fn) ret
+    let file = fnFile fn
+        (pos, len) = getDiagnosticInfo file ret
+        cleanups = Map.elems $ Map.fromList
+            [ ((posLine cp, posColumn cp), DiagnosticSpan cp cl ["called before another failure"])
+            | (_, before) <- failureReturns fn
+            , Fix (ExprStmt (Fix (FunctionCall callee args))) <- before
+            , l@(L _ _ name') <- [calleeLexeme callee], name' == name
+            , or [ True | Fix (VarExpr (L _ _ a)) <- map strip args, Text.unpack a == v ]
+            , let (cp, cl) = getDiagnosticInfo file l ]
     warnRich $ Diagnostic pos len ErrorLevel
-        (backticks (pretty (fnName fn)) <+> "fails here without calling" <+> backticks (pretty name)
+        (backticks (pretty (fnName fn)) <+> "fails without calling" <+> backticks (pretty name)
             <+> "on" <+> backticks (pretty v) <> ", which it does when it fails before this")
-        Nothing [] []
+        Nothing (DiagnosticSpan pos len ["fails here"] : cleanups) []
 
 report :: ((FilePath, Lexeme Text), [(Text, AccessPath, C.Node (Lexeme Text))]) -> State [Diagnostic CimplePos] ()
 report ((file, at), sites) = case sites of
     [] -> return ()
-    (fn, p, ret) : _ -> do
+    (fn, p, _) : _ -> do
         let (pos, len) = getDiagnosticInfo file at
-            (retPos, _) = getDiagnosticInfo file ret
+            rets = Map.elems $ Map.fromList
+                [ ((posLine rp, posColumn rp), DiagnosticSpan rp rl ["fails here"])
+                | (_, _, ret) <- sites, let (rp, rl) = getDiagnosticInfo file ret ]
         warnRich $ Diagnostic pos len ErrorLevel
-            (backticks (render p) <+> "is changed here, and" <+> backticks (pretty fn)
-                <+> "then fails at line" <+> pretty (posLine retPos) <+> "without changing it back")
-            Nothing [] []
+            (backticks (render p) <+> "is not changed back when" <+> backticks (pretty fn) <+> "fails")
+            Nothing (DiagnosticSpan pos len ["changed here"] : rets) []
 
 descr :: ([(FilePath, [C.Node (Lexeme Text)])] -> [Diagnostic CimplePos], (Text, Text))
 descr = (analyse, ("partial-failure", Text.unlines
