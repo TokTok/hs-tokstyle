@@ -267,7 +267,7 @@ atReturns summary getters fn =
                     (Just (l, o), FalseBranch) -> Just (l, if o == Success then Failure else Success)
                     _                          -> Nothing
             in Map.map (dropNull cond e)
-                . Map.filterWithKey (\flags _ -> holds flags cond e)
+                . Map.filterWithKey (\flags _ -> flagHolds flags cond e)
                 $ mapSt (evalExpr summary ctx known cond) st
         _ -> st
     -- Nothing under a pointer dangles on the branch where it is null.
@@ -276,16 +276,6 @@ atReturns summary getters fn =
         (Just (p, FalseBranch), FalseBranch) -> forgetUnder p facts
         _                                    -> facts
     forgetUnder p facts = facts { dangling = Map.filterWithKey (\k _ -> not (p `isPathPrefixOf` k)) (dangling facts) }
-    -- Check if a branch on an error flag is feasible for the flag values.
-    holds flags cond e = case unFix' (strip cond) of
-        BinaryExpr (Fix (VarExpr (L _ _ v))) op r
-            | Just c <- constName r, Just c' <- Map.lookup (Text.unpack v) flags, op `elem` [BopEq, BopNe] ->
-                let equal = c == c'
-                in case e of
-                    TrueBranch  -> if op == BopEq then equal else not equal
-                    FalseBranch -> if op == BopEq then not equal else equal
-                    _           -> True
-        _ -> True
     result = solve entry cfg Dataflow
         { transfer     = step
         , edgeTransfer = edge
