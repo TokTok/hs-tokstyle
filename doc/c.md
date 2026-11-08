@@ -1,6 +1,6 @@
 # C-based linters (`check-c`)
 
-There are currently 17 linters implemented.
+There are currently 18 linters implemented.
 
 ## `-Wbool-conversion`
 
@@ -88,6 +88,16 @@ Checks that the size argument passed to a function matches the array size of the
 ## `-Wsizeof`
 
 Checks for `sizeof(buf)` where `buf` is a pointer instead of an array.
+
+## `-Wsizeof-target`
+
+Checks that a `sizeof` passed as a size is the size of a buffer in the same call.
+
+In a call such as `crypto_memzero(key, sizeof(other_key))`, the size must be
+of `key` (or `*key` when it's a pointer). For `memcpy`, either buffer will do.
+
+**Reason:** two buffers often have the same size by chance, such as public
+and secret keys, so the wrong `sizeof` works until one of them changes.
 
 ## `-Wstrict-typedef`
 

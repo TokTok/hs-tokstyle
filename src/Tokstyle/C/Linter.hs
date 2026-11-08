@@ -74,6 +74,7 @@ import qualified Tokstyle.C.Linter.Memzero            as Memzero (descr)
 import qualified Tokstyle.C.Linter.SilentFree         as SilentFree (descr)
 import qualified Tokstyle.C.Linter.SizeArg            as SizeArg (descr)
 import qualified Tokstyle.C.Linter.Sizeof             as Sizeof (descr)
+import qualified Tokstyle.C.Linter.SizeofTarget       as SizeofTarget (descr)
 import qualified Tokstyle.C.Linter.StrictTypedef      as StrictTypedef (descr)
 import qualified Tokstyle.C.Linter.VoidCall           as VoidCall (descr)
 import qualified Tokstyle.C.Linter.Wraparound         as Wraparound (descr,
@@ -98,6 +99,7 @@ linters =
     , SilentFree.descr
     , SizeArg.descr
     , Sizeof.descr
+    , SizeofTarget.descr
     , StrictTypedef.descr
     , VoidCall.descr
     , Wraparound.descr
