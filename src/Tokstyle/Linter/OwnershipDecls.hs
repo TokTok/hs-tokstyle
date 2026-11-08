@@ -29,7 +29,8 @@ import           Language.Cimple.Pretty      (ppNode)
 import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
                                               traverseAst)
 import           Prettyprinter               (hsep, pretty, punctuate, (<+>))
-import           Tokstyle.Common             (backticks, functionName, warnDoc)
+import           Tokstyle.Common             (backticks, functionName,
+                                              isPublicHeader, warnDoc)
 
 
 data DeclInfo = DeclInfo
@@ -91,10 +92,6 @@ isPointerType l (Fix node) = case node of
 
 isThirdParty :: FilePath -> Bool
 isThirdParty path = "third_party/" `List.isInfixOf` path
-
-
-isPublicHeader :: FilePath -> Bool
-isPublicHeader path = any (`List.isSuffixOf` path) ["tox.h", "tox_events.h", "tox_dispatch.h", "toxav.h", "toxencryptsave.h", "tox_options.h", "tox_log_level.h"]
 
 
 checkNullability :: HasDiagnosticInfo at CimplePos => FilePath -> at -> Node (Lexeme Text) -> Maybe DeclInfo -> State Linter ()

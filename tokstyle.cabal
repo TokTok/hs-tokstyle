@@ -35,7 +35,9 @@ library
     Tokstyle.C.Analysis.Liveness
     Tokstyle.Cimple.Analysis.CFG
     Tokstyle.Cimple.Analysis.Destructors
+    Tokstyle.Cimple.Analysis.FunctionPointers
     Tokstyle.Cimple.Analysis.Functions
+    Tokstyle.Cimple.Analysis.Types
     Tokstyle.Cimple.Analysis.Liveness
     Tokstyle.C.Linter.BoolConversion
     Tokstyle.C.Linter.BorrowCheck
@@ -98,6 +100,7 @@ library
     Tokstyle.Linter.TaggedUnion
     Tokstyle.Linter.TypeCheck
     Tokstyle.Linter.TypedefName
+    Tokstyle.Linter.UnboundedGrowth
     Tokstyle.Linter.UnsafeFunc
     Tokstyle.Linter.VarUnusedInScope
     Tokstyle.SemFmt.EnumFromInt
@@ -195,6 +198,7 @@ test-suite testsuite
     Tokstyle.Analysis.SymbolicSpec
     Tokstyle.Cimple.Analysis.CFGSpec
     Tokstyle.Cimple.Analysis.DestructorsSpec
+    Tokstyle.Cimple.Analysis.FunctionPointersSpec
     Tokstyle.Cimple.Analysis.LivenessSpec
     Tokstyle.C.Linter.BoolConversionSpec
     Tokstyle.C.Linter.BorrowCheckSpec
@@ -249,6 +253,7 @@ test-suite testsuite
     Tokstyle.Linter.TaggedUnionSpec
     Tokstyle.Linter.TypeCheckSpec
     Tokstyle.Linter.TypedefNameSpec
+    Tokstyle.Linter.UnboundedGrowthSpec
     Tokstyle.Linter.UnsafeFuncSpec
     Tokstyle.Linter.VarUnusedInScopeSpec
     Tokstyle.LinterSpec

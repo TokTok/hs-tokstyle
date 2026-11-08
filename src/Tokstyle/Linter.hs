@@ -60,6 +60,7 @@ import qualified Tokstyle.Linter.DeclsHaveDefns   as DeclsHaveDefns
 import qualified Tokstyle.Linter.DocComments      as DocComments
 import qualified Tokstyle.Linter.MemoryLifetime   as MemoryLifetime
 import qualified Tokstyle.Linter.TypeCheck        as TypeCheck
+import qualified Tokstyle.Linter.UnboundedGrowth  as UnboundedGrowth
 import qualified Tokstyle.SemFmt.EnumFromInt      as EnumFromInt
 import qualified Tokstyle.SemFmt.EnumToString     as EnumToString
 import qualified Tokstyle.SemFmt.EnumUnpack       as EnumUnpack
@@ -121,6 +122,7 @@ globalLinters =
     , PartialFailure.descr
     , TypeCheck.descr
     , TaggedUnion.descr
+    , UnboundedGrowth.descr
     -- Semantic formatters:
     , EnumFromInt.descr
     , EnumToString.descr

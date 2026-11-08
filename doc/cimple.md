@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 41 linters implemented, out of which 16 perform global analyses.
+There are currently 42 linters implemented, out of which 17 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -444,6 +444,17 @@ Checks that typedef names match the struct/union name. E.g.
 **Reason:** there is no good reason for them to be different, and it adds
 confusion and a potential for C++ code to pick the wrong name and later break
 in refactorings.
+
+## `-Wunbounded-growth` (global)
+
+Checks that every list or array that peers can grow by sending packets
+has a limit. A limit is a check like `count >= MAX` that returns before
+the list grows, in the same function or a caller. Growing at most once for
+each entry of a limited array also counts, and so does moving an entry
+from another list.
+
+**Reason:** otherwise a peer can make us use more and more memory by
+sending packets.
 
 ## `-Wunsafe-func`
 

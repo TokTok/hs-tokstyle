@@ -15,6 +15,7 @@ module Tokstyle.Cimple.Analysis.Functions
     , bare
     , accessPath
     , mapRoot
+    , valuesUsed
     , returnOutcomes
     , branchOn
     , calleeLexeme
@@ -336,3 +337,14 @@ mapRoot f = \case
     PathIndex p i -> PathIndex (mapRoot f p) i
     PathDeref p   -> PathDeref (mapRoot f p)
     p             -> p
+
+-- | Get the names used other than as callees, e.g. a function passed or
+-- stored as a value.
+valuesUsed :: C.Node (Lexeme Text) -> [Text]
+valuesUsed node =
+    [ v
+    | Fix n <- universe node
+    , v <- case n of
+        FunctionCall _ args -> [ v' | Fix (VarExpr (L _ _ v')) <- args ]
+        _                   -> [ v' | Fix (VarExpr (L _ _ v')) <- foldr (:) [] n ]
+    ]

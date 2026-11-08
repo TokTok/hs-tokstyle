@@ -3,6 +3,7 @@
 module Tokstyle.Common
     ( functionName
     , isPointer
+    , isPublicHeader
     , semEq
     , skip
     , warn
@@ -79,3 +80,7 @@ dquotes d = pretty '"' <> d <> pretty '"'
 
 (>+>) :: Monad m => (t -> m ()) -> (t -> m ()) -> t -> m ()
 (>+>) f g x = f x >> g x
+
+
+isPublicHeader :: FilePath -> Bool
+isPublicHeader path = any (`List.isSuffixOf` path) ["tox.h", "tox_events.h", "tox_dispatch.h", "toxav.h", "toxencryptsave.h", "tox_options.h", "tox_log_level.h"]
