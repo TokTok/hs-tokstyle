@@ -402,7 +402,8 @@ given as they were.
 A length changed anyway no longer matches the array, and the work that was
 meant to go with the change, such as telling a callback, never happens.
 
-Also checks that a failure destroys what the failures before it destroy, so
+Also checks that a failure destroys what the failures before it destroy, or
+what other callers usually destroy when they fail after the same call, so
 that what the function made is not left behind for a caller who was told
 nothing was made.
 
