@@ -317,18 +317,58 @@ conventions befores = Map.keysSet . Map.filter (>= (2 :: Int)) $
 -- | Find destructor calls on a local immediately before failure returns that
 -- are the function's cleanup convention.
 failureCleanups :: Destructors -> Function -> Set (Text, String)
-failureCleanups ds fn = conventions
-    [ Set.fromList
-        [ (name, v)
-        | Fix (ExprStmt call@(Fix (FunctionCall callee _))) <- before
-        , L _ _ name <- [calleeLexeme callee]
-        , Fix (VarExpr (L _ _ v')) <- map strip (destroyed ds call)
-        , let v = Text.unpack v', v `Set.member` locals
-        ]
-    | (_, before) <- failureReturns fn
+failureCleanups ds fn = conventions [ Set.fromList (cleanupsBefore ds fn before) | (_, before) <- failureReturns fn ]
+
+-- | Find destructor calls on locals.
+cleanupsBefore :: Destructors -> Function -> [C.Node (Lexeme Text)] -> [(Text, String)]
+cleanupsBefore ds fn before =
+    [ (name, v)
+    | Fix (ExprStmt call@(Fix (FunctionCall callee _))) <- before
+    , L _ _ name <- [calleeLexeme callee]
+    , Fix (VarExpr (L _ _ v')) <- map strip (destroyed ds call)
+    , let v = Text.unpack v', v `Set.member` locals
     ]
   where
     locals = pointerLocals fn
+
+-- | Find the call each local got its value from, directly or as the index of
+-- the slot it points at. A local given values by more than one call has none.
+acquirers :: Function -> Map String Text
+acquirers fn = Map.mapMaybe single . Map.fromListWith Set.union $
+    [ (v, Set.singleton c) | (v, r) <- given, Just c <- [from r] ]
+  where
+    from r = case bare r of
+        Fix (FunctionCall callee _) | L _ _ c <- calleeLexeme callee -> Just c
+        _                                                           -> slotFrom calls r
+    given = [ (v, r) | (v, Just r) <- localDecls (fnDefn fn) ]
+        ++ [ (v, r) | (v, rs) <- Map.toList (assignments (fnDefn fn)), r <- rs ]
+    calls = Map.mapMaybe single $ Map.fromListWith Set.union
+        [ (v, Set.singleton c) | (v, r) <- given, Fix (FunctionCall callee _) <- [bare r], L _ _ c <- [calleeLexeme callee] ]
+    single s = case Set.toList s of
+        [c] -> Just c
+        _   -> Nothing
+
+-- | Find the call that gave the index of the slot a value points at.
+slotFrom :: Map String Text -> C.Node (Lexeme Text) -> Maybe Text
+slotFrom calls r = case bare r of
+    Fix (UnaryExpr UopAddress (Fix (ArrayAccess _ i))) | Fix (VarExpr (L _ _ w)) <- bare i -> Map.lookup (Text.unpack w) calls
+    _ -> Nothing
+
+-- | Find the cleanups that callers of a function usually do when they fail
+-- after it: at least twice, and more often than not, as callers of a lookup
+-- seldom destroy what it found.
+callerCleanups :: Destructors -> Map Text (Int, Set Text) -> [Function] -> Set (Text, Text)
+callerCleanups ds statuses fns = Map.keysSet (Map.filterWithKey usual cleaned)
+  where
+    cleaned = Map.fromListWith (+)
+        [ (k, 1 :: Int)
+        | fn <- fns, let got = acquirers fn, (_, before) <- failureReturns fn
+        , k <- Set.toList (Set.fromList [ (c, name) | (name, v) <- cleanupsBefore ds fn before, Just c <- [Map.lookup v got] ]) ]
+    skipped = Map.fromListWith (+)
+        [ (c, 1 :: Int)
+        | fn <- fns, let got = acquirers fn, (_, owned) <- ownedAtFailures ds statuses fn
+        , c <- Set.toList (Set.fromList (mapMaybe (`Map.lookup` got) (Set.toList owned))) ]
+    usual (c, _) n = n >= 2 && n > Map.findWithDefault 0 c skipped
 
 pointerLocals :: Function -> Set String
 pointerLocals fn = Set.fromList
@@ -391,12 +431,14 @@ ownedAtFailures ds statuses fn =
   where
     (entry, cfg) = fromFunction (fnDefn fn)
     locals = pointerLocals fn
+    got = acquirers fn
     step n owned = case n of
         Node _ (StmtNode (Fix (VarDeclStmt (Fix (VarDecl _ (L _ _ v) _)) ini))) ->
             acquire (Text.unpack v) ini owned
         _ -> List.foldl' (flip expr) owned (nodeExprs n)
     acquire v ini owned
         | Just (Fix FunctionCall{}) <- strip <$> ini, v `Set.member` locals = Set.insert v owned
+        | Just _ <- slotFrom got =<< ini, v `Set.member` locals = Set.insert v owned
         | otherwise = Set.delete v owned
     expr e owned = List.foldl' (flip effect) owned (universe e)
     effect (Fix node) owned = case node of
@@ -451,17 +493,22 @@ ownedAtFailures ds statuses fn =
         , initial      = Set.empty
         }
 
--- | Find failure returns where a local the function cleans up before other
--- failure returns may still be owned.
-skippedCleanups :: Destructors -> Map Text (Int, Set Text) -> Function -> [(C.Node (Lexeme Text), (Text, String))]
-skippedCleanups ds statuses fn =
-    [ (ret, c)
+-- | Find failure returns that may skip a cleanup: one the function does before
+-- other failure returns, or one that other callers of the call a local came
+-- from usually do (with that call).
+skippedCleanups :: Destructors -> Map Text (Int, Set Text) -> Set (Text, Text) -> Function -> [(C.Node (Lexeme Text), (Text, String), Maybe Text)]
+skippedCleanups ds statuses callers fn =
+    [ found
     | (ret, owned) <- ownedAtFailures ds statuses fn
-    , c@(_, v) <- Set.toList pairs
-    , v `Set.member` owned
+    , found <- [ (ret, c, Nothing) | c@(_, v) <- Set.toList pairs, v `Set.member` owned ]
+        ++ [ (ret, (name, v), Just from)
+           | v <- Set.toList owned, Just from <- [Map.lookup v got]
+           , (from', name) <- Set.toList callers, from' == from
+           , (name, v) `Set.notMember` pairs ]
     ]
   where
     pairs = failureCleanups ds fn
+    got = acquirers fn
 
 analyse :: [(FilePath, [C.Node (Lexeme Text)])] -> [Diagnostic CimplePos]
 analyse tus = reverse $ State.execState (mapM_ report reports >> mapM_ reportSkipped skipped) []
@@ -479,10 +526,17 @@ analyse tus = reverse $ State.execState (mapM_ report reports >> mapM_ reportSki
         , (p, (_, at)) <- Map.toList changes ]
     statuses = statusFunctions fns
     ds = destructors tus
-    skipped = [ (f, ret, c) | f <- fns, (ret, c) <- skippedCleanups ds statuses f ]
+    callers = callerCleanups ds statuses fns
+    skipped = [ (f, ret, c, from) | f <- fns, (ret, c, from) <- skippedCleanups ds statuses callers f ]
 
-reportSkipped :: (Function, C.Node (Lexeme Text), (Text, String)) -> State [Diagnostic CimplePos] ()
-reportSkipped (fn, ret, (name, v)) = do
+reportSkipped :: (Function, C.Node (Lexeme Text), (Text, String), Maybe Text) -> State [Diagnostic CimplePos] ()
+reportSkipped (fn, ret, (name, v), Just from) = do
+    let (pos, len) = getDiagnosticInfo (fnFile fn) ret
+    warnRich $ Diagnostic pos len ErrorLevel
+        (backticks (pretty (fnName fn)) <+> "fails without calling" <+> backticks (pretty name)
+            <+> "on" <+> backticks (pretty v) <> ", which other callers of" <+> backticks (pretty from) <+> "do when they fail after it")
+        Nothing [DiagnosticSpan pos len ["fails here"]] []
+reportSkipped (fn, ret, (name, v), Nothing) = do
     let file = fnFile fn
         (pos, len) = getDiagnosticInfo file ret
         cleanups = Map.elems $ Map.fromList
@@ -518,7 +572,8 @@ descr = (analyse, ("partial-failure", Text.unlines
     , "A length changed anyway no longer matches the array, and the work that was"
     , "meant to go with the change, such as telling a callback, never happens."
     , ""
-    , "Also checks that a failure destroys what the failures before it destroy, so"
+    , "Also checks that a failure destroys what the failures before it destroy, or"
+    , "what other callers usually destroy when they fail after the same call, so"
     , "that what the function made is not left behind for a caller who was told"
     , "nothing was made."
     ]))
