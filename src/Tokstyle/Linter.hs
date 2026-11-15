@@ -47,6 +47,7 @@ import qualified Tokstyle.Linter.NulTerminated    as NulTerminated
 import qualified Tokstyle.Linter.OwnershipDecls   as OwnershipDecls
 import qualified Tokstyle.Linter.Parens           as Parens
 import qualified Tokstyle.Linter.PartialFailure   as PartialFailure
+import qualified Tokstyle.Linter.ReadAfterReset   as ReadAfterReset
 import qualified Tokstyle.Linter.SwitchIf         as SwitchIf
 import qualified Tokstyle.Linter.TaggedUnion      as TaggedUnion
 import qualified Tokstyle.Linter.TypedefName      as TypedefName
@@ -120,6 +121,7 @@ globalLinters =
     , NulTerminated.descr
     , OwnershipDecls.descr
     , PartialFailure.descr
+    , ReadAfterReset.descr
     , TypeCheck.descr
     , TaggedUnion.descr
     , UnboundedGrowth.descr

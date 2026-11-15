@@ -1,6 +1,6 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 42 linters implemented, out of which 17 perform global analyses.
+There are currently 43 linters implemented, out of which 18 perform global analyses.
 In the list below, the global ones are marked specially.
 
 ## `-Wassert`
@@ -406,6 +406,15 @@ Also checks that a failure destroys what the failures before it destroy, or
 what other callers usually destroy when they fail after the same call, so
 that what the function made is not left behind for a caller who was told
 nothing was made.
+
+## `-Wread-after-reset` (global)
+
+Checks that no field is read after a call overwrote the whole object it is in.
+A function overwrites what its caller passed as `p` if it sets `*p` to a value
+that doesn't depend on its caller, e.g. an empty object.
+
+**Reason:** the field then has the new value, usually 0, and not the one it had,
+e.g. a message is acknowledged with id 0 after its entry was cleared.
 
 ## `-Wstruct-pack` (global)
 

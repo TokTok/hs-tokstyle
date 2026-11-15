@@ -96,6 +96,7 @@ library
     Tokstyle.Linter.NulTerminated
     Tokstyle.Linter.OwnershipDecls
     Tokstyle.Linter.PartialFailure
+    Tokstyle.Linter.ReadAfterReset
     Tokstyle.Linter.Parens
     Tokstyle.Linter.SwitchIf
     Tokstyle.Linter.TaggedUnion
@@ -250,6 +251,7 @@ test-suite testsuite
     Tokstyle.Linter.NulTerminatedSpec
     Tokstyle.Linter.OwnershipDeclsSpec
     Tokstyle.Linter.PartialFailureSpec
+    Tokstyle.Linter.ReadAfterResetSpec
     Tokstyle.Linter.ParensSpec
     Tokstyle.Linter.SwitchIfSpec
     Tokstyle.Linter.TaggedUnionSpec
