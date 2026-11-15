@@ -31,6 +31,21 @@ spec = describe "Conversion linter" $ do
                  , "    |          ^"
                  ]]
 
+        it "warns on initialising a narrower integer" $ do
+            shouldWarn'
+                [ "typedef unsigned long long uint64_t;"
+                , "typedef unsigned short uint16_t;"
+                , "void func(uint64_t id) {"
+                , "  const uint16_t start = id;"
+                , "}"
+                ]
+                [[ "error: invalid conversion from `uint64_t` to `uint16_t` in initialiser [-Wconversion]"
+                 , "   --> test.c:4:26"
+                 , "    |"
+                 , "   4|   const uint16_t start = id;"
+                 , "    |                          ^^"
+                 ]]
+
     describe "valid conversions" $ do
         it "allows casting to void*" $ do
             shouldAccept'

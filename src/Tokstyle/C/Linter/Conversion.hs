@@ -2,32 +2,35 @@
 {-# LANGUAGE Strict            #-}
 module Tokstyle.C.Linter.Conversion (descr) where
 
-import           Control.Monad                   (unless)
-import           Data.Functor.Identity           (Identity)
-import           Data.List                       (isSuffixOf)
-import           Data.Text                       (Text)
-import           Language.C.Analysis.AstAnalysis (ExprSide (..), tExpr)
-import           Language.C.Analysis.SemRep      (FunDef (..), FunType (..),
-                                                  GlobalDecls, IdentDecl (..),
-                                                  IntType (..), Type (..),
-                                                  TypeName (..), VarDecl (..),
-                                                  mergeTypeQuals, noTypeQuals)
-import           Language.C.Analysis.TravMonad   (MonadTrav, Trav, TravT)
-import           Language.C.Analysis.TypeUtils   (canonicalType, sameType,
-                                                  typeQualsUpd)
-import           Language.C.Data.Node            (NodeInfo)
-import           Language.C.Data.Position        (posFile, posOf)
-import qualified Language.C.Pretty               as C
-import           Language.C.Syntax.AST           (Annotated, CAssignOp (..),
-                                                  CExpr, CExpression (..),
-                                                  CStatement (..), annotation)
-import           Prettyprinter                   (pretty, (<+>))
-import qualified Tokstyle.C.Env                  as Env
-import           Tokstyle.C.Env                  (Env, recordLinterError)
+import           Control.Monad                    (unless)
+import           Data.Functor.Identity            (Identity)
+import           Data.List                        (isSuffixOf)
+import           Data.Text                        (Text)
+import           Language.C.Analysis.AstAnalysis  (ExprSide (..), tExpr)
+import           Language.C.Analysis.DeclAnalysis (analyseTypeDecl)
+import           Language.C.Analysis.SemRep       (FunDef (..), FunType (..),
+                                                   GlobalDecls, IdentDecl (..),
+                                                   IntType (..), Type (..),
+                                                   TypeName (..), VarDecl (..),
+                                                   mergeTypeQuals, noTypeQuals)
+import           Language.C.Analysis.TravMonad    (MonadTrav, Trav, TravT)
+import           Language.C.Analysis.TypeUtils    (canonicalType, sameType,
+                                                   typeQualsUpd)
+import           Language.C.Data.Position         (posFile, posOf)
+import qualified Language.C.Pretty                as C
+import           Language.C.Syntax.AST            (CAssignOp (..),
+                                                   CDeclaration (..),
+                                                   CDeclarator (..), CExpr,
+                                                   CExpression (..),
+                                                   CInitializer (..),
+                                                   CStatement (..), annotation)
+import           Prettyprinter                    (pretty, (<+>))
+import qualified Tokstyle.C.Env                   as Env
+import           Tokstyle.C.Env                   (Env, recordLinterError)
 import           Tokstyle.C.Patterns
-import           Tokstyle.C.TraverseAst          (AstActions (..), astActions,
-                                                  traverseAst)
-import           Tokstyle.C.TravUtils            (backticks)
+import           Tokstyle.C.TraverseAst           (AstActions (..), astActions,
+                                                   traverseAst)
+import           Tokstyle.C.TravUtils             (backticks)
 
 typeEq :: Type -> Type -> Bool
 typeEq a b = sameType (canon a) (canon b)
@@ -37,12 +40,12 @@ typeEq a b = sameType (canon a) (canon b)
 removeQuals :: Type -> Type
 removeQuals = typeQualsUpd (mergeTypeQuals noTypeQuals)
 
-checkConversion :: (Annotated node) => String -> (CExpr, Type) -> (node NodeInfo, Type) -> TravT Env Identity ()
+checkConversion :: String -> (CExpr, Type) -> Type -> TravT Env Identity ()
 -- Ignore cmp.c, it does a lot of implicit conversions.
 -- TODO(iphydf): Maybe it shouldn't? UBSAN also warns about it.
-checkConversion _ (r, _) (_, _) | "cmp/cmp.c" `isSuffixOf` posFile (posOf (annotation r)) = return ()
+checkConversion _ (r, _) _ | "cmp/cmp.c" `isSuffixOf` posFile (posOf (annotation r)) = return ()
 
-checkConversion context (r, rTy') (_, lTy') =
+checkConversion context (r, rTy') lTy' =
     unless isAllowed $
         recordLinterError (annotation r) $
             "invalid conversion from" <+> backticks (pretty rTyName) <+> "to" <+>
@@ -107,10 +110,10 @@ checkConversion context (r, rTy') (_, lTy') =
     isPtr ArrayType{} = True
     isPtr _           = False
 
-checkAssign :: String -> (CExpr, Type) -> (CExpr, Type) -> TravT Env Identity ()
+checkAssign :: String -> Type -> (CExpr, Type) -> TravT Env Identity ()
 checkAssign _ _ (CConst{}, _) = return ()
 checkAssign _ _ (CCast{}, _)  = return ()
-checkAssign c l r             = checkConversion c r l
+checkAssign c lTy r           = checkConversion c r lTy
 
 
 linter :: AstActions (TravT Env Identity)
@@ -119,14 +122,29 @@ linter = astActions
         CAssign CAssignOp l r _ -> do
             lTy <- tExpr [] LValue l
             rTy <- tExpr [] RValue r
-            checkAssign "assignment" (l, lTy) (r, rTy)
+            checkAssign "assignment" lTy (r, rTy)
+        _ -> act
+
+    , doDecl = \node act -> case node of
+        CDecl specs ds ni -> do
+            sequence_
+                [ do
+                    -- The type of the declaration without its name and initialiser.
+                    let abstract = CDeclr Nothing derived asm attrs dni
+                    lTy <- analyseTypeDecl (CDecl specs [(Just abstract, Nothing, Nothing)] ni)
+                    rTy <- tExpr [] RValue r
+                    checkAssign "initialiser" lTy (r, rTy)
+                | (Just (CDeclr _ derived asm attrs dni), Just (CInitExpr r _), _)
+                    <- ds
+                ]
+            act
         _ -> act
 
     , doStat = \node act -> case node of
         CReturn (Just expr) _ -> do
             retTy <- Env.getRetTy
             exprTy <- tExpr [] RValue expr
-            checkConversion "return" (expr, exprTy) (expr, retTy)
+            checkConversion "return" (expr, exprTy) retTy
             act
         _ -> act
 
