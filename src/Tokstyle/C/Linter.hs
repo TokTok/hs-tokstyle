@@ -134,9 +134,7 @@ analyseProgram enabled units = parMap rpar check (zip analysed observed)
     analysed = parMap rpar (\(file, tu) -> (file, analyseUnit tu)) units
 
     looksAt = [ p | (flag, p) <- intervalLinters, flag `elem` enabled ]
-    observed
-        | null looksAt = map (const ([], [])) analysed
-        | otherwise = parMap rpar (observeUnit (\fd -> any ($ fd) looksAt)) analysed
+    observed = parMap rpar (observeUnit (\fd -> any ($ fd) looksAt)) analysed
     prog = programFrom (concatMap fst observed)
 
     check ((_, Left errs), _) = map toLinterError errs

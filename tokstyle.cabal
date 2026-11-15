@@ -32,6 +32,7 @@ library
     Tokstyle.C.Analysis.Program
     Tokstyle.C.Analysis.Syntax
     Tokstyle.C.Analysis.Types
+    Tokstyle.C.Analysis.Wipes
     Tokstyle.C.Analysis.Liveness
     Tokstyle.Cimple.Analysis.CFG
     Tokstyle.Cimple.Analysis.Destructors
