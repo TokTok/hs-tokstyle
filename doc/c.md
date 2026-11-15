@@ -66,6 +66,10 @@ Checks for memset calls on types that contain pointers.
 Checks that a local wiped with `crypto_memzero` on some paths through a
 function is wiped on every path that returns after writing it.
 
+Also checks that the output of a function that reads no input, such as a key
+generator, is wiped by all callers if any caller wipes it. Outputs that some
+caller returns, and locals that are never read, are not checked.
+
 **Reason:** a wipe says the local holds a secret, such as a key or a
 password. An early return that skips the wipe, often on an error path,
 leaves that secret on the stack.

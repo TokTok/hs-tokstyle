@@ -63,6 +63,7 @@ import           Tokstyle.C.Analysis.Syntax       (exprChildren, initExprs,
                                                    localDecls, statExprs)
 import           Tokstyle.C.Analysis.Types        (FieldKey, exprType, fieldKey,
                                                    funKey, funType, structTag)
+import           Tokstyle.C.Analysis.Wipes        (Arg, outputs)
 
 
 -- | Values seen for a field, a result or a parameter, with their type if
@@ -98,6 +99,10 @@ data Observation
     | Unbounded String Int
     -- ^ How far one of a function's accesses reaches into what a pointer
     -- parameter points to isn't a multiple of a parameter plus a constant.
+    | WipedOutput Arg
+    -- ^ A caller wipes what a function makes in one of its arguments.
+    | ReturnedOutput Arg
+    -- ^ A caller returns what a function makes in one of its arguments.
 
 type Observed = [Observation]
 
@@ -151,6 +156,7 @@ programFrom obs = Program
         ]
     , progSelects = Map.fromListWith Set.union
         [ (k, Set.singleton n) | Selects k n <- obs, k `Set.member` defined ]
+    , progSecrets = Set.fromList [ a | WipedOutput a <- obs ] `Set.difference` Set.fromList [ a | ReturnedOutput a <- obs ]
     }
   where
     defined = Set.fromList [ f | Defined f <- obs ]
@@ -200,9 +206,11 @@ programFrom obs = Program
 -- functions it defines that are wanted.
 observe :: MonadTrav m => (FunDef -> Bool) -> FilePath -> Map String [IdentDecl] -> GlobalDecls -> m (Observed, [Analysed])
 observe wanted unit locals decls = do
-    perFunction <- forM [ (i, fd) | FunctionDef fd@(FunDef (VarDecl (VarName i _) _ _) _ _) <- objs ] $ \(i, fd) -> do
+    perFunction <- forM [ (i, fd, body) | FunctionDef fd@(FunDef (VarDecl (VarName i _) _ _) body _) <- objs ] $ \(i, fd, body) -> do
         (o, analysed) <- observeFunction unit (Map.findWithDefault [] (identToString i) locals) fd
-        return (o, [ analysed | wanted fd ])
+        (wipedOuts, returnedOuts) <- outputs body
+        let outs = map WipedOutput (Set.toList wipedOuts) ++ map ReturnedOutput (Set.toList returnedOuts)
+        return (o ++ outs, [ analysed | wanted fd ])
     perObject <- forM [ od | ObjectDef od <- objs ] (observeObject unit)
     return ( concatMap fst perFunction ++ concat perObject ++ structs ++ sources
            , concatMap snd perFunction )

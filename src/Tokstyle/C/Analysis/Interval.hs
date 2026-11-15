@@ -88,6 +88,7 @@ import           Tokstyle.C.Analysis.Syntax       (exprChildren, initExprs,
                                                    localDecls, statExprs)
 import           Tokstyle.C.Analysis.Types        (FieldKey, exprType, fieldKey,
                                                    funKey, funType)
+import           Tokstyle.C.Analysis.Wipes        (Arg)
 
 
 data IntTy = IntTy
@@ -280,11 +281,13 @@ data Program = Program
     , progSelects :: Map String (Set Int)
     -- ^ For each function the program defines, the integer parameters it
     -- compares and returns, as @min@ and @max@ do.
+    , progSecrets :: Set Arg
+    -- ^ The arguments whose output some caller wipes and none returns.
     }
     deriving (Eq)
 
 emptyProgram :: Program
-emptyProgram = Program Map.empty Map.empty Map.empty Map.empty Map.empty
+emptyProgram = Program Map.empty Map.empty Map.empty Map.empty Map.empty Set.empty
 
 -- | Where a function is analysed. The locals it can track are its parameters
 -- and the locals it declares once, if it never takes their address. The
