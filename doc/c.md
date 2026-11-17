@@ -113,10 +113,14 @@ role-based types.
 Checks that an integer parameter of a function a client can call, which can
 be any value, is only stored in a narrower variable or passed as a narrower
 parameter without a cast if the conditions that guard it leave values that
-fit.
+fit. Also checks that a sum or a product that doesn't fit in a narrower
+variable isn't stored in it without a cast and compared after, by the function
+itself or by one like `min` that compares a parameter and returns it.
 
 **Reason:** a `size_t` length passed as a `uint16_t` drops its top bits, so a
-length check after that passes for a length of 65539 as if it were 3.
+length check after that passes for a length of 65539 as if it were 3. E.g.
+65550 seconds stored in a `uint16_t` and then limited to an hour are 14
+seconds.
 
 ## `-Wvoid-call`
 
