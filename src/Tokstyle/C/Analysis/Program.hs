@@ -8,7 +8,8 @@
 -- the values it returns, and a static function's parameters are the values its
 -- direct calls pass, as long as nothing takes its address. A function's reach
 -- into what a pointer parameter points to is the furthest of its own accesses
--- there, as long as its parameters bound each of them.
+-- there, as long as its parameters bound each of them. A function selects a
+-- parameter if it compares it and returns it, as @min@ and @max@ do.
 module Tokstyle.C.Analysis.Program
     ( Observed
     , Analysed
@@ -86,6 +87,8 @@ data Observation
     | Reaches String Reach
     -- ^ How far one of a function's accesses reaches into what a pointer
     -- parameter points to.
+    | Selects String Int
+    -- ^ A function compares one of its integer parameters and returns it.
     | Unbounded String Int
     -- ^ How far one of a function's accesses reaches into what a pointer
     -- parameter points to isn't a multiple of a parameter plus a constant.
@@ -140,6 +143,8 @@ programFrom obs = Program
         , (k, p) `Set.notMember` unbounded
         , all ((== l) . reachLength) rs
         ]
+    , progSelects = Map.fromListWith Set.union
+        [ (k, Set.singleton n) | Selects k n <- obs, k `Set.member` defined ]
     }
   where
     defined = Set.fromList [ f | Defined f <- obs ]
@@ -239,9 +244,23 @@ observeFunction unit locals fd@(FunDef (VarDecl self _ fty) body _) = do
                       | (_, facts, terms) <- nodes, t <- concatMap subTerms terms, acc <- accesses emptyProgram t
                       , Just p <- [pointerParam (accBuffer acc)] ]
             Nothing -> []
+    let returnedParams = [ v | (Node _ (StatNode CReturn{}), _, terms) <- nodes, t <- terms, v <- results t ]
+    let selects = case key of
+            Just k -> [ Selects k n
+                      | (_, _, terms) <- nodes, t <- concatMap subTerms terms
+                      , TBin op a b <- [termKind t], op `elem` [CLeOp, CGrOp, CLeqOp, CGeqOp]
+                      , x <- [a, b], v <- results x, v `elem` returnedParams
+                      , Just (n, ty) <- [lookup v ownParams], isJust (intType ty) ]
+            Nothing -> []
     inits <- foldMapM localInit [ (i, ni, ini) | CDecl _ ds _ <- localDecls body, (Just (CDeclr (Just i) _ _ _ ni), Just ini@CInitList{}, _) <- ds ]
-    return (concat perNode ++ syntactic ++ inits ++ reaches ++ map Defined (maybeToList key), (fd, fn, nodes))
+    return (concat perNode ++ syntactic ++ inits ++ reaches ++ selects ++ map Defined (maybeToList key), (fd, fn, nodes))
   where
+    -- The local an expression reads, or those in the branches of `?:`.
+    results x = case termKind x of
+        TLoad (PathVar v) -> [v]
+        TCast a           -> results a
+        TCond _ m f       -> maybe [] results m ++ results f
+        _                 -> []
     -- The parameters that keep the values the caller passes.
     ownParams = case fty of
         FunctionType (FunType _ ps _) _ ->
