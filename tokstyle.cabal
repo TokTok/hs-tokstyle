@@ -56,6 +56,7 @@ library
     Tokstyle.C.Linter.SizeofTarget
     Tokstyle.C.Linter.StrictTypedef
     Tokstyle.C.Linter.VoidCall
+    Tokstyle.C.Linter.Truncation
     Tokstyle.C.Linter.Wraparound
     Tokstyle.C.Patterns
     Tokstyle.C.TravUtils
@@ -219,6 +220,7 @@ test-suite testsuite
     Tokstyle.C.Linter.SizeofTargetSpec
     Tokstyle.C.Linter.StrictTypedefSpec
     Tokstyle.C.Linter.VoidCallSpec
+    Tokstyle.C.Linter.TruncationSpec
     Tokstyle.C.Linter.WraparoundSpec
     Tokstyle.C.LinterSpec
     Tokstyle.Linter.AssertSpec

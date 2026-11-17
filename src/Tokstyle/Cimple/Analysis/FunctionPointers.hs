@@ -28,7 +28,7 @@ import           Tokstyle.Cimple.Analysis.Functions (Function (..), constName,
 import           Tokstyle.Cimple.Analysis.Types     (Structs, bare,
                                                      callbackType, structName,
                                                      structs, typeIn)
-import           Tokstyle.Common                    (isPublicHeader)
+import           Tokstyle.Common                    (isClientHeader)
 
 
 data Targets
@@ -80,12 +80,11 @@ fieldTargets tus = Map.fromList [ (k, t) | (Left k, t) <- Map.toList resolved ]
             _                                                         -> []
         | (_, nodes) <- tus, node <- nodes, Fix n <- universe node ]
     isCallback s f = isJust (Map.lookup s types >>= Map.lookup f >>= callbackType)
-    clientFile file = isPublicHeader file || "tox_private.h" `List.isSuffixOf` file
 
     -- Clients set the structs in public headers and @tox_private.h@.
     public =
         [ ((s, f), Value (Anything Set.empty))
-        | (file, nodes) <- tus, clientFile file
+        | (file, nodes) <- tus, isClientHeader file
         , node <- nodes, Fix n <- universe node
         , s <- case n of
             Struct (L _ _ s') _                     -> [s']
@@ -147,7 +146,7 @@ fieldTargets tus = Map.fromList [ (k, t) | (Left k, t) <- Map.toList resolved ]
     open = Set.union clientCalled usedAsValue
     clientCalled = Set.fromList
         [ name
-        | (file, nodes) <- tus, clientFile file, node <- nodes
+        | (file, nodes) <- tus, isClientHeader file, node <- nodes
         , Fix (FunctionDecl _ (Fix (FunctionPrototype _ (L _ _ name) _))) <- universe node ]
     usedAsValue = Set.fromList
         [ g | (_, nodes) <- tus, node <- nodes, g <- valuesUsed node, g `Set.member` functions ]

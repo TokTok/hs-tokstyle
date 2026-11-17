@@ -2,6 +2,7 @@
 {-# LANGUAGE Strict           #-}
 module Tokstyle.Common
     ( functionName
+    , isClientHeader
     , isPointer
     , isPublicHeader
     , semEq
@@ -84,3 +85,8 @@ dquotes d = pretty '"' <> d <> pretty '"'
 
 isPublicHeader :: FilePath -> Bool
 isPublicHeader path = any (`List.isSuffixOf` path) ["tox.h", "tox_events.h", "tox_dispatch.h", "toxav.h", "toxencryptsave.h", "tox_options.h", "tox_log_level.h"]
+
+-- | Whether a client can use what the header declares: the public headers and
+-- @tox_private.h@.
+isClientHeader :: FilePath -> Bool
+isClientHeader path = isPublicHeader path || "tox_private.h" `List.isSuffixOf` path

@@ -1,6 +1,6 @@
 # C-based linters (`check-c`)
 
-There are currently 18 linters implemented.
+There are currently 19 linters implemented.
 
 ## `-Wbool-conversion`
 
@@ -107,6 +107,16 @@ This linter ensures that logically distinct types (represented by different
 typedefs) are not accidentally mixed, even if they have the same underlying
 representation. This is particularly useful for identifiers, indices, and
 role-based types.
+
+## `-Wtruncation`
+
+Checks that an integer parameter of a function a client can call, which can
+be any value, is only stored in a narrower variable or passed as a narrower
+parameter without a cast if the conditions that guard it leave values that
+fit.
+
+**Reason:** a `size_t` length passed as a `uint16_t` drops its top bits, so a
+length check after that passes for a length of 65539 as if it were 3.
 
 ## `-Wvoid-call`
 

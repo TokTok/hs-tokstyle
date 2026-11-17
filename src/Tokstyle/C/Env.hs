@@ -69,10 +69,13 @@ data Env = Env
     , analysed      :: [Analysed]
     -- ^ The functions of the translation unit the interval linters look at,
     -- analysed knowing nothing about the rest of the program.
+    , declaredIn    :: Map String FilePath
+    -- ^ The file each function is first declared in, which language-c forgets
+    -- once it sees the definition.
     }
 
 defaultEnv :: Env
-defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing emptyProgram Map.empty [] []
+defaultEnv = Env ["file"] Nothing [] Map.empty Map.empty Nothing [] Nothing emptyProgram Map.empty [] [] Map.empty
 
 
 bracketUserState :: (Env -> Env) -> Trav Env a -> Trav Env a

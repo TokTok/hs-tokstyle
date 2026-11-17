@@ -25,7 +25,8 @@ import           Data.Text                            (Text)
 import qualified Data.Text                            as Text
 import qualified Data.Text.Encoding                   as Text
 import           Language.C.Analysis.AstAnalysis      (analyseAST)
-import           Language.C.Analysis.SemRep           (DeclEvent (..),
+import           Language.C.Analysis.SemRep           (Decl (..),
+                                                       DeclEvent (..),
                                                        FunDef (..), GlobalDecls,
                                                        IdentDecl (..),
                                                        VarDecl (..),
@@ -39,6 +40,7 @@ import           Language.C.Analysis.TravMonad        (CLanguage (..), Trav,
                                                        withExtDeclHandler)
 import           Language.C.Data.Error                (CError, errorPos)
 import           Language.C.Data.Ident                (identToString)
+import           Language.C.Data.Node                 (posOfNode)
 import           Language.C.Data.Position             (isSourcePos)
 import qualified Language.C.Data.Position             as C
 import           Language.C.Syntax.AST                (CTranslUnit)
@@ -50,6 +52,7 @@ import qualified Language.Cimple.Diagnostics          as Diagnostics
 import           Tokstyle.C.Analysis.Interval         (Program, emptyProgram)
 import           Tokstyle.C.Analysis.Program          (Analysed, Observed,
                                                        observe, programFrom)
+import           Tokstyle.Common                      ((>+>))
 
 import           Prettyprinter                        (Doc, pretty)
 import           Prettyprinter.Render.Terminal        (AnsiStyle)
@@ -76,6 +79,8 @@ import qualified Tokstyle.C.Linter.SizeArg            as SizeArg (descr)
 import qualified Tokstyle.C.Linter.Sizeof             as Sizeof (descr)
 import qualified Tokstyle.C.Linter.SizeofTarget       as SizeofTarget (descr)
 import qualified Tokstyle.C.Linter.StrictTypedef      as StrictTypedef (descr)
+import qualified Tokstyle.C.Linter.Truncation         as Truncation (descr,
+                                                                     looksAt)
 import qualified Tokstyle.C.Linter.VoidCall           as VoidCall (descr)
 import qualified Tokstyle.C.Linter.Wraparound         as Wraparound (descr,
                                                                      looksAt)
@@ -101,6 +106,7 @@ linters =
     , Sizeof.descr
     , SizeofTarget.descr
     , StrictTypedef.descr
+    , Truncation.descr
     , VoidCall.descr
     , Wraparound.descr
     ]
@@ -111,6 +117,7 @@ linters =
 intervalLinters :: [(Text, FunDef -> Bool)]
 intervalLinters =
     [ ("buffer-size", BufferSize.looksAt)
+    , ("truncation", Truncation.looksAt)
     , ("wraparound", Wraparound.looksAt)
     ]
 
@@ -153,7 +160,7 @@ analyseProgram enabled units = parMap rpar check (zip analysed observed)
 analyseUnit :: CTranslUnit -> Either [CError] (GlobalDecls, TravState Identity Env)
 analyseUnit tu = runTrav defaultEnv $ do
     modifyOptions (\opts -> opts { language = GNU99 })
-    analyseAST tu `withExtDeclHandler` recordLocals
+    analyseAST tu `withExtDeclHandler` (recordLocals >+> recordDeclared)
 
 -- | Remembers the locals each function declares, which language-c forgets
 -- once it leaves the function.
@@ -164,6 +171,14 @@ recordLocals = \case
         { Env.localsOf = Map.insert (identToString i) (reverse (Env.pendingLocals env)) (Env.localsOf env)
         , Env.pendingLocals = []
         }
+    _ -> return ()
+
+-- | Remembers the file each function is first declared in, which language-c
+-- forgets once it sees the definition.
+recordDeclared :: DeclEvent -> Trav Env ()
+recordDeclared = \case
+    DeclEvent (Declaration (Decl (VarDecl (VarName i _) _ _) ni)) -> modifyUserState $ \env -> env
+        { Env.declaredIn = Map.insertWith (const id) (identToString i) (Env.safePosFile (posOfNode ni)) (Env.declaredIn env) }
     _ -> return ()
 
 -- | Continues analysing a translation unit, knowing what the whole program
