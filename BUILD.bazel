@@ -41,6 +41,7 @@ haskell_library(
     name = "analysis",
     srcs = [
         "src/Tokstyle/Cimple/Analysis/CFG.hs",
+        "src/Tokstyle/Cimple/Analysis/Declarations.hs",
         "src/Tokstyle/Cimple/Analysis/Destructors.hs",
         "src/Tokstyle/Cimple/Analysis/FunctionPointers.hs",
         "src/Tokstyle/Cimple/Analysis/Functions.hs",

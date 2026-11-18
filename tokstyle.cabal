@@ -38,6 +38,7 @@ library
     Tokstyle.Cimple.Analysis.Destructors
     Tokstyle.Cimple.Analysis.FunctionPointers
     Tokstyle.Cimple.Analysis.Functions
+    Tokstyle.Cimple.Analysis.Declarations
     Tokstyle.Cimple.Analysis.Types
     Tokstyle.Cimple.Analysis.Liveness
     Tokstyle.C.Linter.BoolConversion
