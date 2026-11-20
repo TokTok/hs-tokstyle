@@ -1,7 +1,18 @@
 # Cimple-based linters (`check-cimple`)
 
-There are currently 43 linters implemented, out of which 18 perform global analyses.
+There are currently 44 linters implemented, out of which 19 perform global analyses.
 In the list below, the global ones are marked specially.
+
+## `-Waccessor-names` (global)
+
+Checks that getters and setters in the public API are named after the field
+they access. E.g. `tox_options_get_proxy_host` should return
+`options->proxy_host`, not `options->internal_proxy_host`. Only functions whose
+body is just `return p->field;` or `p->field = value;` are checked. A setter of
+a field `x_callback` may also be named `..._callback_x`.
+
+**Reason:** this naming convention makes it clear at first glance which field
+an accessor reads or writes.
 
 ## `-Wassert`
 

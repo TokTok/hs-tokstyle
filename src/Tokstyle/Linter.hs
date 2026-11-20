@@ -54,6 +54,7 @@ import qualified Tokstyle.Linter.TypedefName      as TypedefName
 import qualified Tokstyle.Linter.UnsafeFunc       as UnsafeFunc
 import qualified Tokstyle.Linter.VarUnusedInScope as VarUnusedInScope
 
+import qualified Tokstyle.Linter.AccessorNames    as AccessorNames
 import qualified Tokstyle.Linter.Callgraph        as Callgraph
 import qualified Tokstyle.Linter.DanglingField    as DanglingField
 import qualified Tokstyle.Linter.DeclaredOnce     as DeclaredOnce
@@ -111,7 +112,8 @@ type GlobalLinter = ([TranslationUnit] -> [Diagnostic CimplePos], (Text, Text))
 
 globalLinters :: [GlobalLinter]
 globalLinters =
-    [ Callgraph.descr
+    [ AccessorNames.descr
+    , Callgraph.descr
     , DeclaredOnce.descr
     , DanglingField.descr
     , DeclsHaveDefns.descr

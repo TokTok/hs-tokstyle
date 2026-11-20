@@ -67,6 +67,7 @@ library
     Tokstyle.Common.StructLinter
     Tokstyle.Common.TypeSystem
     Tokstyle.Linter
+    Tokstyle.Linter.AccessorNames
     Tokstyle.Linter.Assert
     Tokstyle.Linter.BooleanReturn
     Tokstyle.Linter.Booleans
@@ -223,6 +224,7 @@ test-suite testsuite
     Tokstyle.C.Linter.TruncationSpec
     Tokstyle.C.Linter.WraparoundSpec
     Tokstyle.C.LinterSpec
+    Tokstyle.Linter.AccessorNamesSpec
     Tokstyle.Linter.AssertSpec
     Tokstyle.Linter.BooleanReturnSpec
     Tokstyle.Linter.BooleansSpec
