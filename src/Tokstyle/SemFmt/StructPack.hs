@@ -15,7 +15,8 @@ import           Language.Cimple              (BinaryOp (..), Lexeme (..),
 import           Language.Cimple.Diagnostics  (CimplePos, Diagnostic)
 import           Tokstyle.Common.StructLinter (MkFunBody, analyseStructs, mkLAt)
 import           Tokstyle.Common.TypeSystem   (StdType (..), TypeDescr (..),
-                                               TypeInfo (..), TypeRef (..))
+                                               TypeInfo (..), TypeRef (..),
+                                               TypeSystem, lookupType)
 
 
 funSuffix :: Text
@@ -30,12 +31,12 @@ return bin_pack_array(bp, 5)
            && bin_pack_bin(bp, foo->key, 32);
 -}
 mkFunBody :: MkFunBody
-mkFunBody _ varName (StructDescr _ [mem]) = do
-    packMems <- mkPackMember varName mem
+mkFunBody tys varName (StructDescr _ [mem]) = do
+    packMems <- mkPackMember tys varName mem
     return $ Right (Fix (CompoundStmt [Fix (Return (Just packMems))]))
-mkFunBody _ varName (StructDescr sname mems) = do
+mkFunBody tys varName (StructDescr sname mems) = do
     let packArray = mkPackArray sname (length mems)
-    packMems <- foldr (\x y -> Fix (BinaryExpr y BopAnd x)) packArray . reverse <$> mapM (mkPackMember varName) mems
+    packMems <- foldr (\x y -> Fix (BinaryExpr y BopAnd x)) packArray . reverse <$> mapM (mkPackMember tys varName) mems
     return $ Right (Fix (CompoundStmt [Fix (Return (Just packMems))]))
 mkFunBody _ _ ty = error $ show ty
 
@@ -65,23 +66,27 @@ stripWrappers (Nullable ty) = stripWrappers ty
 stripWrappers (Const ty)    = stripWrappers ty
 stripWrappers ty            = ty
 
-packFunName :: TypeInfo -> Maybe (Either Text (Node (Lexeme Text) -> Node (Lexeme Text), Text))
-packFunName (BuiltinType ty) =
+packFunName :: TypeSystem -> TypeInfo -> Maybe (Either Text (Node (Lexeme Text) -> Node (Lexeme Text), Text))
+packFunName _ (BuiltinType ty) =
     Left <$> builtinPackFunName ty
-packFunName (TypeRef EnumRef (L _ _ name)) =
+-- A typedef'd integer packs as its integer.
+packFunName tys (TypeRef IntRef (L _ _ name)) = case lookupType name tys of
+    Just (IntDescr _ ty) -> Left <$> builtinPackFunName ty
+    _                    -> Nothing
+packFunName _ (TypeRef EnumRef (L _ _ name)) =
     Just $ Right (id, Text.toLower name <> "_pack")
-packFunName (Pointer (TypeRef StructRef (L _ _ name))) =
+packFunName _ (Pointer (TypeRef StructRef (L _ _ name))) =
     Just $ Right (id, Text.toLower name <> "_pack")
-packFunName (TypeRef StructRef (L _ _ name)) =
+packFunName _ (TypeRef StructRef (L _ _ name)) =
     Just $ Right (Fix . UnaryExpr UopAddress, Text.toLower name <> "_pack")
-packFunName (Pointer Const{})    = Nothing
-packFunName (Pointer _)          = Nothing
-packFunName (TypeRef UnionRef _) = Nothing  -- TODO(iphydf): Union pack.
-packFunName (Owner ty)           = packFunName ty
-packFunName (Nonnull ty)         = packFunName ty
-packFunName (Nullable ty)        = packFunName ty
-packFunName (Const ty)           = packFunName ty
-packFunName x                    = error $ show x
+packFunName _ (Pointer Const{})      = Nothing
+packFunName _ (Pointer _)            = Nothing
+packFunName _ (TypeRef UnionRef _)   = Nothing  -- TODO(iphydf): Union pack.
+packFunName tys (Owner ty)           = packFunName tys ty
+packFunName tys (Nonnull ty)         = packFunName tys ty
+packFunName tys (Nullable ty)        = packFunName tys ty
+packFunName tys (Const ty)           = packFunName tys ty
+packFunName _ x                      = error $ show x
 
 -- bin_pack_bin(bp, var->mem, size)
 mkPackBinStr :: Text -> Lexeme Text -> Lexeme Text -> Node (Lexeme Text) -> Node (Lexeme Text)
@@ -97,12 +102,12 @@ getPackFn U08Ty  = Just (mkPackBinStr "bin_pack_bin")
 getPackFn CharTy = Just (mkPackBinStr "bin_pack_str")
 getPackFn _      = Nothing
 
-mkPackMember :: Lexeme Text -> (Lexeme Text, TypeInfo) -> Maybe (Node (Lexeme Text))
-mkPackMember varName (memName, ty) = case ty of
-    Owner t    -> mkPackMember varName (memName, t)
-    Nonnull t  -> mkPackMember varName (memName, t)
-    Nullable t -> mkPackMember varName (memName, t)
-    Const t    -> mkPackMember varName (memName, t)
+mkPackMember :: TypeSystem -> Lexeme Text -> (Lexeme Text, TypeInfo) -> Maybe (Node (Lexeme Text))
+mkPackMember tys varName (memName, ty) = case ty of
+    Owner t    -> mkPackMember tys varName (memName, t)
+    Nonnull t  -> mkPackMember tys varName (memName, t)
+    Nullable t -> mkPackMember tys varName (memName, t)
+    Const t    -> mkPackMember tys varName (memName, t)
 
     Sized t arrSize -> do
         packFn <- case stripWrappers t of
@@ -120,7 +125,7 @@ mkPackMember varName (memName, ty) = case ty of
         return $ packFn varName memName $ Fix (LiteralExpr Int arrSize)
 
     _ -> do
-        funName <- packFunName ty
+        funName <- packFunName tys ty
         return $ case funName of
             Left fun ->
                 Fix (FunctionCall (Fix (VarExpr (mkLAt memName IdVar fun)))

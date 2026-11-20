@@ -68,3 +68,18 @@ spec = do
                 , "  12| bool foo_pack(const Foo *foo, Bin_Pack *bp)"
                 , "    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
                 ]]
+
+    it "packs a typedef'd integer as its integer" $ do
+        shouldAccept' (testC
+            [ "typedef uint16_t Foo_Port;"
+            , "typedef struct Foo {"
+            , "  uint8_t some_byte;"
+            , "  Foo_Port port;"
+            , "} Foo;"
+            , "bool foo_pack(const Foo *foo, Bin_Pack *bp)"
+            , "{"
+            , "    return bin_pack_array(bp, 2)"
+            , "           && bin_pack_u08(bp, foo->some_byte)"
+            , "           && bin_pack_u16(bp, foo->port);"
+            , "}"
+            ])
