@@ -46,6 +46,19 @@ spec = describe "Conversion linter" $ do
                  , "    |                          ^^"
                  ]]
 
+        it "warns on a conditional branch that doesn't convert" $ do
+            shouldWarn'
+                [ "void func(int x, int *p) {"
+                , "  const char *n = x > 0 ? p : \"<invalid>\";"
+                , "}"
+                ]
+                [[ "error: invalid conversion from `int *` to `const char *` in initialiser [-Wconversion]"
+                 , "   --> test.c:2:27"
+                 , "    |"
+                 , "   2|   const char *n = x > 0 ? p : \"<invalid>\";"
+                 , "    |                           ^"
+                 ]]
+
     describe "valid conversions" $ do
         it "allows casting to void*" $ do
             shouldAccept'
@@ -97,6 +110,23 @@ spec = describe "Conversion linter" $ do
                 , "void func() {"
                 , "  int *a;"
                 , "  a = nullptr;"
+                , "}"
+                ]
+
+        it "allows a conditional of a pointer and an array" $ do
+            shouldAccept'
+                [ "typedef unsigned char uint8_t;"
+                , "struct Keys { uint8_t key[32]; };"
+                , "void func(const uint8_t *p, const struct Keys *keys) {"
+                , "  const uint8_t *k = p != 0 ? p : keys->key;"
+                , "}"
+                ]
+
+        it "allows a conditional of a string and a string literal" $ do
+            shouldAccept'
+                [ "const char *name(int x);"
+                , "void func(int x) {"
+                , "  const char *n = x > 0 ? name(x) : \"<invalid>\";"
                 , "}"
                 ]
 

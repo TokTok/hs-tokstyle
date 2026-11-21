@@ -115,14 +115,20 @@ checkAssign _ _ (CConst{}, _) = return ()
 checkAssign _ _ (CCast{}, _)  = return ()
 checkAssign c lTy r           = checkConversion c r lTy
 
+-- | The expressions a value can come from, with their types. A conditional's
+-- value comes from one of its branches, and language-c gives
+-- @c ? pointer : array@ the wrong type, so each branch is checked on its own.
+branches :: CExpr -> TravT Env Identity [(CExpr, Type)]
+branches (CCond _ (Just t) e _) = (++) <$> branches t <*> branches e
+branches r                      = (\ty -> [(r, ty)]) <$> tExpr [] RValue r
+
 
 linter :: AstActions (TravT Env Identity)
 linter = astActions
     { doExpr = \node act -> case node of
         CAssign CAssignOp l r _ -> do
             lTy <- tExpr [] LValue l
-            rTy <- tExpr [] RValue r
-            checkAssign "assignment" lTy (r, rTy)
+            mapM_ (checkAssign "assignment" lTy) =<< branches r
         _ -> act
 
     , doDecl = \node act -> case node of
@@ -132,8 +138,7 @@ linter = astActions
                     -- The type of the declaration without its name and initialiser.
                     let abstract = CDeclr Nothing derived asm attrs dni
                     lTy <- analyseTypeDecl (CDecl specs [(Just abstract, Nothing, Nothing)] ni)
-                    rTy <- tExpr [] RValue r
-                    checkAssign "initialiser" lTy (r, rTy)
+                    mapM_ (checkAssign "initialiser" lTy) =<< branches r
                 | (Just (CDeclr _ derived asm attrs dni), Just (CInitExpr r _), _)
                     <- ds
                 ]
@@ -143,8 +148,7 @@ linter = astActions
     , doStat = \node act -> case node of
         CReturn (Just expr) _ -> do
             retTy <- Env.getRetTy
-            exprTy <- tExpr [] RValue expr
-            checkConversion "return" (expr, exprTy) retTy
+            mapM_ (\b -> checkConversion "return" b retTy) =<< branches expr
             act
         _ -> act
 
