@@ -277,11 +277,14 @@ data Program = Program
     , progReaches :: Map String [Reach]
     -- ^ How far each function the program defines can reach into the memory
     -- its pointer parameters point to.
+    , progSelects :: Map String (Set Int)
+    -- ^ For each function the program defines, the integer parameters it
+    -- compares and returns, as @min@ and @max@ do.
     }
     deriving (Eq)
 
 emptyProgram :: Program
-emptyProgram = Program Map.empty Map.empty Map.empty Map.empty
+emptyProgram = Program Map.empty Map.empty Map.empty Map.empty Map.empty
 
 -- | Where a function is analysed. The locals it can track are its parameters
 -- and the locals it declares once, if it never takes their address. The
