@@ -62,6 +62,7 @@ haskell_library(
         "//third_party/haskell:base",
         "//third_party/haskell:containers",
         "//third_party/haskell:data-fix",
+        "//third_party/haskell:filepath",
         "//third_party/haskell:language-c",
         "//third_party/haskell:mtl",
         "//third_party/haskell:prettyprinter",

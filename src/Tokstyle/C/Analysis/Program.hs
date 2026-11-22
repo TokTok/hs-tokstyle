@@ -19,7 +19,7 @@ module Tokstyle.C.Analysis.Program
     ) where
 
 import           Control.Monad                    (forM)
-import           Data.List                        (isPrefixOf)
+import           Data.List                        (isPrefixOf, isSuffixOf)
 import           Data.Map.Strict                  (Map)
 import qualified Data.Map.Strict                  as Map
 import           Data.Maybe                       (catMaybes, fromMaybe, isJust,
@@ -42,6 +42,8 @@ import           Language.C.Data.Node             (posOfNode, undefNode)
 import           Language.C.Data.Position         (isSourcePos, posFile)
 import           Language.C.Syntax.AST
 import           Language.C.Syntax.Constants      (getCInteger)
+import           System.FilePath                  (isAbsolute, splitDirectories,
+                                                   takeDirectory)
 import           Tokstyle.Analysis.AccessPath     (AccessPath (..))
 import           Tokstyle.C.Analysis.Access       (Access (..), accesses,
                                                    changedNames)
@@ -74,6 +76,10 @@ data Observation
     -- ^ A field changed in ways the analysis doesn't see.
     | EscapedTag String
     -- ^ A struct whose fields change in ways the analysis doesn't see.
+    | DefinedIn String FilePath
+    -- ^ The file that defines a struct.
+    | Source FilePath
+    -- ^ A file that defines functions and isn't a header.
     | HandedTo String [String]
     -- ^ Structs a function gets a pointer to that it may write through, or
     -- returns. Unless the program defines the function, their fields change
@@ -152,6 +158,22 @@ programFrom obs = Program
     escaped = Set.fromList [ k | Escaped k <- obs ]
     escapedTags = Set.fromList $ [ tag | EscapedTag tag <- obs ]
         ++ [ tag | HandedTo f tags <- obs, f `Set.notMember` defined, tag <- tags ]
+        ++ [ tag | DefinedIn tag file <- obs, not (inProject file) ]
+
+    -- Structs the project doesn't define, like the system's, change in ways
+    -- the analysis doesn't see. The project's files are the ones in the
+    -- directory that holds all its source files.
+    inProject file = projectDir `isPrefixOf` directory file
+    projectDir = case [ directory file | Source file <- obs ] of
+        []   -> []
+        dirs -> foldr1 commonPrefix dirs
+    commonPrefix a b = map fst . takeWhile (uncurry (==)) $ zip a b
+    -- A relative path starts at ".", so it is never under the same
+    -- directory as an absolute one.
+    directory file = reverse . foldl step [] . (if isAbsolute file then id else ("." :))
+        . filter (/= ".") . splitDirectories $ takeDirectory file
+    step (d : ds) ".." | d `notElem` ["/", ".", ".."] = ds
+    step ds d = d : ds
 
     unbounded = Set.fromList [ (k, p) | Unbounded k p <- obs ]
 
@@ -182,17 +204,21 @@ observe wanted unit locals decls = do
         (o, analysed) <- observeFunction unit (Map.findWithDefault [] (identToString i) locals) fd
         return (o, [ analysed | wanted fd ])
     perObject <- forM [ od | ObjectDef od <- objs ] (observeObject unit)
-    return ( concatMap fst perFunction ++ concat perObject ++ map EscapedTag (Set.toList externalTags)
+    return ( concatMap fst perFunction ++ concat perObject ++ structs ++ sources
            , concatMap snd perFunction )
   where
     objs = Map.elems (gObjs decls)
-    -- Structs the project doesn't define, like the system's, change in ways
-    -- the analysis doesn't see.
-    externalTags = Set.fromList
-        [ identToString i
+    structs =
+        [ if isSourcePos pos then DefinedIn (identToString i) (posFile pos) else EscapedTag (identToString i)
         | (NamedRef i, CompDef (CompType _ _ _ _ ni)) <- Map.toList (gTags decls)
         , let pos = posOfNode ni
-        , not (isSourcePos pos) || "/" `isPrefixOf` posFile pos
+        ]
+    sources = map Source . Set.toList $ Set.fromList
+        [ posFile pos
+        | FunctionDef (FunDef _ _ ni) <- objs
+        , let pos = posOfNode ni
+        , isSourcePos pos
+        , not (".h" `isSuffixOf` posFile pos)
         ]
 
 observeObject :: MonadTrav m => FilePath -> ObjDef -> m Observed

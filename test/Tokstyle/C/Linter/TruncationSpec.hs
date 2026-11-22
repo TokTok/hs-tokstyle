@@ -152,6 +152,52 @@ spec = do
             , "}"
             ])
 
+    it "accepts a sum of a field the program keeps small, in files with absolute paths" $ do
+        shouldAccept' (prelude ++
+            [ "# 1 \"/src/project/entry.h\""
+            , "typedef struct Entry { unsigned int length; } Entry;"
+            , "# 1 \"/src/project/entry.c\""
+            , "void store(Entry *e, unsigned int length) {"
+            , "  if (length > 512) {"
+            , "    return;"
+            , "  }"
+            , "  e->length = length;"
+            , "}"
+            , "int reply(const Entry *e, uint16_t max) {"
+            , "  const uint16_t size = 33 + e->length;"
+            , "  if (max < size) {"
+            , "    return -1;"
+            , "  }"
+            , "  return size;"
+            , "}"
+            ])
+
+    it "warns about a sum of a field of a struct from a system header" $ do
+        shouldWarn' (prelude ++
+            [ "# 1 \"/usr/include/entry.h\""
+            , "typedef struct Entry { unsigned int length; } Entry;"
+            , "# 12 \"test.c\""
+            , "void store(Entry *e, unsigned int length) {"
+            , "  if (length > 512) {"
+            , "    return;"
+            , "  }"
+            , "  e->length = length;"
+            , "}"
+            , "int reply(const Entry *e, uint16_t max) {"
+            , "  const uint16_t size = 33 + e->length;"
+            , "  if (max < size) {"
+            , "    return -1;"
+            , "  }"
+            , "  return size;"
+            , "}"
+            ])
+            [[ "error: `33 + e->length` can be 4294967295, which doesn't fit in the 16-bit variable `size` it is stored in before it is compared [-Wtruncation]"
+             , "   --> test.c:19:25"
+             , "    |"
+             , "  19|   const uint16_t size = 33 + e->length;"
+             , "    |                         ^^^^^^^^^^^^^^"
+             ]]
+
     it "accepts a sum of values the conditions keep small" $ do
         shouldAccept' (prelude ++ helpers ++
             [ "int send(const char *data, uint16_t length) {"
