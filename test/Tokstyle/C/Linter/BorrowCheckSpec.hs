@@ -64,8 +64,7 @@ spec = describe "BorrowCheck linter" $ do
 
         it "does not warn on overwriting a bool (not a leak)" $ do
             shouldAccept'
-                [ "typedef _Bool bool;"
-                , "extern const bool true;"
+                [ "extern const bool true;"
                 , "extern const bool false;"
                 , "bool test(int c) {"
                 , "    bool ok = true;"

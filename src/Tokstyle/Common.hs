@@ -51,6 +51,7 @@ functionName (Fix (FunctionPrototype _ (L _ _ name) _)) = Just name
 functionName (Fix (FunctionDecl _ proto  ))             = functionName proto
 functionName (Fix (FunctionDefn _ proto _))             = functionName proto
 functionName (Fix (AttrPrintf _ _ entity))              = functionName entity
+functionName (Fix (AttrAllocSize _ entity))             = functionName entity
 functionName (Fix (NonNull _ _ entity))                 = functionName entity
 functionName _                                          = Nothing
 

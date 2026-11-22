@@ -70,7 +70,7 @@ isStandardType name = name `elem`
     , "int_fast8_t", "int_fast16_t", "int_fast32_t", "int_fast64_t"
     , "uint_fast8_t", "uint_fast16_t", "uint_fast32_t", "uint_fast64_t"
     , "intmax_t", "uintmax_t"
-    , "bool", "_Bool", "nullptr_t", "va_list"
+    , "nullptr_t", "va_list"
     , "__uint8_t", "__uint16_t", "__uint32_t", "__uint64_t"
     , "__int8_t", "__int16_t", "__int32_t", "__int64_t"
     , "__size_t", "__ssize_t", "__uintptr_t", "__intptr_t", "__ptrdiff_t"

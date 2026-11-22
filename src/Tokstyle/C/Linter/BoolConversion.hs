@@ -5,11 +5,9 @@ module Tokstyle.C.Linter.BoolConversion (descr) where
 import           Data.Functor.Identity           (Identity)
 import           Data.Text                       (Text)
 import           Language.C.Analysis.AstAnalysis (ExprSide (..), tExpr)
-import           Language.C.Analysis.SemRep      (GlobalDecls, IntType (..),
-                                                  Type (..), TypeDefRef (..),
+import           Language.C.Analysis.SemRep      (GlobalDecls, Type (..),
                                                   TypeName (..))
 import           Language.C.Analysis.TravMonad   (MonadTrav, Trav, TravT)
-import           Language.C.Data.Ident           (Ident (..))
 import qualified Language.C.Pretty               as C
 import           Language.C.Syntax.AST           (CBinaryOp (..), CExpr,
                                                   CExpression (..),
@@ -26,7 +24,6 @@ checkBoolConversion expr = do
     ty <- tExpr [] RValue expr
     case ty of
         DirectType (TyIntegral _) _ _ -> return ()
-        TypeDefType (TypeDefRef (Ident "bool" _ _) _ _) _ _ -> return ()
         PtrType _ _ _ ->
             recordLinterError (annotation expr) $
                 "implicit conversion from" <+> backticks (pretty (show (C.pretty ty))) <+> "to bool"

@@ -55,6 +55,32 @@ spec = do
              , "    |    ^^^^^^^^^^^^^^^^^"
              ]]
 
+    it "should see functions with an allocation size attribute" $ do
+        let code1 = [ "/** @brief A foo. */"
+                    , "GNU_ALLOC_SIZE(1) void *alloc_foo(uint32_t size);"
+                    ]
+            code2 = [ "/** @brief A bar. */"
+                    , "void *alloc_foo(uint32_t size) { return nullptr; }"
+                    ]
+        expected1Lines <- map Text.stripEnd . Text.lines . render . plain . ppTranslationUnit . take 1 <$> mustParse code1
+        expected2Lines <- map Text.stripEnd . Text.lines . render . plain . ppTranslationUnit . take 1 <$> mustParse code2
+        let indent l = if Text.null (Text.strip l) then "" else "         " <> l
+        shouldWarn' [("test.h", code1), ("test.c", code2)]
+            [[ "warning: comment on definition of `alloc_foo` does not match declaration: [-Wdoc-comments]"
+             , Text.intercalate "\n" $ map indent expected1Lines
+             , "   --> test.h:1:4"
+             , "    |"
+             , "   1| /** @brief A foo. */"
+             , "    |    ^^^^^^^^^^^^^^^^^"
+             ]
+            ,[ "warning: mismatching comment found here: [-Wdoc-comments]"
+             , Text.intercalate "\n" $ map indent expected2Lines
+             , "   --> test.c:1:4"
+             , "    |"
+             , "   1| /** @brief A bar. */"
+             , "    |    ^^^^^^^^^^^^^^^^^"
+             ]]
+
     it "should not give diagnostics if only one has a doc comment" $ do
         shouldAccept'
             [ ("test.h", [ "/** @brief A foo. */"
