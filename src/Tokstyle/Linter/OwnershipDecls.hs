@@ -119,11 +119,12 @@ checkPrototypeNullability file (Fix (FunctionPrototype retType _ params)) mDeclI
 checkPrototypeNullability _ _ _ = return ()
 
 
+-- | The qualifiers in source order: the innermost comes first.
 findQualifiers :: Node (Lexeme Text) -> [Text]
 findQualifiers (Fix node) = case node of
-    TyOwner t    -> "_Owner" : findQualifiers t
-    TyNonnull t  -> "_Nonnull" : findQualifiers t
-    TyNullable t -> "_Nullable" : findQualifiers t
+    TyOwner t    -> findQualifiers t ++ ["_Owner"]
+    TyNonnull t  -> findQualifiers t ++ ["_Nonnull"]
+    TyNullable t -> findQualifiers t ++ ["_Nullable"]
     TyConst t    -> findQualifiers t
     TyPointer t  -> findQualifiers t
     _            -> []
