@@ -11,6 +11,24 @@ import           Tokstyle.LinterSpec (shouldAccept, shouldAcceptLocal,
                                       shouldWarn, shouldWarnLocal)
 
 
+handler :: [T.Text]
+handler =
+    [ "typedef void handler_cb(void *object, int value);"
+    , "typedef struct Handler { handler_cb *function; void *object; } Handler;"
+    , "void handler_set(Handler *h, handler_cb *function, void *object) {"
+    , "  h->function = function;"
+    , "  h->object = object;"
+    , "}"
+    , "void handler_call(const Handler *h, int value) { h->function(h->object, value); }"
+    , "typedef struct Foo { int x; } Foo;"
+    , "typedef struct Bar { int y; } Bar;"
+    , "void foo_handler(void *object, int value) {"
+    , "  Foo *foo = (Foo *)object;"
+    , "  foo->x = value;"
+    , "}"
+    ]
+
+
 shouldWarn' :: [T.Text] -> [[T.Text]] -> IO ()
 shouldWarn' = shouldWarnLocal ["type-check"]
 
@@ -34,16 +52,16 @@ spec = do
                 , "  int *p = (int *)object;"
                 , "  return *p == param;"
                 , "}"
-                -- This is actually "bool char_func(char *object, int param)", inferred from the
+                -- This is actually "bool long_func(int64_t *object, int param)", inferred from the
                 -- cast inside the function body. In C, it needs to be void*, but our type checker
-                -- uses the cast inside to understand that it's meant to be char*.
-                , "bool char_func(void *object, int param) {"
-                , "  char *p = (char *)object;"
-                , "  return *p == 'a';"
+                -- uses the cast inside to understand that it's meant to be int64_t*.
+                , "bool long_func(void *object, int param) {"
+                , "  int64_t *p = (int64_t *)object;"
+                , "  return *p == param;"
                 , "}"
-                , "void main_test_func(int *iptr, char *cptr) {"
+                , "void main_test_func(int *iptr, int64_t *lptr) {"
                 , "  invoke(int_func, iptr);"
-                , "  invoke(char_func, cptr);"
+                , "  invoke(long_func, lptr);"
                 , "}"
                 ]
 
@@ -181,8 +199,8 @@ spec = do
                 , "}"
                 ]
 
-    describe "hindley-milner type failures" $ do
-        it "warns about incompatible function calls" $ do
+    describe "function calls" $ do
+        it "errors on a pointer passed as a number" $ do
             shouldWarn'
                 [ "int func(int param);"
                 , "void other_func(int i, char *p) {"
@@ -190,28 +208,28 @@ spec = do
                 , "  func(p);"
                 , "}"
                 ]
-                [[ "warning: type mismatch in function call (argument 1): expected int, but got char* [-Wtype-check]"
-                 , "   --> test.c:4:3"
+                [[ "error: `p` is `char *`, but `param` of `func` is `int` [-Wtype-check]"
+                 , "   --> test.c:4:8"
                  , "    |"
                  , "   4|   func(p);"
-                 , "    |   ^^^^^^"
+                 , "    |        ^"
                  ]]
 
-        it "errors when a variadic function call has the wrong type" $ do
+        it "errors on a wrong argument before the variable ones" $ do
             shouldWarn'
                 [ "void my_printf(const char* format, ...);"
                 , "void test() {"
                 , "    my_printf(1, \"hello %d\");"
                 , "}"
                 ]
-                [[ "warning: type mismatch in function call (argument 1): expected char*, but got int [-Wtype-check]"
-                 , "   --> test.c:3:5"
+                [[ "error: `1` is `int`, but `format` of `my_printf` is `char *` [-Wtype-check]"
+                 , "   --> test.c:3:15"
                  , "    |"
                  , "   3|     my_printf(1, \"hello %d\");"
-                 , "    |     ^^^^^^^^^^^^^^^^^^^^^^^"
+                 , "    |               ^"
                  ]]
 
-        it "errors when a variadic macro call has the wrong type" $ do
+        it "reports what a macro does at the place that uses the macro" $ do
             shouldWarn'
                 [ "void my_printf(const char* format, ...);"
                 , "#define MY_PRINTF(format, ...) my_printf(format, __VA_ARGS__)"
@@ -219,97 +237,305 @@ spec = do
                 , "    MY_PRINTF(1, \"hello %d\");"
                 , "}"
                 ]
-                [[ "warning: type mismatch in function call (argument 1): expected char*, but got int [-Wtype-check]"
+                [[ "error: `1` is `int`, but `format` of `my_printf` is `char *` [-Wtype-check]"
                  , "   --> test.c:4:5"
                  , "    |"
                  , "   4|     MY_PRINTF(1, \"hello %d\");"
                  , "    |     ^^^^^^^^^^^^^^^^^^^^^^^"
                  ]]
 
---      it "warns about incompatible polymorphic functions" $ do
---          let code = --              -- Equivalent to Haskell
---              -- `type SomeCb a = a -> int -> bool`.
---              [ "typedef bool some_cb(void *object, int param);"
---              -- void pointers are like polymorphism in Haskell.
---              -- `invoke :: SomeCb a -> a -> bool`
---              -- `invoke` is a function that at first looks like its `some_cb<a>` and `object :: b` are different `a` and `b`,
---              -- but since the body contains `my_callback(object, 123)`, the algorithm should then infer that `a` and `b`
---              -- are actually the same, i.e. they need to be unified.
---              , "bool invoke(some_cb *my_callback, void *object) { return my_callback(object, 123); }"
---              -- inferred as "bool char_func(char *object, int param)"
---              , "bool char_func(void *object, int param) {"
---              , "  char *p = (char *)object;"
---              , "  return *p == 'a';"
---              , "}"
---              , "void main_test_func(int *iptr, char *cptr) {"
---              -- this should error because char_func requires its void pointer to be a char pointer (inferred based on the cast in the function).
---              , "  invoke(char_func, iptr);"
---              , "}"
---              ]
---          analyseGlobalText ["type-check"] [("test.c", ast)]
---              `shouldBe`
---              [ "test.c:12: type mismatch: int* vs char* [-Wtype-check]"
---              ]
-
---      it "warns on incorrect use of void pointers for generics" $ do
---          let code = --              -- GenericBox<T> making the void pointer inside like a generic T.
---              [ "typedef struct GenericBox { void *data; } GenericBox;"
---              -- inferred as something like "void set_box(GenericBox<T> *box, T *data)".
---              , "void set_box(GenericBox *box, void *data) { box->data = data; }"
---              , "void main_test_func(int *iptr, char *cptr) {"
---              -- here, the box is still generic, we don't know what the type inside is, yet.
---              , "  GenericBox box;"
---              -- this line infers box to be "GenericBox<int>"
---              , "  set_box(&box, iptr);"
---              -- this line errors because box is "GenericBox<int>" and "set_box(GenericBox<int> *box, int *data)"
---              -- is incompatible with passing a char pointer.
---              , "  set_box(&box, cptr);"
---              , "}"
---              ]
---          analyseGlobalText ["type-check"] [("test.c", ast)]
---              `shouldBe`
---              [ "test.c:6: type mismatch: char* vs int* [-Wtype-check]"
---              ]
-
-    describe "Function Pointers" $ do
-        it "warns when calling a function pointer with wrong argument types" $ do
-            shouldWarn'
-                [ "typedef int my_func_cb(int i, char c);"
-                , "void call_it(my_func_cb *ptr) {"
-                , "  ptr(1, 'a');"
-                , "  ptr(1, 2);"
+        it "accepts a macro that uses the variables of the function" $ do
+            shouldAccept'
+                [ "typedef struct Foo { int x; int y; } Foo;"
+                , "int sum(const Foo *foo) {"
+                , "  int total = 0;"
+                , "#define ADD_MEMBER(member) do { total += foo->member; } while (0)"
+                , "  ADD_MEMBER(x);"
+                , "  ADD_MEMBER(y);"
+                , "#undef ADD_MEMBER"
+                , "  return total;"
                 , "}"
                 ]
-                [[ "warning: type mismatch in function call (argument 2): expected char, but got int [-Wtype-check]"
-                 , "   --> test.c:4:3"
+
+        it "says how a callback differs from the one that is wanted" $ do
+            shouldWarn'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "typedef int use_cb(int value, Foo *foo);"
+                , "void run(use_cb *callback);"
+                , "int bar_use(int value, Bar *bar);"
+                , "void test() { run(bar_use); }"
+                ]
+                [[ "error: `bar_use` is a function that takes `Bar *`, but `callback` of `run` is a function that takes `Foo *` [-Wtype-check]"
+                 , "   --> test.c:6:19"
                  , "    |"
-                 , "   4|   ptr(1, 2);"
-                 , "    |   ^^^^^^^^"
+                 , "   6| void test() { run(bar_use); }"
+                 , "    |                   ^^^^^^^"
                  ]]
 
-        it "warns when calling a generic function pointer with incompatible types" $ do
+        it "errors on a wrong number of arguments" $ do
             shouldWarn'
+                [ "int my_func(int a);"
+                , "void arg_count_mismatch() {"
+                , "  my_func(1, 2);"
+                , "}"
+                ]
+                [[ "error: `my_func` takes 1 argument, but is called with 2 [-Wtype-check]"
+                 , "   --> test.c:3:3"
+                 , "    |"
+                 , "   3|   my_func(1, 2);"
+                 , "    |   ^^^^^^^^^^^^"
+                 ]]
+
+        it "accepts functions and types the program doesn't define" $ do
+            shouldAccept'
+                [ "void test(pthread_mutex_t *mutex, uint8_t *data) {"
+                , "  pthread_mutex_lock(mutex);"
+                , "  memset(data, 0, SOME_SIZE);"
+                , "  struct timespec ts;"
+                , "  ts.tv_sec = time(nullptr);"
+                , "}"
+                ]
+
+        it "keeps static functions of the same name apart" $ do
+            shouldAccept ["type-check"]
+                [ ("a.c", [ "static int get(const int *p) { return *p; }"
+                          , "int a(const int *p) { return get(p); }" ])
+                , ("b.c", [ "static int get(const char *p) { return *p; }"
+                          , "int b(const char *p) { return get(p); }" ])
+                ]
+
+    describe "void pointers" $ do
+        it "errors on an object the callback uses as another type" $ do
+            shouldWarn'
+                [ "typedef bool some_cb(void *object, int param);"
+                , "bool invoke(some_cb *my_callback, void *object) { return my_callback(object, 123); }"
+                , "bool long_func(void *object, int param) {"
+                , "  const int64_t *p = (const int64_t *)object;"
+                , "  return *p == param;"
+                , "}"
+                , "void main_test_func(int *iptr) {"
+                , "  invoke(long_func, iptr);"
+                , "}"
+                ]
+                [[ "error: `iptr` is `int *`, but `object` of `invoke` is `int64_t *` [-Wtype-check]"
+                 , "   --> test.c:8:21"
+                 , "    |"
+                 , "   4|   const int64_t *p = (const int64_t *)object;"
+                 , "    |                             ^^^^^^^^^^^^^^^^"
+                 , "    |                             |"
+                 , "    |                             `long_func` uses `object` as `int64_t *`"
+                 , "   8|   invoke(long_func, iptr);"
+                 , "    |          ^^^^^^^^^"
+                 , "    |          |"
+                 , "    |          `int64_t *` because of this"
+                 , "    |                     ^^^^"
+                 ]]
+
+        it "errors on a struct's void pointer used with two types" $ do
+            shouldWarn'
+                [ "typedef struct GenericBox { void *data; } GenericBox;"
+                , "void set_box(GenericBox *box, void *data) { box->data = data; }"
+                , "void main_test_func(int *iptr, char *cptr) {"
+                , "  GenericBox box;"
+                , "  set_box(&box, iptr);"
+                , "  set_box(&box, cptr);"
+                , "}"
+                ]
+                [[ "error: `cptr` is `char *`, but `data` of `set_box` is `int *` [-Wtype-check]"
+                 , "   --> test.c:6:17"
+                 , "    |"
+                 , "   5|   set_box(&box, iptr);"
+                 , "    |                 ^^^^"
+                 , "    |                 |"
+                 , "    |                 `int *` because of this"
+                 , "   6|   set_box(&box, cptr);"
+                 , "    |                 ^^^^"
+                 ]]
+
+        it "accepts a function pointer called with two types" $ do
+            shouldAccept'
                 [ "typedef void my_generic_cb(void *object);"
-                -- initially, we don't know what the complete type of `call_it` is.
-                -- we start out with `void call_it(my_generic_cb<?> *ptr, int i, char c)`.
-                , "void call_it(my_generic_cb *ptr, int i, char c) {"
-                -- this line infers my_generic_cb<int>
-                -- now we know that the type of call_it is actually: `void call_it(my_generic_cb<int> *ptr, int i, char c)`
+                , "void call_it(my_generic_cb *ptr, int i, int64_t l) {"
                 , "  ptr(&i);"
-                -- this line errors because ptr is already my_generic_cb<int>, and this expression infers it to be
-                -- my_generic_cb<char>, which fails unification.
-                , "  ptr(&c);"
+                , "  ptr(&l);"
                 , "}"
                 ]
-                [[ "warning: type mismatch in function call (argument 1): expected int*, but got char* [-Wtype-check]"
-                 , "   --> test.c:4:3"
+
+        it "errors on a void pointer cast to two types" $ do
+            shouldWarn'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "int both(void *object) {"
+                , "  const Foo *foo = (const Foo *)object;"
+                , "  const Bar *bar = (const Bar *)object;"
+                , "  return foo->x + bar->y;"
+                , "}"
+                ]
+                [[ "error: `object` is cast to `Bar *`, but it is `Foo *` [-Wtype-check]"
+                 , "   --> test.c:5:27"
                  , "    |"
-                 , "   4|   ptr(&c);"
-                 , "    |   ^^^^^^"
+                 , "   4|   const Foo *foo = (const Foo *)object;"
+                 , "    |                           ^^^^^^^^^^^^"
+                 , "    |                           |"
+                 , "    |                           `Foo *` because of this"
+                 , "   5|   const Bar *bar = (const Bar *)object;"
+                 , "    |                           ^^^^^^^^^^^^"
                  ]]
 
-    describe "Structs" $ do
-        it "warns on incompatible struct assignment" $ do
+        it "accepts any object read as bytes" $ do
+            shouldAccept'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "uint8_t first(const void *data) {"
+                , "  const uint8_t *bytes = (const uint8_t *)data;"
+                , "  return bytes[0];"
+                , "}"
+                , "int both(const Foo *foo, const Bar *bar) { return first(foo) + first(bar); }"
+                ]
+
+    describe "callbacks in structs" $ do
+        it "accepts a callback stored with the object it uses" $ do
+            shouldAccept' $ handler ++
+                [ "void setup(Handler *h, Foo *foo) { handler_set(h, foo_handler, foo); }"
+                ]
+
+        it "errors on a callback stored with another object" $ do
+            shouldWarn' (handler ++
+                [ "void setup(Handler *h, Bar *bar) { handler_set(h, foo_handler, bar); }"
+                ])
+                [[ "error: `bar` is `Bar *`, but `object` of `handler_set` is `Foo *` [-Wtype-check]"
+                 , "   --> test.c:14:64"
+                 , "    |"
+                 , "  11|   Foo *foo = (Foo *)object;"
+                 , "    |               ^^^^^^^^^^^^"
+                 , "    |               |"
+                 , "    |               `foo_handler` uses `object` as `Foo *`"
+                 , "  14| void setup(Handler *h, Bar *bar) { handler_set(h, foo_handler, bar); }"
+                 , "    |                                                   ^^^^^^^^^^^"
+                 , "    |                                                   |"
+                 , "    |                                                   `Foo *` because of this"
+                 , "    |                                                                ^^^"
+                 ]]
+
+        it "accepts handlers for different objects in an array" $ do
+            shouldAccept' $ handler ++
+                [ "void bar_handler(void *object, int value) {"
+                , "  Bar *bar = (Bar *)object;"
+                , "  bar->y = value;"
+                , "}"
+                , "typedef struct Handlers { Handler handlers[2]; } Handlers;"
+                , "void setup(Handlers *hs, Foo *foo, Bar *bar) {"
+                , "  handler_set(&hs->handlers[0], foo_handler, foo);"
+                , "  handler_set(&hs->handlers[1], bar_handler, bar);"
+                , "}"
+                , "void call(const Handlers *hs) {"
+                , "  for (int i = 0; i < 2; ++i) {"
+                , "    hs->handlers[i].function(hs->handlers[i].object, i);"
+                , "  }"
+                , "}"
+                ]
+
+        it "accepts a callback that is called with any type" $ do
+            shouldAccept'
+                [ "typedef bool write_cb(void *ctx, const void *data, uint32_t size);"
+                , "typedef struct Writer { write_cb *write; void *ctx; } Writer;"
+                , "bool write_all(const Writer *w, uint16_t a, uint32_t b) {"
+                , "  return w->write(w->ctx, &a, sizeof(a)) && w->write(w->ctx, &b, sizeof(b));"
+                , "}"
+                ]
+
+        it "errors on an object that is used as another type elsewhere" $ do
+            shouldWarn'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "typedef struct Box { void *data; } Box;"
+                , "typedef struct Shelf { Box *box; } Shelf;"
+                , "int shelf_get(const Shelf *shelf) {"
+                , "  const Foo *foo = (const Foo *)shelf->box->data;"
+                , "  return foo->x;"
+                , "}"
+                , "void shelf_set(Shelf *shelf, Bar *bar) { shelf->box->data = bar; }"
+                ]
+                [[ "error: `bar` is `Bar *`, but it is used as `Foo *` [-Wtype-check]"
+                 , "   --> test.c:9:61"
+                 , "    |"
+                 , "   6|   const Foo *foo = (const Foo *)shelf->box->data;"
+                 , "    |                           ^^^^^^^^^^^^^^^^^^^^^^"
+                 , "    |                           |"
+                 , "    |                           used as `Foo *` here"
+                 , "   9| void shelf_set(Shelf *shelf, Bar *bar) { shelf->box->data = bar; }"
+                 , "    |                                                             ^^^"
+                 ]]
+
+        it "accepts objects of two types that are each used as their type" $ do
+            shouldAccept'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "typedef struct Box { void *data; } Box;"
+                , "int foo_get(const Box *box) { const Foo *foo = (const Foo *)box->data; return foo->x; }"
+                , "int bar_get(const Box *box) { const Bar *bar = (const Bar *)box->data; return bar->y; }"
+                , "void foo_set(Box *box, Foo *foo) { box->data = foo; }"
+                , "void bar_set(Box *box, Bar *bar) { box->data = bar; }"
+                ]
+
+        it "errors on an object given to functions that use another type" $ do
+            shouldWarn'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef struct Bar { int y; } Bar;"
+                , "typedef void run_cb(void *self);"
+                , "typedef struct Funcs { run_cb *run; } Funcs;"
+                , "typedef struct Runner { const Funcs *funcs; void *self; } Runner;"
+                , "void runner_run(const Runner *runner) { runner->funcs->run(runner->self); }"
+                , "static void foo_run(void *self) {"
+                , "  Foo *foo = (Foo *)self;"
+                , "  foo->x = 1;"
+                , "}"
+                , "static const Funcs foo_funcs = {foo_run};"
+                , "void runner_init(Runner *runner, Bar *bar) {"
+                , "  runner->funcs = &foo_funcs;"
+                , "  runner->self = bar;"
+                , "}"
+                ]
+                [[ "error: `bar` is `Bar *`, but it is used as `Foo *` [-Wtype-check]"
+                 , "   --> test.c:14:18"
+                 , "    |"
+                 , "  11| static const Funcs foo_funcs = {foo_run};"
+                 , "    |                                 ^^^^^^^"
+                 , "    |                                 |"
+                 , "    |                                 used as `Foo *` here"
+                 , "  14|   runner->self = bar;"
+                 , "    |                  ^^^"
+                 ]]
+
+        it "accepts a callback and object set differently in two branches" $ do
+            shouldAccept'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "typedef int time_cb(void *user_data);"
+                , "typedef struct Clock { time_cb *callback; void *user_data; int time; } Clock;"
+                , "int clock_now(const Clock *clock) { return clock->callback(clock->user_data); }"
+                , "static int default_time(void *user_data) {"
+                , "  const Clock *clock = (const Clock *)user_data;"
+                , "  return clock->time;"
+                , "}"
+                , "void clock_set(Clock *clock, time_cb *callback, void *user_data) {"
+                , "  if (callback == nullptr) {"
+                , "    clock->callback = default_time;"
+                , "    clock->user_data = clock;"
+                , "  } else {"
+                , "    clock->callback = callback;"
+                , "    clock->user_data = user_data;"
+                , "  }"
+                , "}"
+                , "static int foo_time(void *user_data) {"
+                , "  const Foo *foo = (const Foo *)user_data;"
+                , "  return foo->x;"
+                , "}"
+                , "void setup(Clock *clock, Foo *foo) { clock_set(clock, foo_time, foo); }"
+                ]
+
+    describe "structs" $ do
+        it "errors on another struct" $ do
             shouldWarn'
                 [ "typedef struct Foo { int x; } Foo;"
                 , "typedef struct Bar { int y; } Bar;"
@@ -318,334 +544,156 @@ spec = do
                 , "  b = f;"
                 , "}"
                 ]
-                [[ "warning: type mismatch in assignment: expected struct Bar, but got struct Foo [-Wtype-check]"
-                 , "   --> test.c:5:3"
+                [[ "error: `f` is `Foo`, but `b` is `Bar` [-Wtype-check]"
+                 , "   --> test.c:5:7"
                  , "    |"
                  , "   5|   b = f;"
-                 , "    |   ^^^^^"
+                 , "    |       ^"
                  ]]
 
-        it "warns on incorrect struct member access" $ do
+        it "errors on a member the struct doesn't have" $ do
             shouldWarn'
                 [ "typedef struct Foo { int x; } Foo;"
-                , "void struct_access(Foo f) {"
-                , "  int y = f.y;"
+                , "int struct_access(Foo f, const Foo *p) {"
+                , "  return f.y + p->z;"
                 , "}"
                 ]
-                [[ "warning: Struct Foo has no member: y [-Wtype-check]"
-                 , "   --> test.c:3:11"
+                [[ "error: `Foo` has no member `y` [-Wtype-check]"
+                 , "   --> test.c:3:10"
                  , "    |"
-                 , "   3|   int y = f.y;"
-                 , "    |           ^^^"
+                 , "   3|   return f.y + p->z;"
+                 , "    |          ^^^"
+                 ]
+                ,[ "error: `Foo` has no member `z` [-Wtype-check]"
+                 , "   --> test.c:3:16"
+                 , "    |"
+                 , "   3|   return f.y + p->z;"
+                 , "    |                ^^^^"
                  ]]
 
-        it "warns on incorrect struct pointer member access" $ do
+        it "accepts a struct defined in another file" $ do
+            shouldAccept ["type-check"]
+                [ ("test.h", [ "typedef struct Foo Foo;", "int foo_x(const Foo *foo);" ])
+                , ("test.c", [ "struct Foo { int x; };", "int foo_x(const Foo *foo) { return foo->x; }" ])
+                ]
+
+        it "accepts members of a nested struct through a pointer and an array" $ do
+            shouldAccept'
+                [ "typedef struct Inner { int values[4]; } Inner;"
+                , "typedef struct Outer { Inner *inner; Inner inners[2]; } Outer;"
+                , "int get(const Outer *outer, int i) {"
+                , "  return outer->inner->values[i] + outer->inners[1].values[i];"
+                , "}"
+                ]
+
+        it "checks the values a struct is made from" $ do
             shouldWarn'
-                [ "typedef struct Foo { int x; } Foo;"
-                , "void struct_ptr_access(Foo *f) {"
-                , "  int y = f->y;"
+                [ "typedef struct Foo { int x; const char *name; } Foo;"
+                , "void make(int *p) {"
+                , "  const Foo zero = {0};"
+                , "  const Foo good = {1, \"one\"};"
+                , "  const Foo bad = {1, p};"
                 , "}"
                 ]
-                [[ "warning: Struct Foo has no member: y [-Wtype-check]"
-                 , "   --> test.c:3:11"
+                [[ "error: `p` is `int *`, but `bad.name` is `char *` [-Wtype-check]"
+                 , "   --> test.c:5:23"
                  , "    |"
-                 , "   3|   int y = f->y;"
-                 , "    |           ^^^^"
+                 , "   5|   const Foo bad = {1, p};"
+                 , "    |                       ^"
                  ]]
 
-        it "correctly type-checks structs defined in a separate header file" $ do
-            let headerCode = [ "typedef struct Bar { int z; } Bar;" ]
-                sourceCode = [ "#include \"bar.h\""
-                             , "void struct_access_from_header(Bar b) {"
-                             , "  int w = b.z;"
-                             , "}"
-                             ]
-            shouldAccept ["type-check"] [("bar.h", headerCode), ("test.c", sourceCode)]
-
-        it "correctly type-checks structs defined inside a header guard" $ do
-            let headerCode = [ "#ifndef TEST_H_INCLUDED"
-                             , "#define TEST_H_INCLUDED"
-                             , "typedef struct Bar { int z; } Bar;"
-                             , "#endif /* TEST_H_INCLUDED */"
-                             ]
-                sourceCode = [ "#include \"bar.h\""
-                             , "void struct_access_from_header(Bar b) {"
-                             , "  int w = b.z;"
-                             , "}"
-                             ]
-            shouldAccept ["type-check"] [("bar.h", headerCode), ("test.c", sourceCode)]
-
-        it "warns on incorrect struct member access from a separate header file" $ do
-            let headerCode = [ "typedef struct Bar { int z; } Bar;" ]
-                sourceCode = [ "#include \"bar.h\""
-                             , "void struct_access_from_header(Bar b) {"
-                             , "  int w = b.a;"
-                             , "}"
-                             ]
-            shouldWarn ["type-check"] [("bar.h", headerCode), ("test.c", sourceCode)]
-                [[ "warning: Struct Bar has no member: a [-Wtype-check]"
-                 , "   --> test.c:3:11"
-                 , "    |"
-                 , "   3|   int w = b.a;"
-                 , "    |           ^^^"
-                 ]]
-
-        it "correctly type-checks structs with different tag and typedef names" $ do
+        it "accepts union members" $ do
             shouldAccept'
-                [ "typedef struct MyStructTag { int x; } MyStructTypedef;"
-                , "void my_func(MyStructTypedef s) {"
-                , "  int y = s.x;"
-                , "}"
-                , "void my_other_func(struct MyStructTag s) {"
-                , "  int z = s.x;"
-                , "}"
+                [ "typedef union Value { int i; const char *s; } Value;"
+                , "int get(Value v, const Value *p) { return v.i + p->i; }"
                 ]
 
-        it "correctly type-checks structs with a separate typedef" $ do
-            shouldAccept'
-                [ "struct MyStruct { int x; };"
-                , "typedef struct MyStruct MyStruct_t;"
-                , "void my_func(MyStruct_t s) {"
-                , "  int y = s.x;"
-                , "}"
-                ]
-
-        it "accepts accessing members of a nested struct through a pointer and array" $ do
-            shouldAccept'
-                [ "struct InnerStruct {"
-                , "    int inner_member;"
-                , "};"
-                , "struct OuterStruct {"
-                , "    struct InnerStruct inner_array[10];"
-                , "};"
-                , "void test_function(struct OuterStruct *outer) {"
-                , "    outer->inner_array[0].inner_member = 123;"
-                , "}"
-                ]
-
-        it "accepts struct initialization with an initializer list" $ do
-            shouldAccept'
-                [ "typedef struct Packet {"
-                , "  const uint8_t *data;"
-                , "  uint16_t len;"
-                , "} Packet;"
-                , "void send_packet(const uint8_t *packet_data, size_t len) {"
-                , "  const Packet packet = {packet_data, (uint16_t)len};"
-                , "}"
-                ]
-
-    describe "Unions" $ do
-        it "accepts valid union member access" $ do
-            shouldAccept'
-                [ "typedef union MyUnion { int i; float f; } MyUnion;"
-                , "void union_access(MyUnion u) {"
-                , "  int x = u.i;"
-                , "}"
-                ]
-
-        it "accepts valid union pointer member access" $ do
-            shouldAccept'
-                [ "typedef union MyUnion { int i; float f; } MyUnion;"
-                , "void union_ptr_access(MyUnion *u) {"
-                , "  int x = u->i;"
-                , "}"
-                ]
-
-        it "warns on incorrect union member access" $ do
-            shouldWarn'
-                [ "typedef union MyUnion { int i; float f; } MyUnion;"
-                , "void union_access(MyUnion u) {"
-                , "  int x = u.z;"
-                , "}"
-                ]
-                [[ "warning: Union MyUnion has no member: z [-Wtype-check]"
-                 , "   --> test.c:3:11"
-                 , "    |"
-                 , "   3|   int x = u.z;"
-                 , "    |           ^^^"
-                 ]]
-
-        it "warns on incorrect union pointer member access" $ do
-            shouldWarn'
-                [ "typedef union MyUnion { int i; float f; } MyUnion;"
-                , "void union_ptr_access(MyUnion *u) {"
-                , "  int x = u->z;"
-                , "}"
-                ]
-                [[ "warning: Union MyUnion has no member: z [-Wtype-check]"
-                 , "   --> test.c:3:11"
-                 , "    |"
-                 , "   3|   int x = u->z;"
-                 , "    |           ^^^^"
-                 ]]
-
-    describe "Return Types" $ do
-        it "warns when a function returns a value of the wrong type" $ do
+    describe "values" $ do
+        it "errors on a returned value of another type" $ do
             shouldWarn'
                 [ "int get_int() {"
                 , "  return \"hello\";"
                 , "}"
                 ]
-                [[ "warning: type mismatch in return value: expected int, but got char* [-Wtype-check]"
+                [[ "error: `\"hello\"` is `char *`, but `get_int` returns `int` [-Wtype-check]"
                  , "   --> test.c:2:10"
                  , "    |"
                  , "   2|   return \"hello\";"
                  , "    |          ^^^^^^^"
                  ]]
 
-        it "allows returning nullptr for a pointer type" $ do
-            shouldAccept'
-                [ "uint8_t *get_ptr() {"
-                , "  return nullptr;"
-                , "}"
-                ]
-
-    describe "Pointer Type Mismatches" $ do
-        it "warns on assignment of incompatible pointer types" $ do
-            shouldWarn'
-                [ "void ptr_mismatch(int *p) {"
-                , "  char *c = p;"
-                , "}"
-                ]
-                [[ "warning: type mismatch in initialisation of c: expected char*, but got int* [-Wtype-check]"
-                 , "   --> test.c:2:13"
-                 , "    |"
-                 , "   2|   char *c = p;"
-                 , "    |             ^"
-                 ]]
-
-    describe "Ternary Operator Mismatches" $ do
-        it "warns when ternary branches have incompatible types" $ do
-            shouldWarn'
-                [ "int ternary_mismatch(int cond) {"
-                , "  return cond ? 1 : \"hello\";"
-                , "}"
-                ]
-                [[ "warning: type mismatch in ternary expression: expected int, but got char* [-Wtype-check]"
-                 , "   --> test.c:2:10"
-                 , "    |"
-                 , "   2|   return cond ? 1 : \"hello\";"
-                 , "    |          ^^^^^^^^^^^^^^^^^^"
-                 ]]
-
-    describe "Integer Conversions" $ do
-        it "allows implicit conversion from uint8_t to uint32_t" $ do
-            shouldAccept'
-                [ "void conversion_test(uint8_t val8) {"
-                , "  uint32_t val32 = 0;"
-                , "  val32 += val8;"
-                , "}"
-                ]
-
-    describe "nullptr" $ do
-        it "allows assigning nullptr to a pointer type" $ do
-            shouldAccept'
-                [ "void assign_nullptr() {"
-                , "  uint8_t *ptr;"
-                , "  ptr = nullptr;"
-                , "}"
-                ]
-
-        it "allows passing nullptr to a function expecting a pointer" $ do
-            shouldAccept'
-                [ "void takes_ptr(uint8_t *ptr);"
-                , "void pass_nullptr() {"
-                , "  takes_ptr(nullptr);"
-                , "}"
-                ]
-
-        it "allows returning nullptr from a ternary operator" $ do
-            shouldAccept'
-                [ "uint8_t *some_func();"
-                , "bool some_bool();"
-                , "uint8_t *ternary_nullptr() {"
-                , "  return some_bool() ? some_func() : nullptr;"
-                , "}"
-                ]
-
-    describe "Function Argument Count" $ do
-        it "warns on wrong number of arguments to a function" $ do
-            shouldWarn'
-                [ "int my_func(int a);"
-                , "void arg_count_mismatch() {"
-                , "  my_func(1, 2);"
-                , "}"
-                ]
-                [[ "warning: mismatched number of arguments in function call: expected 1, but got 2 [-Wtype-check]"
-                 , "   --> test.c:3:3"
-                 , "    |"
-                 , "   3|   my_func(1, 2);"
-                 , "    |   ^^^^^^^^^^^^"
-                 ]]
-
-    describe "Void Return" $ do
-        it "warns on returning a value from a void function" $ do
+        it "errors on a value returned from a void function" $ do
             shouldWarn'
                 [ "void my_void_func() {"
                 , "  return 123;"
                 , "}"
                 ]
-                [[ "warning: type mismatch in return value: expected void, but got int [-Wtype-check]"
+                [[ "error: `123` is `int`, but `my_void_func` returns `void` [-Wtype-check]"
                  , "   --> test.c:2:10"
                  , "    |"
                  , "   2|   return 123;"
                  , "    |          ^^^"
                  ]]
 
-    describe "Implicit bool" $ do
-        it "warns when a non-bool type is used implicitly as bool" $ do
+        it "errors on a pointer to another type" $ do
+            shouldWarn'
+                [ "void ptr_mismatch(int *p) {"
+                , "  char *c = p;"
+                , "}"
+                ]
+                [[ "error: `p` is `int *`, but `c` is `char *` [-Wtype-check]"
+                 , "   --> test.c:2:13"
+                 , "    |"
+                 , "   2|   char *c = p;"
+                 , "    |             ^"
+                 ]]
+
+        it "errors on a ternary with two types" $ do
+            shouldWarn'
+                [ "int ternary_mismatch(int cond) {"
+                , "  return cond ? 1 : \"hello\";"
+                , "}"
+                ]
+                [[ "error: `\"hello\"` is `char *`, but `1` is `int` [-Wtype-check]"
+                 , "   --> test.c:2:21"
+                 , "    |"
+                 , "   2|   return cond ? 1 : \"hello\";"
+                 , "    |                     ^^^^^^^"
+                 ]]
+
+        it "errors on arithmetic with a struct" $ do
+            shouldWarn'
+                [ "typedef struct Foo { int x; } Foo;"
+                , "int add(Foo foo) { return foo * 2; }"
+                ]
+                [[ "error: `foo` is `Foo`, but `*` needs a number [-Wtype-check]"
+                 , "   --> test.c:2:27"
+                 , "    |"
+                 , "   2| int add(Foo foo) { return foo * 2; }"
+                 , "    |                           ^^^"
+                 ]]
+
+        it "accepts numbers of any type for each other" $ do
             shouldAccept'
-                [ "void my_void_func() {"
-                , "  if (123) { return; }"
+                [ "typedef enum Colour { COLOUR_RED, COLOUR_BLUE } Colour;"
+                , "enum { MAX_THINGS = 3 };"
+                , "#define FACTOR 2"
+                , "uint32_t conversion_test(uint8_t val8, Colour colour, bool flag) {"
+                , "  uint32_t val32 = MAX_THINGS;"
+                , "  val32 += val8 * FACTOR;"
+                , "  const char c = 'a' + colour;"
+                , "  if (123) { return flag; }"
+                , "  return val32 + c + COLOUR_BLUE;"
                 , "}"
                 ]
 
-    describe "Enums" $ do
-        it "accepts casting an enum to an int" $ do
-            let headerCode =
-                    [ "#ifndef TEST_H_INCLUDED"
-                    , "#define TEST_H_INCLUDED"
-                    , "typedef enum MyEnum { MY_ENUM_ABC, MY_ENUM_DEF, MY_ENUM_GHI } MyEnum;"
-                    , "void take_int(int i);"
-                    , "#endif /* TEST_H_INCLUDED */"
-                    ]
-                sourceCode =
-                    [ "int enum_cast(MyEnum e) {"
-                    , "  int x = e;"
-                    , "  int y = MY_ENUM_DEF;"
-                    , "  take_int(MY_ENUM_ABC);"
-                    , "  return e;"
-                    , "}"
-                    ]
-            shouldAccept ["type-check"] [("test.h", headerCode), ("test.c", sourceCode)]
-
-        it "accepts unnamed enums" $ do
-            let headerCode =
-                    [ "enum { MY_ENUM_ABC, MY_ENUM_DEF, MY_ENUM_GHI };"
-                    , "void take_int(int i);"
-                    ]
-                sourceCode =
-                    [ "int enum_cast() {"
-                    , "  take_int(MY_ENUM_ABC);"
-                    , "  return MY_ENUM_DEF;"
-                    , "}"
-                    ]
-            shouldAccept ["type-check"] [("test.h", headerCode), ("test.c", sourceCode)]
-
-        it "errors when a name is misspelled" $ do
-            let headerCode =
-                    [ "typedef enum MyEnum { MY_ENUM_ABC } MyEnum;"
-                    ]
-                sourceCode =
-                    [ "int enum_cast(MyEnum e) {"
-                    , "  int y = MY_ENUM_NOT_AVAILABLE;"
-                    , "  return y;"
-                    , "}"
-                    ]
-            shouldWarn ["type-check"] [("test.h", headerCode), ("test.c", sourceCode)]
-                [[ "warning: Unbound constant: MY_ENUM_NOT_AVAILABLE [-Wtype-check]"
-                 , "   --> test.c:2:11"
-                 , "    |"
-                 , "   2|   int y = MY_ENUM_NOT_AVAILABLE;"
-                 , "    |           ^^^^^^^^^^^^^^^^^^^^^"
-                 ]]
+        it "accepts nullptr for any pointer" $ do
+            shouldAccept'
+                [ "void takes_ptr(uint8_t *ptr);"
+                , "bool some_bool();"
+                , "uint8_t *nullptr_test(uint8_t *ptr) {"
+                , "  takes_ptr(nullptr);"
+                , "  if (ptr == nullptr) { ptr = nullptr; }"
+                , "  return some_bool() ? ptr : nullptr;"
+                , "}"
+                ]

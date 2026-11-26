@@ -453,8 +453,21 @@ and when accessing their members, the tag is checked.
 
 ## `-Wtype-check` (global)
 
-A Hindley-Milner based type checker for Cimple.
-It checks for type consistency in expressions, assignments, and function calls.
+Checks that every value has the type its use needs. A `void *` counts as a
+pointer to one type, which all uses of it have to agree on:
+
+- a function that casts its `void *object` to `Foo *` has to be given a
+  `Foo *`;
+- a callback has to be passed or stored with an object of the type it casts
+  its `void *` to, whether the two are function parameters or struct fields;
+- an object stored in a struct's `void *` has to be of a type that some code
+  uses that `void *` as.
+
+A callback type whose `void *` is called with two different types takes any
+type there, and a `uint8_t *` or `char *` can point at any object.
+
+**Reason:** the compiler accepts any pointer as a `void *`, so it can't see a
+callback registered with the wrong object.
 
 ## `-Wtypedef-name`
 

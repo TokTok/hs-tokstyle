@@ -1,881 +1,1055 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE MultiWayIf            #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE StrictData            #-}
-
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData        #-}
+{-# LANGUAGE TupleSections     #-}
 module Tokstyle.Linter.TypeCheck (descr) where
 
-import           Control.Monad               (forM, forM_, void, when, zipWithM,
-                                              zipWithM_)
-import           Control.Monad.Except        hiding (catchError)
-import           Control.Monad.State.Strict  (State, StateT, evalStateT, get,
-                                              gets, lift, modify, put, runState)
-import           Data.Fix                    (Fix (..))
-import           Data.Map.Strict             (Map)
-import qualified Data.Map.Strict             as Map
-import           Data.Maybe                  (mapMaybe)
-import           Data.Set                    (Set)
-import qualified Data.Set                    as Set
-import           Data.Text                   (Text)
-import qualified Data.Text                   as Text
-import           Language.Cimple             (AssignOp (..), BinaryOp (..),
-                                              HasLocation, Lexeme (..),
-                                              LiteralType (..), Node,
-                                              NodeF (..), UnaryOp (..),
-                                              lexemeText)
-import qualified Language.Cimple             as C
-import           Language.Cimple.Diagnostics (CimplePos, Diagnostic,
-                                              DiagnosticLevel (..))
-import qualified Language.Cimple.Diagnostics as Diagnostics
-import           Language.Cimple.TraverseAst (AstActions, astActions, doNode,
-                                              traverseAst)
-import           Prettyprinter               (pretty)
+import           Control.Monad                         (forM, forM_, replicateM,
+                                                        unless, void, zipWithM)
+import           Control.Monad.State.Strict            (State, execState, gets,
+                                                        modify, state)
+import           Data.Fix                              (Fix (..))
+import           Data.Foldable                         (toList)
+import           Data.Graph                            (flattenSCC,
+                                                        stronglyConnComp)
+import           Data.IntMap.Strict                    (IntMap)
+import qualified Data.IntMap.Strict                    as IntMap
+import           Data.List                             (nub)
+import           Data.Map.Strict                       (Map)
+import qualified Data.Map.Strict                       as Map
+import           Data.Maybe                            (fromMaybe, isJust,
+                                                        listToMaybe, mapMaybe)
+import           Data.Set                              (Set)
+import qualified Data.Set                              as Set
+import           Data.Text                             (Text)
+import qualified Data.Text                             as Text
+import           Language.Cimple                       (AssignOp (..),
+                                                        BinaryOp (..),
+                                                        Lexeme (..), NodeF (..),
+                                                        UnaryOp (..))
+import qualified Language.Cimple                       as C
+import           Language.Cimple.Diagnostics           (CimplePos,
+                                                        Diagnostic (..),
+                                                        DiagnosticLevel (..),
+                                                        DiagnosticSpan (..),
+                                                        getDiagnosticInfo)
+import           Language.Cimple.Pretty                (showNodePlain)
+import           Prettyprinter                         (Doc, pretty, (<+>))
+import           Prettyprinter.Render.Terminal         (AnsiStyle)
+import           Tokstyle.Cimple.Analysis.Declarations
+import           Tokstyle.Common                       (backticks)
 
--- | The core type system of our linter. It's a Hindley-Milner style type system.
-data Type
-    = TInt
-    | TFloat
-    | TBool
-    | TChar
-    | TString
-    | TUnit -- void
-    | TPointer Type
-    | TFunc [Type] Type Bool
-    | TStruct Text (Map Text Type)
-    | TUnion Text (Map Text Type)
-    | TUserDefined Text
-    | TNullPtr
-    | TVar TVar
-    deriving (Ord)
+ppType :: Type -> Doc AnsiStyle
+ppType = backticks . pretty . go
+  where
+    go = \case
+        TVoid              -> "void"
+        TNum n             -> n
+        TPtr (TFun ps r v) -> go r <> " (*)(" <> list ps v <> ")"
+        TPtr t@TPtr{}      -> go t <> "*"
+        TPtr t             -> go t <> " *"
+        TFun ps r v        -> go (TPtr (TFun ps r v))
+        TRec n _           -> n
+        TExt n             -> n
+        TNull              -> "nullptr"
+        TVar _             -> "void"
+        TParam _           -> "void"
+        TAny               -> "void"
+    list ps v = Text.intercalate ", " (map go ps ++ ["..." | v])
 
--- Custom Eq for nominal typing of structs
-instance Eq Type where
-    TInt == TInt = True
-    TFloat == TFloat = True
-    TBool == TBool = True
-    TChar == TChar = True
-    TString == TString = True
-    TUnit == TUnit = True
-    (TPointer t1) == (TPointer t2) = t1 == t2
-    (TFunc args1 ret1 v1) == (TFunc args2 ret2 v2) = args1 == args2 && ret1 == ret2 && v1 == v2
-    (TStruct name1 _) == (TStruct name2 _) = name1 == name2
-    (TUnion name1 _) == (TUnion name2 _) = name1 == name2
-    (TUserDefined name1) == (TUserDefined name2) = name1 == name2
-    TNullPtr == TNullPtr = True
-    (TVar v1) == (TVar v2) = v1 == v2
-    _ == _ = False
+--------------------------------------------------------------------------------
+-- Checking
 
--- | A type variable.
-newtype TVar = TV Int deriving (Eq, Ord)
+-- | An access path like @a->b[i].c@.
+data Path
+    = PVar Text
+    | PField Path Text
+    -- | The index expression as text, and the variables it reads.
+    | PIndex Path Text [Text]
+    deriving (Eq, Ord)
 
-instance Show TVar where
-    show (TV i) = "t" ++ show i
+-- | A type variable and the node that bound it.
+data Origin = Origin Int FilePath Ast
 
-instance Show Type where
-    show TInt               = "int"
-    show TFloat             = "float"
-    show TBool              = "bool"
-    show TChar              = "char"
-    show TString            = "string"
-    show TUnit              = "void"
-    show (TPointer t)       = show t ++ "*"
-    show (TFunc args ret isVariadic)   = "(" ++ Text.unpack (Text.intercalate ", " (map (Text.pack . show) args)) ++ (if isVariadic then ", ..." else "") ++ ") -> " ++ show ret
-    show (TStruct name _)   = "struct " ++ Text.unpack name
-    show (TUnion name _)    = "union " ++ Text.unpack name
-    show (TUserDefined name)= Text.unpack name
-    show TNullPtr           = "nullptr_t"
-    show (TVar v)           = show v
+type Site = (FilePath, Ast)
 
--- | A type scheme, used for polymorphism.
-data Scheme = Forall [TVar] Type
-    deriving (Eq, Ord, Show)
+-- | The direction a value flows in when two types are unified: from the
+-- second type into the first, or out of the first into the second.
+data Flow = Into | OutOf
 
--- Substitution
+turned :: Flow -> Flow
+turned Into  = OutOf
+turned OutOf = Into
 
--- | A substitution is a mapping from type variables to types.
-type Subst = Map TVar Type
-
--- | A class for types that can have substitutions applied to them.
-class Substitutable a where
-    apply :: Subst -> a -> a
-    ftv   :: a -> Set TVar
-
-instance Substitutable Type where
-    apply s t@(TVar a)            = Map.findWithDefault t a s
-    apply s (TPointer t)          = TPointer (apply s t)
-    apply s (TFunc args ret v)    = TFunc (map (apply s) args) (apply s ret) v
-    apply s (TStruct name fields) = TStruct name (Map.map (apply s) fields)
-    apply s (TUnion name fields)  = TUnion name (Map.map (apply s) fields)
-    apply _ t                     = t
-
-    ftv (TVar a)           = Set.singleton a
-    ftv (TPointer t)       = ftv t
-    ftv (TFunc args ret _) = Set.unions (map ftv args) `Set.union` ftv ret
-    ftv (TStruct _ fields) = ftv (Map.elems fields)
-    ftv (TUnion _ fields)  = ftv (Map.elems fields)
-    ftv _                  = Set.empty
-
-instance Substitutable Scheme where
-    apply s (Forall vars t) = Forall vars (apply (foldr Map.delete s vars) t)
-    ftv (Forall vars t)     = ftv t `Set.difference` Set.fromList vars
-
-instance Substitutable a => Substitutable [a] where
-    apply = map . apply
-    ftv   = foldr (Set.union . ftv) Set.empty
-
-instance Substitutable v => Substitutable (Map k v) where
-    apply s = Map.map (apply s)
-    ftv = ftv . Map.elems
-
--- Environments
-
--- | The type environment maps variable names to their type schemes.
-type TypeEnv = Map Text Scheme
--- | The struct environment maps struct names to their field definitions.
-type StructEnv = Map Text (Map Text Type)
--- | The union environment maps union names to their field definitions.
-type UnionEnv = Map Text (Map Text Type)
--- | The typedef environment maps typedef names to their underlying types.
-type TypedefEnv = Map Text Type
-
--- Linter State
-
--- | The state of the type checker.
-data LinterState = LinterState
-    { typeEnv      :: TypeEnv
-    , structEnv    :: StructEnv
-    , unionEnv     :: UnionEnv
-    , typedefEnv   :: TypedefEnv
-    , subst        :: Subst
-    , freshCounter :: Int
-    , currentFile  :: FilePath
+data St = St
+    { stProg      :: Program
+    -- | Maps each void pointer of a struct to the first one that shares its type.
+    , stLinks     :: Map Text (IntMap Int)
+    -- | The void pointers of callback types that accept any type.
+    , stFree      :: Set Hole
+    -- | The argument types each callback void pointer was called with.
+    , stCalled    :: Map Hole (Set Type)
+    -- | The callback void pointers each type variable belongs to.
+    , stCallbacks :: IntMap (Set Hole)
+    -- | The struct void pointers each type variable belongs to.
+    , stHoles     :: IntMap (Set Hole)
+    -- | The types each struct void pointer was given, and the types it was used as.
+    , stGiven     :: Map Hole (Map Type Site)
+    , stUsed      :: Map Hole (Map Type Site)
+    , stNext      :: Int
+    , stSubst     :: IntMap Type
+    , stOrigins   :: IntMap Origin
+    , stSchemes   :: Map Key Scheme
+    , stMono      :: Map Key Type
+    -- | For each function, the void pointer parameters it casts, with the type and the cast.
+    , stUses      :: Map Text [(Text, Type, Origin)]
+    , stInstances :: [(Text, [Type])]
+    , stDiags     :: [Diagnostic CimplePos]
+    -- The function being checked.
+    , stFile      :: FilePath
+    , stDefines   :: Map Text Define
+    , stLocals    :: Map Text Type
+    , stPaths     :: Map Path Type
+    , stReturn    :: Type
+    , stName      :: Text
+    -- | The macro call being expanded.
+    , stCall      :: Maybe Ast
+    -- | The origins of the type variables resolved during the current comparison.
+    , stTrail     :: Maybe [Origin]
+    -- | The function whose arguments are being checked.
+    , stCallee    :: Maybe Text
     }
 
--- | The linter monad.
-type LinterM a = StateT LinterState (State [Diagnostic CimplePos]) a
+type M = State St
 
--- | A local error handler.
-catchError :: LinterM a -> (Text -> LinterM a) -> LinterM a
-catchError action handler = do
-    st <- get
-    let res = runState (evalStateT action st) []
-    case res of
-        (val, []) -> return val
-        (_, errs) -> handler (Text.unlines (map (Text.pack . show . Diagnostics.diagMsg) errs))
+fresh :: M Type
+fresh = state $ \s -> (TVar (stNext s), s { stNext = stNext s + 1 })
 
+freshArgs :: Text -> M [Type]
+freshArgs tag = do
+    record <- gets (Map.lookup tag . pRecords . stProg)
+    links <- gets (Map.findWithDefault IntMap.empty tag . stLinks)
+    let arity = maybe 0 recArity record
+        first' i = IntMap.findWithDefault i i links
+    as <- replicateM arity fresh
+    forM_ (maybe [] (IntMap.toList . recCallbacks) record) $ \(i, h) -> callback (as !! first' i) h
+    let args = map ((as !!) . first') [0 .. arity - 1]
+    args <$ instances (TRec tag args)
 
--- Monad Helpers
+callback :: Type -> Hole -> M ()
+callback (TVar a) h = modify $ \s -> s { stCallbacks = IntMap.insertWith Set.union a (Set.singleton h) (stCallbacks s) }
+callback _ _        = pure ()
 
--- | Generate a fresh type variable.
-fresh :: LinterM Type
-fresh = do
-    s <- get
-    let i = freshCounter s
-    put s { freshCounter = i + 1 }
-    return $ TVar (TV i)
+-- | Records the struct instances in a type, and which void pointer each of
+-- their type variables is.
+instances :: Type -> M ()
+instances t = modify $ \s -> s
+    { stInstances = records t ++ stInstances s
+    , stHoles = IntMap.unionWith Set.union (stHoles s) $ IntMap.fromListWith Set.union
+        [ (a, Set.singleton (tag, IntMap.findWithDefault i i (Map.findWithDefault IntMap.empty tag (stLinks s))))
+        | (tag, args) <- records t, (i, TVar a) <- zip [0 ..] args ]
+    }
 
--- | Add a type error to the list of diagnostics.
-addError :: (Diagnostics.HasDiagnosticInfo a CimplePos) => a -> Text -> LinterM ()
-addError loc msg = do
-    file <- gets currentFile
-    let (pos, len) = Diagnostics.getDiagnosticInfo file loc
-    lift $ Diagnostics.warnRich $ Diagnostics.Diagnostic pos len WarningLevel (pretty msg) Nothing [] []
+typeOf :: Ast -> M Type
+typeOf ty = gets stProg >>= \prog -> fromAst prog hole freshArgs ty
+  where
+    hole Nothing  = fresh
+    hole (Just h) = gets (Set.member h . stFree) >>= \case
+        True  -> pure TAny
+        False -> fresh >>= \t -> t <$ callback t h
 
--- | Run a computation in a modified type environment.
-withEnv :: (TypeEnv -> TypeEnv) -> LinterM a -> LinterM a
-withEnv f m = do
-    oldEnv <- gets typeEnv
-    modify $ \s -> s { typeEnv = f oldEnv }
-    val <- m
-    modify $ \s -> s { typeEnv = oldEnv }
-    pure val
+declared :: Ast -> [Ast] -> M Type
+declared ty dims = arrays (length dims) <$> typeOf ty
 
--- Unification
+-- | Resolves a bound type variable, at the top level only.
+shallow :: Type -> M Type
+shallow = fmap (\(t, _, _) -> t) . resolve
 
--- | Compose two substitutions.
-composeSubst :: Subst -> Subst -> Subst
-composeSubst s1 s2 = Map.map (apply s1) s2 `Map.union` s1
+-- | Like `shallow`, but also returns the variable's origin and the void
+-- pointers it belongs to.
+resolve :: Type -> M (Type, Maybe Origin, Set Hole)
+resolve t@(TVar a) = do
+    holes <- gets (IntMap.findWithDefault Set.empty a . stHoles)
+    gets (IntMap.lookup a . stSubst) >>= \case
+        Nothing -> pure (t, Nothing, holes)
+        Just t' -> do
+            origin <- gets (IntMap.lookup a . stOrigins)
+            forM_ origin $ \o -> modify (\s -> s { stTrail = (o :) <$> stTrail s })
+            (\(u, o, hs) -> (u, maybe origin Just o, Set.union holes hs)) <$> resolve t'
+resolve t = pure (t, Nothing, Set.empty)
 
--- | Unify two types.
-unify :: (Diagnostics.HasDiagnosticInfo a CimplePos) => a -> Text -> Type -> Type -> LinterM ()
-unify loc context t1 t2 = do
-    s <- gets subst
-    rT1 <- resolveType (apply s t1)
-    rT2 <- resolveType (apply s t2)
-    case (rT1, rT2) of
-        (TPointer (TVar a), TPointer t) -> unifyVar loc context a t
-        (TPointer t, TPointer (TVar a)) -> unifyVar loc context a t
-        (TVar a, t) -> unifyVar loc context a t
-        (t, TVar a) -> unifyVar loc context a t
-        (TNullPtr, TPointer _) -> return ()
-        (TPointer _, TNullPtr) -> return ()
-        (TPointer t, t') | t == t' -> return ()
-        (t, TPointer t') | t == t' -> return ()
-        (TFunc args1 ret1 _, TPointer (TFunc args2 ret2 _)) -> unify loc context (TFunc args1 ret1 False) (TFunc args2 ret2 False)
-        (TPointer (TFunc args1 ret1 _), TFunc args2 ret2 _) -> unify loc context (TFunc args1 ret1 False) (TFunc args2 ret2 False)
-        (TFunc args1 ret1 v1, TFunc args2 ret2 _v2) -> do
-            if v1
-            then do
-                when (length args1 > length args2) $
-                    addError loc ("mismatched number of arguments in " <> context <>
-                                   ": expected at least " <> Text.pack (show (length args1)) <>
-                                   ", but got " <> Text.pack (show (length args2)))
-                let (args2_fixed, _args2_variadic) = splitAt (length args1) args2
-                zipWithM_ (\(t1', i) t2' -> unify loc (context <> " (argument " <> Text.pack (show (i :: Int)) <> ")") t1' t2') (zip args1 [1..]) args2_fixed
-            else do
-                when (length args1 /= length args2) $
-                    addError loc ("mismatched number of arguments in " <> context <>
-                                   ": expected " <> Text.pack (show (length args1)) <>
-                                   ", but got " <> Text.pack (show (length args2)))
-                zipWithM_ (\(t1', i) t2' -> unify loc (context <> " (argument " <> Text.pack (show (i :: Int)) <> ")") t1' t2') (zip args1 [1..]) args2
-            unify loc (context <> " (return type)") ret1 ret2
-        (TUnion n1 _, TUnion n2 _) | n1 == n2 -> return ()
-        (t1'', t2'') | t1'' == t2'' -> return ()
-        _ -> addError loc $ "type mismatch in " <> context <> ": expected " <> Text.pack (show rT1) <> ", but got " <> Text.pack (show rT2)
+zonk :: Type -> M Type
+zonk t = gets stSubst >>= \s -> pure (go s t)
+  where
+    go s = \case
+        TVar a | Just t' <- IntMap.lookup a s -> go s t'
+        TPtr t'                               -> TPtr (go s t')
+        TFun ps r v                           -> TFun (map (go s) ps) (go s r) v
+        TRec n as                             -> TRec n (map (go s) as)
+        t'                                    -> t'
 
--- | Unify a type variable with a type.
-unifyVar :: (Diagnostics.HasDiagnosticInfo a CimplePos) => a -> Text -> TVar -> Type -> LinterM ()
-unifyVar loc context a t = do
-    s <- gets subst
-    if | Just t' <- Map.lookup a s -> unify loc context t' t
-       | TVar a == t -> return ()
-       | a `Set.member` ftv t -> addError loc $ "occurs check fails in " <> context <> ": " <> Text.pack (show a) <> " vs " <> Text.pack (show t)
-       | otherwise -> do
-            let newSubst = Map.singleton a t
-            modify $ \st -> st { subst = composeSubst newSubst (subst st) }
+bind :: Maybe Origin -> Int -> Type -> M ()
+bind origin a t = do
+    t' <- zonk t
+    unless (a `elem` vars t') $ modify $ \s -> s
+        { stSubst = IntMap.insert a t' (stSubst s)
+        , stOrigins = maybe id (IntMap.insert a) (if isVar t' then Nothing else origin) (stOrigins s)
+        }
 
--- Type Inference
+-- | Any object can be read as bytes, and bytes can hold any object.
+isBytes :: Type -> Bool
+isBytes = (`elem` [TNum "uint8_t", TNum "char"])
 
--- | Generalize a type into a type scheme.
-generalize :: TypeEnv -> Type -> LinterM Scheme
-generalize env t = do
-    s <- gets subst
-    let t' = apply s t
-    let env' = apply s env
-    return $ Forall (Set.toList $ ftv t' `Set.difference` ftv env') t'
+isVar :: Type -> Bool
+isVar TVar{} = True
+isVar _      = False
 
--- | Instantiate a type scheme into a type.
-instantiate :: Scheme -> LinterM Type
-instantiate (Forall vars t) = do
-    s <- gets subst
-    freshSubst <- fmap Map.fromList $ forM vars $ \v -> do
-        v' <- fresh
-        return (v, v')
-    return $ apply (composeSubst freshSubst s) t
+-- | Returns the two types that differ if a `got` can't be converted to a
+-- `want`. With a `flow`, the value flows from `got` to `want`.
+convert :: Ast -> Maybe Flow -> Type -> Type -> M (Maybe (Type, Type))
+convert at flow want got = do
+    w <- shallow want
+    g <- shallow got
+    case (w, g) of
+        (TVar a, TVar b) | a == b -> ok
+        (TVar a, _)               -> ok <* bind Nothing a g
+        (_, TVar b)               -> ok <* bind Nothing b w
+        (TExt _, _)               -> ok
+        (_, TExt _)               -> ok
+        (TNum _, TNum _)          -> ok
+        (TPtr _, TNull)           -> ok
+        (TNull, TPtr _)           -> ok
+        (TNull, TNull)            -> ok
+        (TPtr a, TPtr b)          -> same at flow a b
+        (TPtr a@TFun{}, TFun{})   -> same at flow a g
+        (TFun{}, TPtr b@TFun{})   -> same at flow w b
+        (TFun{}, TNull)           -> ok
+        (TNull, TFun{})           -> ok
+        _                         -> same at flow w g
+  where
+    ok = pure Nothing
 
--- | Convert a Cimple AST type to a linter type.
-cimpleToType :: Node (Lexeme Text) -> LinterM Type
-cimpleToType (Fix node) = case node of
-    C.TyStd (L _ _ "void")   -> return TUnit
-    C.TyStd (L _ _ "float")  -> return TInt
-    C.TyStd (L _ _ "int")    -> return TInt
-    C.TyStd (L _ _ "long")   -> return TInt
-    C.TyStd (L _ _ "long int") -> return TInt
-    C.TyStd (L _ _ "long signed int") -> return TInt
-    C.TyStd (L _ _ "signed int") -> return TInt
-    C.TyStd (L _ _ "unsigned") -> return TInt
-    C.TyStd (L _ _ "unsigned int") -> return TInt
-    C.TyStd (L _ _ "unsigned long") -> return TInt
-    C.TyStd (L _ _ "unsigned long long") -> return TInt
-    C.TyStd (L _ _ "uint8_t") -> return TInt
-    C.TyStd (L _ _ "uint16_t") -> return TInt
-    C.TyStd (L _ _ "uint32_t") -> return TInt
-    C.TyStd (L _ _ "uint64_t") -> return TInt
-    C.TyStd (L _ _ "int8_t") -> return TInt
-    C.TyStd (L _ _ "int16_t") -> return TInt
-    C.TyStd (L _ _ "int32_t") -> return TInt
-    C.TyStd (L _ _ "int64_t") -> return TInt
-    C.TyStd (L _ _ "size_t") -> return TInt
-    C.TyStd (L _ _ "char")   -> return TChar
-    C.TyStd (L _ _ "bool")   -> return TBool
-    C.TyPointer (Fix (C.TyStd (L _ _ "void"))) -> TPointer <$> fresh
-    C.TyPointer t            -> TPointer <$> cimpleToType t
-    C.TyConst t              -> cimpleToType t
-    C.TyOwner t              -> cimpleToType t
-    C.TyNullable t           -> cimpleToType t
-    C.TyNonnull t            -> cimpleToType t
-    C.TyUserDefined (L _ _ name) -> return $ TUserDefined name
-    C.TyStruct (L _ _ name)  -> do
-        senv <- gets structEnv
-        return $ TStruct name (Map.findWithDefault Map.empty name senv)
-    C.TyUnion (L _ _ name) -> do
-        uenv <- gets unionEnv
-        return $ TUnion name (Map.findWithDefault Map.empty name uenv)
-    C.TyFunc (L _ _ name)    -> return $ TUserDefined name
-    _                        -> fresh
+-- | Unifies two types. Returns the two types that differ if they don't
+-- unify. With `Into`, a `u` flows into a `t`.
+same :: Ast -> Maybe Flow -> Type -> Type -> M (Maybe (Type, Type))
+same at flow t u = do
+    (a, oa, ha) <- resolve t
+    (b, ob, hb) <- resolve u
+    file <- gets stFile
+    site <- gets stCall
+    let here x = Just (Origin x file (fromMaybe at site))
+        place = (file, fromMaybe at site)
+    forM_ flow $ \f -> flows place f ha b >> flows place (turned f) hb a
+    case (a, b) of
+        (TAny, _)                   -> ok
+        (_, TAny)                   -> ok
+        (TVar x, TVar y) | x == y   -> ok
+        (TVar x, TVar y)            -> ok <* tie x y <* bind Nothing x b
+        (TVar x, _)                 -> ok <* bind (maybe (here x) Just ob) x b
+        (_, TVar y)                 -> ok <* bind (maybe (here y) Just oa) y a
+        (TExt _, TExt _)            -> ok
+        (TExt _, TNum _)            -> ok
+        (TNum _, TExt _)            -> ok
+        (TNum x, TNum y) | x == y   -> ok
+        (TVoid, TVoid)              -> ok
+        (TPtr x, TPtr y)            -> same at flow x y
+        (TFun ps r _, TFun qs s _) | length ps == length qs ->
+            -- A function takes its arguments, so they flow the other way.
+            listToMaybe . mapMaybe id <$> ((:) <$> same at flow r s <*> zipWithM (same at (turned <$> flow)) ps qs)
+        (TRec x xs, TRec y ys) | x == y ->
+            listToMaybe . mapMaybe id <$> zipWithM (same at Nothing) xs ys
+        _                           -> pure (Just (a, b))
+  where
+    ok = pure Nothing
 
--- | Resolve a type by looking up typedefs.
-resolveType :: Type -> LinterM Type
-resolveType (TUserDefined name) = do
-    tenv <- gets typedefEnv
-    case Map.lookup name tenv of
-        Just t  -> resolveType t
+-- | Records that a value of type `t` is stored in the void pointers (`Into`),
+-- or that they are used as a `t` (`OutOf`).
+flows :: Site -> Flow -> Set Hole -> Type -> M ()
+flows place flow holes t = unless (Set.null holes) $ plain <$> zonk t >>= \t' ->
+    unless (isVar t' || t' `elem` [TNull, TAny] || isBytes t' || not (null (vars t'))) $ modify $ \s ->
+        let add m = foldr (\h -> Map.insertWith (flip Map.union) h (Map.singleton t' place)) m (Set.toList holes)
+        in case flow of
+            Into  -> s { stGiven = add (stGiven s) }
+            OutOf -> s { stUsed = add (stUsed s) }
+
+-- | Drops the type arguments of structs.
+plain :: Type -> Type
+plain = \case
+    TPtr t      -> TPtr (plain t)
+    TFun ps r v -> TFun (map plain ps) (plain r) v
+    TRec n _    -> TRec n []
+    t           -> t
+
+-- | Called when `x` is unified with `y`: `y` also gets the void pointers of `x`.
+tie :: Int -> Int -> M ()
+tie x y = modify $ \s -> s
+    { stHoles = IntMap.insertWith Set.union y (IntMap.findWithDefault Set.empty x (stHoles s)) (stHoles s) }
+
+--------------------------------------------------------------------------------
+-- Diagnostics
+
+report :: Ast -> Doc AnsiStyle -> M ()
+report at msg = do
+    file <- gets stFile
+    site <- gets stCall
+    trail <- gets (fromMaybe [] . stTrail)
+    uses <- gets stUses
+    callee <- gets stCallee
+    reasons <- forM trail $ \(Origin a f n) ->
+        spanAt f n . pure . (<+> "because of this") . ppType <$> zonk (TPtr (TVar a))
+    let node = fromMaybe at site
+        (pos, len) = getDiagnosticInfo file node
+        used = [ spanAt f n [quote fn <+> "uses" <+> quote p <+> "as" <+> ppType t]
+               | fn <- maybe id (:) callee [ v | Fix (VarExpr (L _ _ v)) <- concatMap subnodes (node : [ n | Origin _ _ n <- trail ]) ]
+               , (p, t, Origin _ f n) <- Map.findWithDefault [] fn uses ]
+        spans = take 3 . nubOn (\s -> (spanPos s, spanLen s)) $ filter ((/= pos) . spanPos) (reasons ++ used)
+    modify $ \s -> s { stDiags = Diagnostic pos len ErrorLevel msg Nothing spans [] : stDiags s }
+  where
+    spanAt f n = uncurry DiagnosticSpan (getDiagnosticInfo f n)
+    nubOn f = Map.elems . Map.fromList . map (\x -> (f x, x)) . reverse
+
+-- | Reports an error if a value of the second type can't be converted to the
+-- first. `msg` gets the type the value has, then the type it must have.
+expect :: Ast -> (Doc AnsiStyle -> Doc AnsiStyle -> Doc AnsiStyle) -> Type -> Type -> M ()
+expect = expectFlow (Just Into)
+
+-- | Like `expect`, for two values that are only compared.
+alike :: Ast -> (Doc AnsiStyle -> Doc AnsiStyle -> Doc AnsiStyle) -> Type -> Type -> M ()
+alike = expectFlow Nothing
+
+expectFlow :: Maybe Flow -> Ast -> (Doc AnsiStyle -> Doc AnsiStyle -> Doc AnsiStyle) -> Type -> Type -> M ()
+expectFlow flow at msg want got = tracing $
+    convert at flow want got >>= mapM_ (\(a, b) -> do
+        w <- zonk want
+        g <- zonk got
+        a' <- zonk (TPtr a)
+        b' <- zonk (TPtr b)
+        -- Structs that differ only in their type arguments are printed the same.
+        let for t inner | show (ppType w) == show (ppType g) = ppType t <+> "for" <+> ppType inner
+                        | otherwise = ppType t
+        report at (uncurry msg (fromMaybe (for g b', for w a') (differing g w))))
+
+-- | The first parameter or result in which two function types differ,
+-- described for each of them.
+differing :: Type -> Type -> Maybe (Doc AnsiStyle, Doc AnsiStyle)
+differing t u = case (function t, function u) of
+    (Just (ps, r), Just (qs, s)) | length ps == length qs -> listToMaybe $
+        [ (takes p, takes q) | (p, q) <- zip ps qs, plain p /= plain q ]
+        ++ [ (returns r, returns s) | plain r /= plain s ]
+    _ -> Nothing
+  where
+    function = \case
+        TPtr f      -> function f
+        TFun ps r _ -> Just (ps, r)
+        _           -> Nothing
+    takes p = "a function that takes" <+> ppType p
+    returns r = "a function that returns" <+> ppType r
+
+-- | Records the origins of the type variables resolved while `m` runs, for a
+-- report.
+tracing :: M a -> M a
+tracing m = modify (\s -> s { stTrail = Just [] }) *> m <* modify (\s -> s { stTrail = Nothing })
+
+code :: Ast -> Doc AnsiStyle
+code = backticks . pretty . showNodePlain
+
+quote :: Text -> Doc AnsiStyle
+quote = backticks . pretty
+
+--------------------------------------------------------------------------------
+-- Expressions
+
+path :: Ast -> Maybe Path
+path (Fix node) = case node of
+    VarExpr (L _ _ n)         -> Just (PVar n)
+    ParenExpr e               -> path e
+    MemberAccess e (L _ _ f)  -> flip PField f <$> path e
+    PointerAccess e (L _ _ f) -> flip PField f . first' <$> path e
+    UnaryExpr UopDeref e      -> first' <$> path e
+    ArrayAccess e i           -> (\p -> PIndex p (showNodePlain i)) <$> path e <*> stable i
+    _                         -> Nothing
+  where
+    first' p = PIndex p "0" []
+
+-- | Returns the variables an index expression reads, or 'Nothing' if
+-- evaluating it twice may give different values.
+stable :: Ast -> Maybe [Text]
+stable (Fix node) = case node of
+    VarExpr (L _ _ v) -> Just [v]
+    LiteralExpr _ _   -> Just []
+    ParenExpr e       -> stable e
+    MemberAccess e _  -> stable e
+    PointerAccess e _ -> stable e
+    ArrayAccess e i   -> (++) <$> stable e <*> stable i
+    BinaryExpr l _ r  -> (++) <$> stable l <*> stable r
+    _                 -> Nothing
+
+within :: Path -> Path -> Bool
+within object p = p == object || case p of
+    PVar _       -> False
+    PField q _   -> within object q
+    PIndex q _ _ -> within object q
+
+mentions :: Text -> Path -> Bool
+mentions v = \case
+    PVar n        -> n == v
+    PField p _    -> mentions v p
+    PIndex p _ vs -> v `elem` vs || mentions v p
+
+root :: Path -> Text
+root = \case
+    PVar n       -> n
+    PField p _   -> root p
+    PIndex p _ _ -> root p
+
+changed :: Text -> M ()
+changed v = modify $ \s -> s { stPaths = Map.filterWithKey (const . not . mentions v) (stPaths s) }
+
+changes :: Ast -> [Text]
+changes = concatMap (go . unFix) . subnodes
+  where
+    go = \case
+        AssignExpr (Fix (VarExpr (L _ _ v))) _ _       -> [v]
+        UnaryExpr UopIncr (Fix (VarExpr (L _ _ v)))    -> [v]
+        UnaryExpr UopDecr (Fix (VarExpr (L _ _ v)))    -> [v]
+        UnaryExpr UopAddress (Fix (VarExpr (L _ _ v))) -> [v]
+        VarDecl _ (L _ _ v) _                          -> [v]
+        _                                              -> []
+
+expr :: Ast -> M Type
+expr n = case path n of
+    Just PVar{} -> expr' n
+    Just p      -> gets (Map.lookup p . stPaths) >>= \case
+        Just t  -> pure t
         Nothing -> do
-            senv <- gets structEnv
-            case Map.lookup name senv of
-                Just fields -> return $ TStruct name fields
-                Nothing     -> do
-                    uenv <- gets unionEnv
-                    case Map.lookup name uenv of
-                        Just fields -> return $ TUnion name fields
-                        Nothing     -> return $ TUserDefined name
-resolveType (TStruct name _) = do
-    senv <- gets structEnv
-    case Map.lookup name senv of
-        Just fields -> return $ TStruct name fields
-        Nothing     -> return $ TStruct name Map.empty
-resolveType (TUnion name _) = do
-    uenv <- gets unionEnv
-    case Map.lookup name uenv of
-        Just fields -> return $ TUnion name fields
-        Nothing     -> return $ TUnion name Map.empty
-resolveType (TPointer t) = TPointer <$> resolveType t
-resolveType (TFunc args ret v) = TFunc <$> mapM resolveType args <*> resolveType ret <*> pure v
-resolveType t = return t
+            t <- expr' n
+            t <$ modify (\s -> s { stPaths = Map.insert p t (stPaths s) })
+    Nothing     -> expr' n
 
--- | Infer the type of an expression.
-inferExpr :: Node (Lexeme Text) -> LinterM Type
-inferExpr n@(Fix node) = case node of
-    C.MacroBodyStmt e -> inferExpr e
-    C.MacroBodyFunCall e -> inferExpr e
-    C.CompoundStmt stmts -> do
-        retType <- fresh
-        checkStmts stmts retType
-        return TUnit
-    C.DoWhileStmt body cond -> do
-        retType <- fresh
-        checkStmt body retType
-        checkCond cond
-        return TUnit
-    C.InitialiserList es -> do
-        elemType <- fresh
-        forM_ es $ \e -> do
-            t <- inferExpr e
-            unify e "initialiser list element" elemType t
-        return $ TPointer elemType
-    C.CommentExpr e _ -> inferExpr e
-    C.MacroParam l@(L _ _ name) -> do
-        mScheme <- gets (Map.lookup name . typeEnv)
-        case mScheme of
-            Just scheme -> instantiate scheme
-            Nothing     -> addError l ("Unbound macro parameter: " <> name) >> fresh
-    C.LiteralExpr C.Int (L _ _ txt)
-        | "." `Text.isInfixOf` txt -> return TInt
-        | otherwise -> return TInt
-    C.LiteralExpr C.Float _    -> return TInt
-    C.LiteralExpr C.Bool _     -> return TBool
-    C.LiteralExpr C.Char _     -> return TChar
-    C.LiteralExpr C.String _   -> return $ TPointer TChar
-    C.LiteralExpr C.ConstId l@(L _ _ name)
-        | name == "NULL" || name == "nullptr" -> return TNullPtr
-        | otherwise -> do
-            mScheme <- gets (Map.lookup name . typeEnv)
-            case mScheme of
-                Just scheme -> instantiate scheme
-                Nothing     -> addError l ("Unbound constant: " <> name) >> fresh
-    C.VarExpr l@(L _ _ name) -> do
-        mScheme <- gets (Map.lookup name . typeEnv)
-        case mScheme of
-            Just scheme -> instantiate scheme
-            Nothing     -> addError l ("Unbound variable: " <> name) >> fresh
-    C.ParenExpr e -> inferExpr e
-    C.UnaryExpr op e -> inferUnary op e
-    C.BinaryExpr e1 op e2 -> inferBinary e1 op e2
-    C.AssignExpr lhs op rhs -> do
-        t1 <- inferExpr lhs
-        t2 <- inferExpr rhs
-        case (op, t1, t2) of
-            (AopEq, _, _) -> unify n "assignment" t1 t2
-            (AopPlus, TPointer _, TInt) -> return ()
-            (AopMinus, TPointer _, TInt) -> return ()
-            (AopBitXor, TInt, TInt) -> return ()
-            (_, TInt, TInt) -> return ()
-            _ -> addError n $ "invalid assignment operation: " <> Text.pack (show op) <> " with types " <> Text.pack (show t1) <> " and " <> Text.pack (show t2)
-        return t1
-    C.TernaryExpr c t e -> do
-        checkCond c
-        t1 <- inferExpr t
-        t2 <- inferExpr e
-        unify n "ternary expression" t1 t2
-        return t1
-    C.FunctionCall f args -> do
-        fType <- inferExpr f
-        argTypes <- mapM inferExpr args
-        retType <- fresh
-        unify n "function call" fType (TFunc argTypes retType False)
-        return retType
-    C.PointerAccess e l@(L _ _ member) -> do
-        eType <- inferExpr e
-        rType <- resolveType eType
-        case rType of
-            TPointer (TStruct name fields) ->
-                case Map.lookup member fields of
-                    Just memberType -> return memberType
-                    Nothing -> addError n ("Struct " <> name <> " has no member: " <> member) >> fresh
-            TPointer (TUnion name fields) ->
-                case Map.lookup member fields of
-                    Just memberType -> return memberType
-                    Nothing -> addError n ("Union " <> name <> " has no member: " <> member) >> fresh
-            TPointer (TUserDefined name) -> do
-                senv <- gets structEnv
-                case Map.lookup name senv of
-                    Just fields -> case Map.lookup member fields of
-                        Just memberType -> return memberType
-                        Nothing -> addError n ("Struct " <> name <> " has no member: " <> member) >> fresh
-                    Nothing -> do
-                        uenv <- gets unionEnv
-                        case Map.lookup name uenv of
-                            Just ufields -> case Map.lookup member ufields of
-                                Just memberType -> return memberType
-                                Nothing -> addError n ("Union " <> name <> " has no member: " <> member) >> fresh
-                            Nothing -> addError n ("Accessing member of incomplete type: " <> name) >> fresh
-            TPointer (TVar _) -> do
-                memberType <- fresh
-                let fields = Map.singleton member memberType
-                unify e "pointer access" (TPointer (TStruct "unknown" fields)) eType
-                return memberType
-            _ -> addError e ("Pointer access on non-pointer-to-struct type: " <> Text.pack (show rType)) >> fresh
-    C.MemberAccess e l@(L _ _ member) -> do
-        eType <- inferExpr e
-        rType <- resolveType eType
-        case rType of
-            TStruct name fields ->
-                case Map.lookup member fields of
-                    Just memberType -> return memberType
-                    Nothing -> addError n ("Struct " <> name <> " has no member: " <> member) >> fresh
-            TUnion name fields ->
-                case Map.lookup member fields of
-                    Just memberType -> return memberType
-                    Nothing -> addError n ("Union " <> name <> " has no member: " <> member) >> fresh
-            TUserDefined name -> do
-                senv <- gets structEnv
-                case Map.lookup name senv of
-                    Just fields -> case Map.lookup member fields of
-                        Just memberType -> return memberType
-                        Nothing -> addError l ("Struct " <> name <> " has no member: " <> member) >> fresh
-                    Nothing -> do
-                        uenv <- gets unionEnv
-                        case Map.lookup name uenv of
-                            Just ufields -> case Map.lookup member ufields of
-                                Just memberType -> return memberType
-                                Nothing -> addError l ("Union " <> name <> " has no member: " <> member) >> fresh
-                            Nothing -> addError e ("Accessing member of incomplete type: " <> name) >> fresh
-            _ -> addError e ("Member access on non-struct type: " <> Text.pack (show rType)) >> fresh
-    C.ArrayAccess e i -> do
-        eType <- inferExpr e
-        iType <- inferExpr i
-        unify i "array index" TInt iType
-        case eType of
-            TPointer elemType -> return elemType
+expr' :: Ast -> M Type
+expr' n@(Fix node) = case node of
+    ParenExpr e -> expr e
+    CommentExpr _ e -> expr e
+    MacroBodyFunCall e -> expr e
+    MacroBodyStmt s -> TVoid <$ stmt s
+    LiteralExpr C.Int _ -> pure (TNum "int")
+    LiteralExpr C.Float _ -> pure (TNum "float")
+    LiteralExpr C.Bool _ -> pure (TNum "bool")
+    LiteralExpr C.Char _ -> pure (TNum "char")
+    LiteralExpr C.String _ -> pure (TPtr (TNum "char"))
+    LiteralExpr C.ConstId (L _ _ v) -> variable n v
+    VarExpr (L _ _ v) -> variable n v
+    UnaryExpr op e -> unary n op e
+    BinaryExpr l op r -> binary n l op r
+    AssignExpr l op r -> assign n l op r
+    TernaryExpr c t e -> do
+        cond c
+        a <- expr t
+        b <- expr e
+        alike e (\got want -> code e <+> "is" <+> got <> ", but" <+> code t <+> "is" <+> want) a b
+        shallow a >>= \case
+            TNull -> pure b
+            _     -> pure a
+    FunctionCall f args -> call n f args
+    MemberAccess e f -> expr e >>= member n f
+    PointerAccess e f -> expr e >>= pointee e >>= member n f
+    ArrayAccess e i -> do
+        t <- expr e
+        expr i >>= number i "an index"
+        pointee e t >>= element
+    CastExpr ty e -> do
+        t <- typeOf ty
+        g <- expr e
+        t <$ cast n e t g
+    SizeofExpr e -> TNum "size_t" <$ expr e
+    SizeofType _ -> pure (TNum "size_t")
+    CompoundLiteral ty e -> do
+        t <- typeOf ty
+        t <$ initialise (showNodePlain ty) t (Fix (InitialiserList [e]))
+    InitialiserList es -> mapM_ expr es >> fresh
+    _ -> fresh
+
+-- | Each array element gets its own type variables, so two elements don't
+-- need to have the same type.
+element :: Type -> M Type
+element t = zonk t >>= \t' -> instantiate (Forall (nub (vars t')) t')
+
+instantiate :: Scheme -> M Type
+instantiate (Forall [] t) = pure t
+instantiate (Forall as t) = do
+    t' <- (`rename` t) <$> renaming as
+    t' <$ instances t'
+
+renaming :: [Int] -> M (IntMap Type)
+renaming as = do
+    sub <- IntMap.fromList <$> mapM (\a -> (a,) <$> fresh) as
+    sub <$ modify (\s -> s { stCallbacks = IntMap.union (stCallbacks s) $ IntMap.fromList
+        [ (a', hs) | (a, TVar a') <- IntMap.toList sub, Just hs <- [IntMap.lookup a (stCallbacks s)] ] })
+
+rename :: IntMap Type -> Type -> Type
+rename sub = go
+  where
+    go = \case
+        TVar a      -> IntMap.findWithDefault (TVar a) a sub
+        TPtr u      -> TPtr (go u)
+        TFun ps r v -> TFun (map go ps) (go r) v
+        TRec r us   -> TRec r (map go us)
+        u           -> u
+
+variable :: Ast -> Text -> M Type
+variable n v
+    | v `elem` ["nullptr", "NULL"] = pure TNull
+    | otherwise = gets (Map.lookup v . stLocals) >>= \case
+        Just t  -> pure t
+        Nothing -> define v >>= \case
+            Just (Constant e) -> expanding n (expr e)
+            Just Macro{}      -> fresh
+            Nothing           -> global v
+
+define :: Text -> M (Maybe Define)
+define v = gets $ \s -> case Map.lookup v (stDefines s) of
+    Nothing -> Map.lookup v (pDefines (stProg s))
+    d       -> d
+
+-- | Errors found while expanding a macro are reported at the macro call.
+expanding :: Ast -> M a -> M a
+expanding at m = do
+    site <- gets stCall
+    modify (\s -> s { stCall = Just (fromMaybe at site) })
+    m <* modify (\s -> s { stCall = site })
+
+-- | Looks up a name: the file's static first, then the program's global.
+visible :: Text -> Map Key a -> M (Maybe a)
+visible v m = gets $ \s -> maybe (Map.lookup (Nothing, v) m) Just (Map.lookup (Just (stFile s), v) m)
+
+global :: Text -> M Type
+global v = do
+    mono <- gets stMono >>= visible v
+    scheme <- gets stSchemes >>= visible v
+    enumerator <- gets (Map.lookup v . pEnumerators . stProg)
+    case (mono, scheme, enumerator) of
+        (Just t, _, _) -> pure t
+        (_, Just s, _) -> instantiate s
+        (_, _, Just e) -> pure (TNum e)
+        _              -> fresh
+
+unary :: Ast -> UnaryOp -> Ast -> M Type
+unary n op e = case op of
+    UopNot     -> TNum "bool" <$ cond e
+    UopNeg     -> numeric
+    UopMinus   -> numeric
+    UopAddress -> do
+        forM_ (variableName e) changed
+        TPtr <$> expr e
+    UopDeref   -> expr e >>= pointee e
+    UopIncr    -> step
+    UopDecr    -> step
+  where
+    numeric = do
+        t <- expr e
+        t <$ number e (opName n) t
+    step = do
+        t <- expr e
+        forM_ (variableName e) changed
+        shallow t >>= \case
+            TPtr _ -> pure t
+            _      -> t <$ number e (opName n) t
+
+opName :: Ast -> Doc AnsiStyle
+opName (Fix node) = backticks $ case node of
+    UnaryExpr UopNeg _   -> "~"
+    UnaryExpr UopMinus _ -> "-"
+    UnaryExpr UopIncr _  -> "++"
+    UnaryExpr UopDecr _  -> "--"
+    BinaryExpr _ op _    -> binaryName op
+    AssignExpr _ op _    -> assignName op
+    _                    -> "?"
+
+binaryName :: BinaryOp -> Doc AnsiStyle
+binaryName = \case
+    BopNe -> "!="; BopEq -> "=="; BopOr -> "||"; BopBitXor -> "^"; BopBitOr -> "|"
+    BopAnd -> "&&"; BopBitAnd -> "&"; BopDiv -> "/"; BopMul -> "*"; BopMod -> "%"
+    BopPlus -> "+"; BopMinus -> "-"; BopLt -> "<"; BopLe -> "<="; BopLsh -> "<<"
+    BopGt -> ">"; BopGe -> ">="; BopRsh -> ">>"
+
+assignName :: AssignOp -> Doc AnsiStyle
+assignName = \case
+    AopEq -> "="; AopMul -> "*="; AopDiv -> "/="; AopPlus -> "+="; AopMinus -> "-="
+    AopBitAnd -> "&="; AopBitOr -> "|="; AopBitXor -> "^="; AopMod -> "%="
+    AopLsh -> "<<="; AopRsh -> ">>="
+
+variableName :: Ast -> Maybe Text
+variableName (Fix (VarExpr (L _ _ v))) = Just v
+variableName (Fix (ParenExpr e))       = variableName e
+variableName _                         = Nothing
+
+pointee :: Ast -> Type -> M Type
+pointee e t = shallow t >>= \case
+    TPtr u   -> pure u
+    u@TFun{} -> pure u
+    TVar _   -> fresh
+    TExt _   -> fresh
+    TAny     -> fresh
+    u        -> do
+        u' <- zonk u
+        report e (code e <+> "is" <+> ppType u' <> ", which is not a pointer")
+        fresh
+
+member :: Ast -> Lexeme Text -> Type -> M Type
+member n (L _ _ f) t = shallow t >>= \case
+    TRec tag args -> gets (Map.lookup tag . pRecords . stProg) >>= \case
+        Nothing -> fresh
+        Just r -> case Map.lookup f (recFields r) of
+            Nothing -> report n (quote tag <+> "has no member" <+> quote f) >> fresh
+            Just ft -> do
+                free <- gets stFree
+                let field = \case
+                        TParam i | maybe False (`Set.member` free) (IntMap.lookup i (recCallbacks r)) -> pure TAny
+                                 | otherwise -> pure (args !! i)
+                        TPtr u        -> TPtr <$> field u
+                        TFun ps ret v -> TFun <$> mapM field ps <*> field ret <*> pure v
+                        TRec nested _ -> TRec nested <$> freshArgs nested
+                        u             -> pure u
+                field ft
+    TVar _ -> fresh
+    TExt _ -> fresh
+    TAny   -> fresh
+    u -> do
+        u' <- zonk u
+        report n (quote f <+> "is read from" <+> ppType u' <> ", which is not a struct")
+        fresh
+
+number :: Ast -> Doc AnsiStyle -> Type -> M ()
+number e what t = shallow t >>= \case
+    TNum _ -> pure ()
+    TVar _ -> pure ()
+    TExt _ -> pure ()
+    TAny   -> pure ()
+    u      -> do
+        u' <- zonk u
+        report e (code e <+> "is" <+> ppType u' <> ", but" <+> what <+> "needs a number")
+
+cond :: Ast -> M ()
+cond e = expr e >>= shallow >>= \case
+    t@TRec{} -> report e (code e <+> "is" <+> ppType t <> ", which can't be a condition")
+    TVoid    -> report e (code e <+> "has no value to be a condition")
+    _        -> pure ()
+
+isPtr :: Type -> M Bool
+isPtr t = shallow t >>= \case
+    TPtr _ -> pure True
+    _      -> pure False
+
+binary :: Ast -> Ast -> BinaryOp -> Ast -> M Type
+binary n l op r
+    | op `elem` [BopAnd, BopOr] = TNum "bool" <$ (cond l >> cond r)
+    | otherwise = do
+        a <- expr l
+        b <- expr r
+        pa <- isPtr a
+        pb <- isPtr b
+        case op of
+            _ | op `elem` [BopEq, BopNe, BopLt, BopLe, BopGt, BopGe] -> do
+                alike r (\got want -> code r <+> "is" <+> got <> ", but it is compared with"
+                    <+> code l <> ", which is" <+> want) a b
+                pure (TNum "bool")
+            BopPlus | pa -> a <$ number r (opName n) b
+                    | pb -> b <$ number l (opName n) a
+            BopMinus | pa && pb -> pure (TNum "ptrdiff_t")
+                     | pa -> a <$ number r (opName n) b
             _ -> do
-                elemType <- fresh
-                unify e "array access" (TPointer elemType) eType
-                return elemType
-    C.CastExpr ty e -> do
-        t <- cimpleToType ty
-        e_t <- inferExpr e
-        unify e "cast expression" t e_t
-        return t
-    C.SizeofExpr _ -> return TInt
-    C.SizeofType _ -> return TInt
-    C.CompoundLiteral ty _ -> cimpleToType ty
-    _ -> addError n ("unhandled expression: " <> Text.pack (show node)) >> fresh
+                number l (opName n) a
+                number r (opName n) b
+                shallow a >>= \case
+                    TNum _ -> pure a
+                    _      -> pure b
 
--- | Infer the type of a unary expression.
-inferUnary :: UnaryOp -> Node (Lexeme Text) -> LinterM Type
-inferUnary op e = do
-    t <- inferExpr e
+assign :: Ast -> Ast -> AssignOp -> Ast -> M Type
+assign n l op r = do
+    -- The assignment invalidates the paths within `l` and the paths indexed by
+    -- its variable.
+    forM_ (path l) $ \p -> modify $ \s -> s
+        { stPaths = Map.filterWithKey (\q _ -> not (within p q || indexReads (root p) q)) (stPaths s) }
+    forM_ (variableName l) changed
+    a <- expr l
     case op of
-        UopNot     -> checkCond e >> return TBool
-        UopNeg     -> unify e "negation" TInt t >> return TInt
-        UopMinus   -> unify e "unary minus" TInt t >> return TInt
-        UopAddress -> TPointer <$> inferExpr e
-        UopDeref   -> do
-            case t of
-                TPointer t' -> return t'
-                _           -> do
-                    ptrType <- fresh
-                    unify e "dereference" (TPointer ptrType) t
-                    return ptrType
-        UopIncr    -> unify e "increment" TInt t >> return TInt
-        UopDecr    -> unify e "decrement" TInt t >> return TInt
+        AopEq -> a <$ initialise (showNodePlain l) a r
+        _ -> do
+            b <- expr r
+            pa <- isPtr a
+            unless (pa && op `elem` [AopPlus, AopMinus]) $ number l (opName n) a
+            a <$ number r (opName n) b
 
--- | Infer the type of a binary expression.
-inferBinary :: Node (Lexeme Text) -> BinaryOp -> Node (Lexeme Text) -> LinterM Type
-inferBinary e1 op e2 = do
-    t1 <- inferExpr e1
-    t2 <- inferExpr e2
-    let opCtx = "binary operator " <> Text.pack (show op)
-    case op of
-        BopPlus -> case (t1, t2) of
-            (TPointer pt, TInt) -> return $ TPointer pt
-            (TInt, TPointer pt) -> return $ TPointer pt
-            (TInt, TInt) -> return TInt
-            (TFloat, TFloat) -> return TFloat
-            (TInt, TFloat) -> return TFloat
-            (TFloat, TInt) -> return TFloat
-            v -> addError e1 ("invalid operands for +: " <> Text.pack (show v)) >> return TInt
-        BopMinus -> case (t1, t2) of
-            (TPointer pt, TInt) -> return $ TPointer pt
-            (TPointer pt1, TPointer pt2) -> unify e1 opCtx pt1 pt2 >> return TInt
-            (TInt, TInt) -> return TInt
-            (TFloat, TFloat) -> return TFloat
-            (TInt, TFloat) -> return TFloat
-            (TFloat, TInt) -> return TFloat
-            v -> addError e1 ("invalid operands for -: " <> Text.pack (show v)) >> return TInt
-        BopMul -> do
-           unify e1 opCtx TInt t1
-           unify e2 opCtx TInt t2
-           return TInt
-        BopDiv -> do
-           unify e1 opCtx TInt t1
-           unify e2 opCtx TInt t2
-           return TInt
-        BopMod -> do
-           unify e1 opCtx TInt t1
-           unify e2 opCtx TInt t2
-           return TInt
-        BopBitAnd -> do
-            unify e1 opCtx TInt t1
-            unify e2 opCtx TInt t2
-            return TInt
-        BopBitOr -> do
-            unify e1 opCtx TInt t1
-            unify e2 opCtx TInt t2
-            return TInt
-        BopBitXor -> do
-            unify e1 opCtx TInt t1
-            unify e2 opCtx TInt t2
-            return TInt
-        BopLsh -> do
-            unify e1 opCtx TInt t1
-            unify e2 opCtx TInt t2
-            return TInt
-        BopRsh -> do
-            unify e1 opCtx TInt t1
-            unify e2 opCtx TInt t2
-            return TInt
-        BopEq -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopNe -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopLt -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopLe -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopGt -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopGe -> do
-           unify e1 opCtx t1 t2
-           return TBool
-        BopAnd -> do
-           checkCond e1
-           checkCond e2
-           return TBool
-        BopOr -> do
-           checkCond e1
-           checkCond e2
-           return TBool
+indexReads :: Text -> Path -> Bool
+indexReads v = \case
+    PVar _        -> False
+    PField p _    -> indexReads v p
+    PIndex p _ vs -> v `elem` vs || indexReads v p
 
--- | Check if an expression is a valid condition.
-checkCond :: Node (Lexeme Text) -> LinterM ()
-checkCond cond = do
-    condType <- inferExpr cond
-    s <- gets subst
-    let condType' = apply s condType
-    case condType' of
-        TBool      -> return ()
-        TInt       -> return ()
-        TPointer _ -> return ()
-        _          -> unify cond "condition" TBool condType'
-
--- | Type check a list of statements.
-checkStmts :: [Node (Lexeme Text)] -> Type -> LinterM ()
-checkStmts [] _ = return ()
-checkStmts ((Fix (C.VarDeclStmt (Fix (C.VarDecl ty (L _ _ name) declSpecArrays)) mInit)):stmts) expectedRetType = do
-    varType <- cimpleToType ty
-    let finalVarType = foldr (\_ acc -> TPointer acc) varType declSpecArrays
-    case mInit of
-        Just initExpr@(Fix (C.InitialiserList es)) -> do
-            rVarType <- resolveType finalVarType
-            case rVarType of
-                TStruct _ fields -> do
-                    let fieldTypes = Map.elems fields
-                    when (length fieldTypes == length es) $
-                        zipWithM_ (\fieldType e -> do
-                            eType <- inferExpr e
-                            unify e ("initialisation of " <> name) fieldType eType
-                        ) fieldTypes es
-                _ -> do
-                    initType <- inferExpr initExpr
-                    unify initExpr ("initialisation of " <> name) finalVarType initType
-        _ -> forM_ mInit $ \initExpr -> do
-            initType <- inferExpr initExpr
-            unify initExpr ("initialisation of " <> name) finalVarType initType
-
-    let scheme = Forall [] finalVarType
-    withEnv (Map.insert name scheme) $ checkStmts stmts expectedRetType
-checkStmts ((Fix (C.VLA ty (L _ _ name) sizeExpr)):stmts) expectedRetType = do
-    baseType <- cimpleToType ty
-    let varType = TPointer baseType
-    sizeType <- inferExpr sizeExpr
-    unify sizeExpr "VLA size" TInt sizeType
-    let scheme = Forall [] varType
-    withEnv (Map.insert name scheme) $ checkStmts stmts expectedRetType
-checkStmts (stmt:stmts) expectedRetType = do
-    checkStmt stmt expectedRetType >> checkStmts stmts expectedRetType
-
--- | Type check a single statement.
-checkStmt :: Node (Lexeme Text) -> Type -> LinterM ()
-checkStmt n@(Fix node) expectedRetType = case node of
-    C.CompoundStmt stmts -> checkStmts stmts expectedRetType
-    C.Return (Just expr) -> do
-        actualRetType <- inferExpr expr
-        unify expr "return value" expectedRetType actualRetType
-    C.Return Nothing -> unify n "return from void function" expectedRetType TUnit
-    C.IfStmt cond thenB mElseB -> do
-        checkCond cond
-        checkStmt thenB expectedRetType
-        maybe (return ()) (`checkStmt` expectedRetType) mElseB
-    C.WhileStmt cond body -> do
-        checkCond cond
-        checkStmt body expectedRetType
-    C.ForStmt init' cond next body -> do
-        withEnv id $ do
-            case init' of
-                Fix (C.VarDeclStmt (Fix (C.VarDecl ty (L _ _ name) _)) mInit) -> do
-                    varType <- cimpleToType ty
-                    forM_ mInit $ \initExpr -> do
-                        initType <- inferExpr initExpr
-                        unify initExpr ("for loop initialisation of " <> name) varType initType
-                    env <- gets typeEnv
-                    scheme <- generalize env varType
-                    withEnv (Map.insert name scheme) $ do
-                        checkCond cond
-                        void $ inferExpr next
-                        checkStmt body expectedRetType
-                _ -> do
-                    void $ inferExpr init'
-                    checkCond cond
-                    void $ inferExpr next
-                    checkStmt body expectedRetType
-    C.DoWhileStmt body cond -> do
-        checkStmt body expectedRetType
-        checkCond cond
-    C.SwitchStmt expr cases -> do
-        exprType <- inferExpr expr
-        unify expr "switch expression" TInt exprType `catchError` \_ -> unify expr "switch expression" exprType exprType
-        forM_ cases $ \case
-            Fix (C.Case caseExpr body) -> do
-                caseExprType <- inferExpr caseExpr
-                unify caseExpr "case expression" TInt caseExprType `catchError` \_ -> unify caseExpr "case expression" exprType caseExprType
-                checkStmt body expectedRetType
-            Fix (C.Default body) -> checkStmt body expectedRetType
-            _ -> return ()
-    C.ExprStmt e -> void $ inferExpr e
-    _ -> return ()
-
--- Analysis Passes
-
-type TranslationUnit = (FilePath, [Node (Lexeme Text)])
-
--- | Collect all global definitions (structs, typedefs, functions) in a file.
-collectGlobals :: TranslationUnit -> LinterM ()
-collectGlobals (file, nodes) = do
-    modify $ \s -> s { currentFile = file }
-    traverseAst collector (file, nodes)
+initialise :: Text -> Type -> Ast -> M ()
+initialise what want e@(Fix node) = case node of
+    InitialiserList [Fix (LiteralExpr C.Int (L _ _ "0"))] -> pure ()
+    InitialiserList es -> shallow want >>= \case
+        TRec tag args | length es > 1 || not (any isList es) ->
+            gets (Map.lookup tag . pRecords . stProg) >>= \case
+                Just r | recStruct r, length es <= length (recOrder r) ->
+                    forM_ (zip (recOrder r) es) $ \(f, x) -> do
+                        ft <- member e (L (C.AlexPn 0 0 0) C.IdVar f) (TRec tag args)
+                        nested ft x $ initialise (what <> "." <> f) ft x
+                _ -> mapM_ expr es
+        TPtr t -> forM_ es $ \x -> element t >>= \et -> nested et x (initialise what et x)
+        _ -> mapM_ expr es
+    _ -> do
+        got <- expr e
+        expect e (\g w -> code e <+> "is" <+> g <> ", but" <+> quote what <+> "is" <+> w) want got
   where
-    handleEnumerator :: Type -> Node (Lexeme Text) -> LinterM ()
-    handleEnumerator enumType (Fix (C.Enumerator (L _ _ ename) _)) = do
-        let scheme = Forall [] enumType
-        modify $ \s -> s { typeEnv = Map.insert ename scheme (typeEnv s) }
-    handleEnumerator enumType (Fix (C.Commented _ n)) = handleEnumerator enumType n
-    handleEnumerator _ _ = return ()
+    isList (Fix InitialiserList{}) = True
+    isList _                       = False
+    -- A nested struct or array may be initialised without braces.
+    nested t x m = shallow t >>= \case
+        TRec{} | not (isList x) -> void (expr x)
+        _                       -> m
 
-    collector = astActions
-        { doNode = \_ node continuation -> do
-            case unFix node of
-                C.AggregateDecl (Fix (C.Struct (L _ _ sname) members)) -> do
-                    memberDecls <- fmap concat . forM members $ \case
-                        Fix (C.MemberDecl (Fix (C.VarDecl ty (L _ _ mname) declSpecArrays)) _) -> do
-                            t <- cimpleToType ty
-                            let finalT = foldr (\_ acc -> TPointer acc) t declSpecArrays
-                            return [(mname, finalT)]
-                        _ -> return []
-                    let fieldEnv = Map.fromList memberDecls
-                    modify $ \s -> s { structEnv = Map.insert sname fieldEnv (structEnv s) }
-                C.AggregateDecl (Fix (C.Union (L _ _ uname) members)) -> do
-                    memberDecls <- fmap concat . forM members $ \case
-                        Fix (C.MemberDecl (Fix (C.VarDecl ty (L _ _ mname) declSpecArrays)) _) -> do
-                            t <- cimpleToType ty
-                            let finalT = foldr (\_ acc -> TPointer acc) t declSpecArrays
-                            return [(mname, finalT)]
-                        _ -> return []
-                    let fieldEnv = Map.fromList memberDecls
-                    modify $ \s -> s { unionEnv = Map.insert uname fieldEnv (unionEnv s) }
-                C.Typedef (Fix (C.Struct (L _ _ sname) members)) (L _ _ tname) _ -> do
-                    memberDecls <- fmap concat . forM members $ \case
-                        Fix (C.MemberDecl (Fix (C.VarDecl ty (L _ _ mname) declSpecArrays)) _) -> do
-                            t <- cimpleToType ty
-                            let finalT = foldr (\_ acc -> TPointer acc) t declSpecArrays
-                            return [(mname, finalT)]
-                        _ -> return []
-                    let fieldEnv = Map.fromList memberDecls
-                    modify $ \s -> s { structEnv = Map.insert sname fieldEnv (structEnv s) }
-                    modify $ \s -> s { typedefEnv = Map.insert tname (TStruct sname fieldEnv) (typedefEnv s) }
-                C.Typedef (Fix (C.Union (L _ _ uname) members)) (L _ _ tname) _ -> do
-                    memberDecls <- fmap concat . forM members $ \case
-                        Fix (C.MemberDecl (Fix (C.VarDecl ty (L _ _ mname) declSpecArrays)) _) -> do
-                            t <- cimpleToType ty
-                            let finalT = foldr (\_ acc -> TPointer acc) t declSpecArrays
-                            return [(mname, finalT)]
-                        _ -> return []
-                    let fieldEnv = Map.fromList memberDecls
-                    modify $ \s -> s { unionEnv = Map.insert uname fieldEnv (unionEnv s) }
-                    modify $ \s -> s { typedefEnv = Map.insert tname (TUnion uname fieldEnv) (typedefEnv s) }
-                C.Typedef (Fix (C.EnumDecl _ enumerators (L _ _ tname))) (L _ _ _) _ -> do
-                    let enumType = TInt
-                    modify $ \s -> s { typedefEnv = Map.insert tname enumType (typedefEnv s) }
-                    forM_ enumerators $ \e -> handleEnumerator enumType e
-                C.TypedefFunction (Fix (C.FunctionPrototype retType (L _ _ tname) params)) -> do
-                    ret_t <- cimpleToType retType
-                    let (isVariadic, filteredParams) = case params of
-                            [] -> (False, [])
-                            ps -> let lastParam = last ps
-                                  in case unFix lastParam of
-                                      C.Ellipsis -> (True, init ps)
-                                      _          -> (False, ps)
-                    param_ts <- forM (filter (not . isVoidParam) filteredParams) $ \case
-                        Fix (C.VarDecl ty _ _) -> cimpleToType ty
-                        _                      -> fresh
-                    let ftype = TFunc param_ts ret_t isVariadic
-                    modify $ \s -> s { typedefEnv = Map.insert tname ftype (typedefEnv s) }
-                C.Typedef ty (L _ _ name) _ -> do
-                    t <- cimpleToType ty
-                    modify $ \s -> s { typedefEnv = Map.insert name t (typedefEnv s) }
-                C.EnumDecl _ enumerators (L _ _ name) -> do
-                    let enumType = TInt
-                    modify $ \s -> s { typedefEnv = Map.insert name enumType (typedefEnv s) }
-                    forM_ enumerators $ \e -> handleEnumerator enumType e
-                C.EnumConsts maybe_name enumerators -> do
-                    let enumType = TInt -- Anonymous enums are compatible with int.
-                    forM_ maybe_name $ \(L _ _ name) -> do
-                        let scheme = Forall [] enumType
-                        modify $ \s -> s { typeEnv = Map.insert name scheme (typeEnv s) }
-                    forM_ enumerators $ \e -> handleEnumerator enumType e
-                C.FunctionDecl _ (Fix (C.FunctionPrototype retType name params)) ->
-                    addFuncSig name retType params
-                C.FunctionDefn _ (Fix (C.FunctionPrototype retType name params)) _ ->
-                    addFuncSig name retType params
-                C.PreprocDefineConst (L _ _ name) valNode -> do
-                    ty <- inferExpr valNode `catchError` \_ -> fresh
-                    env <- gets typeEnv
-                    scheme <- generalize env ty
-                    modify $ \s -> s { typeEnv = Map.insert name scheme (typeEnv s) }
-                C.PreprocDefineMacro (L _ _ name) params body -> do
-                    paramTypes <- forM params $ \_ -> fresh
-                    let getParamName (Fix (C.MacroParam (L _ _ n))) = Just n
-                        getParamName _                              = Nothing
-                    let paramNames = mapMaybe getParamName params
-                    let paramSchemes = map (Forall []) paramTypes
-                    let paramEnv = Map.fromList $ zip paramNames paramSchemes
+cast :: Ast -> Ast -> Type -> Type -> M ()
+cast n e want got = do
+    w <- shallow want
+    g <- shallow got
+    case (w, g) of
+        (TPtr b, _) | isBytes b -> pure ()
+        (TPtr a, TPtr b) -> do
+            a' <- shallow a
+            b' <- shallow b
+            case (a', b', got) of
+                (TVar _, _, _)        -> pure ()
+                (_, TVar _, _)        -> void (same n (Just Into) a b)
+                -- The value is a void pointer that already has a type.
+                (_, _, TPtr (TVar _)) -> typed
+                _                     -> pure ()
+        _ -> pure ()
+  where
+    typed = tracing $ same n (Just Into) want got >>= mapM_ (const $ do
+        w <- zonk want
+        g <- zonk got
+        report n (code e <+> "is cast to" <+> ppType w <> ", but it is" <+> ppType g))
 
-                    vaType <- fresh
-                    let vaEnv = Map.singleton "__VA_ARGS__" (Forall [] vaType)
+call :: Ast -> Ast -> [Ast] -> M Type
+call n f args = case calleeName f of
+    Just v -> gets (Map.member v . stLocals) >>= \case
+        True -> function Nothing
+        False -> define v >>= \case
+            Just (Macro ps body) -> expanding n $ do
+                let (fixed, rest) = splitAt (length ps) args
+                expr' (substitute (Map.fromList (zip ps fixed)) rest body)
+            _ -> function (Just v)
+    Nothing -> function Nothing
+  where
+    function v = do
+        ft <- expr f
+        ats <- mapM expr args
+        shallow ft >>= \case
+            TPtr t -> shallow t >>= apply v ats
+            t      -> apply v ats t
 
-                    bodyType <- withEnv (Map.union paramEnv . Map.union vaEnv) (inferExpr body)
+    apply v ats = \case
+        TFun ps r variadic -> do
+            known <- maybe (pure []) parameterNames v
+            if length ats < length ps || (not variadic && length ats > length ps)
+                then report n (code f <+> "takes" <+> pretty (length ps) <+> plural (length ps)
+                        <> ", but is called with" <+> pretty (length ats))
+                else forM_ (zip3 [0 ..] ps (zip args ats)) $ \(i, p, (a, at)) -> withCallee v $ do
+                    unless (isJust v) $ called p at
+                    expect a (\got want -> code a <+> "is" <+> got <> ", but"
+                        <+> parameter (known ++ repeat Nothing) i <+> "of" <+> code f <+> "is" <+> want) p at
+            pure r
+        _ -> fresh
 
-                    s <- gets subst
-                    finalParamTypes <- forM paramTypes $ \pt -> return (apply s pt)
+    called (TPtr (TVar a)) at = gets (IntMap.findWithDefault Set.empty a . stCallbacks) >>= mapM_ (\hole -> zonk at >>= \case
+        TPtr x | null (vars x) -> modify (\s -> s { stCalled = Map.insertWith Set.union hole (Set.singleton x) (stCalled s) })
+        _ -> pure ()) . Set.toList
+    called _ _ = pure ()
 
-                    let funcType = TFunc finalParamTypes bodyType True
-                    env <- gets typeEnv
-                    scheme <- generalize env funcType
-                    modify $ \st -> st { typeEnv = Map.insert name scheme (typeEnv st) }
-                _ -> return ()
-            continuation
+    withCallee :: Maybe Text -> M () -> M ()
+    withCallee v m = modify (\s -> s { stCallee = v }) *> m <* modify (\s -> s { stCallee = Nothing })
+
+    plural :: Int -> Doc AnsiStyle
+    plural 1 = "argument"
+    plural _ = "arguments"
+
+    parameter :: [Maybe Text] -> Int -> Doc AnsiStyle
+    parameter known i = maybe ("argument" <+> pretty (i + 1)) quote (known !! i)
+
+parameterNames :: Text -> M [Maybe Text]
+parameterNames v = gets (pGlobals . stProg) >>= visible v >>= \case
+    Just (Function (Fix (FunctionPrototype _ _ ps)) _) -> pure (map paramName (fst (parameters ps)))
+    _                                                  -> pure []
+
+calleeName :: Ast -> Maybe Text
+calleeName (Fix node) = case node of
+    VarExpr (L _ _ v)               -> Just v
+    LiteralExpr C.ConstId (L _ _ v) -> Just v
+    ParenExpr e                     -> calleeName e
+    _                               -> Nothing
+
+substitute :: Map Text Ast -> [Ast] -> Ast -> Ast
+substitute ps rest = go
+  where
+    go (Fix node) = case node of
+        VarExpr (L _ _ v) | Just a <- Map.lookup v ps -> a
+        FunctionCall f as -> Fix (FunctionCall (go f) (concatMap arg as))
+        MemberAccess e f -> Fix (MemberAccess (go e) (member' f))
+        PointerAccess e f -> Fix (PointerAccess (go e) (member' f))
+        _ -> Fix (fmap go node)
+    -- A parameter can name a member.
+    member' l@(L p c f) = case Map.lookup f ps of
+        Just (Fix (VarExpr (L _ _ v))) -> L p c v
+        _                              -> l
+    arg (Fix (LiteralExpr C.ConstId (L _ _ "__VA_ARGS__"))) = rest
+    arg a                                                   = [go a]
+
+--------------------------------------------------------------------------------
+-- Statements
+
+scoped :: M a -> M a
+scoped m = do
+    locals <- gets stLocals
+    defines <- gets stDefines
+    m <* modify (\s -> s { stLocals = locals, stDefines = defines })
+
+declare :: Text -> Type -> M ()
+declare v t = changed v >> modify (\s -> s { stLocals = Map.insert v t (stLocals s) })
+
+-- | Variables the loop body changes are invalidated before the loop, as the
+-- body may run again after changing them.
+loop :: [Ast] -> M a -> M a
+loop body m = mapM_ changed (concatMap changes body) >> m
+
+-- | Checks both branches of an `if` on copies of the unbound type variables,
+-- and keeps only the bindings both branches agree on.
+branches :: Ast -> M () -> M () -> M ()
+branches at a b = do
+    locals <- gets stLocals >>= mapM zonk
+    paths <- gets stPaths >>= mapM zonk
+    let open = nub (concatMap vars (Map.elems locals ++ Map.elems paths))
+        branch :: M () -> M (IntMap Type, IntMap Type, Set Path)
+        branch m = do
+            sub <- renaming open
+            let ls = Map.map (rename sub) locals
+                ps = Map.map (rename sub) paths
+            mapM_ instances (Map.elems ls ++ Map.elems ps)
+            modify (\s -> s { stLocals = ls, stPaths = ps })
+            m
+            kept <- gets (Map.keysSet . stPaths)
+            found <- mapM zonk sub
+            pure (sub, found, kept)
+    (sub, found, kept) <- branch a
+    (_, found', kept') <- branch b
+    modify $ \s -> s { stLocals = locals, stPaths = Map.restrictKeys paths (Set.intersection kept kept') }
+    let groups = Map.fromListWith (++) [ ((found IntMap.! v, found' IntMap.! v), [v]) | v <- open ]
+    forM_ (Map.toList groups) $ \((t, t'), vs) -> do
+        -- Unify the variables that both branches unified.
+        mapM_ (same at Nothing (TVar (foldr1 const vs)) . TVar) (drop 1 vs)
+        unless (t /= t' || not (null (vars t))) $ mapM_ (\v -> same at Nothing (TVar v) (sub IntMap.! v)) (take 1 vs)
+
+stmt :: Ast -> M ()
+stmt n@(Fix node) = case node of
+    CompoundStmt ss -> scoped (mapM_ stmt (concatMap flatten ss))
+    VarDeclStmt (Fix (VarDecl ty (L _ _ v) dims)) value -> do
+        t <- declared ty dims
+        forM_ value (initialise v t)
+        declare v t
+    VLA ty (L _ _ v) size -> do
+        expr size >>= number size "an array size"
+        typeOf ty >>= declare v . TPtr
+    Return (Just e) -> do
+        t <- gets stReturn
+        fn <- gets stName
+        got <- expr e
+        expect e (\g w -> code e <+> "is" <+> g <> ", but" <+> quote fn <+> "returns" <+> w) t got
+    IfStmt c t Nothing -> cond c >> stmt t
+    IfStmt c t (Just e) -> cond c >> branches n (stmt t) (stmt e)
+    WhileStmt c b -> loop [c, b] (cond c >> stmt b)
+    DoWhileStmt b c -> loop [b, c] (stmt b >> cond c)
+    ForStmt i c s b -> scoped $ stmt i >> loop [c, s, b] (cond c >> stmt b >> void (expr s))
+    SwitchStmt e cs -> expr e >> mapM_ stmt (concatMap flatten cs)
+    Case e b -> expr e >> stmt b
+    Default b -> stmt b
+    Label _ s -> stmt s
+    ExprStmt e -> void (expr e)
+    MacroBodyStmt s -> stmt s
+    PreprocDefineConst (L _ _ v) e -> defineLocal v (Just (Constant e))
+    PreprocDefineMacro (L _ _ v) ps e -> defineLocal v (Just (Macro (macroParams ps) e))
+    PreprocUndef (L _ _ v) -> defineLocal v Nothing
+    Return Nothing -> pure ()
+    Break -> pure ()
+    Continue -> pure ()
+    Goto _ -> pure ()
+    _ -> void (expr n)
+  where
+    defineLocal :: Text -> Maybe Define -> M ()
+    defineLocal v d = modify (\s -> s { stDefines = Map.alter (const d) v (stDefines s) })
+
+--------------------------------------------------------------------------------
+-- The whole program
+
+-- | Also collects the names used by the macros and constants a body refers to.
+names :: Map Text Define -> Ast -> Set Text
+names defines = go Set.empty . pure
+  where
+    go seen [] = seen
+    go seen (n : ns) = go seen' (new ++ ns)
+      where
+        found = Set.fromList [ v | Fix x <- subnodes n, Just v <- [ident x] ] `Set.difference` seen
+        seen' = seen `Set.union` found
+        new = concatMap body (mapMaybe (`Map.lookup` defines) (Set.toList found))
+    ident = \case
+        VarExpr (L _ _ v)               -> Just v
+        LiteralExpr C.ConstId (L _ _ v) -> Just v
+        _                               -> Nothing
+    body = \case
+        Constant e -> [e]
+        Macro _ e  -> [e]
+
+signature :: Global -> M Type
+signature (Function proto _) = typeOf proto
+signature (Variable ty _)    = typeOf ty
+
+checkGlobal :: Text -> Global -> Type -> M ()
+checkGlobal v g t = case (g, t) of
+    (Function _ bodies, TFun pts ret _) -> forM_ bodies $ \(Body file defines ps body) -> do
+        enter file defines (Map.fromList [ (p, pt) | (Just p, pt) <- zip ps pts ]) ret
+        stmt body
+    (Variable _ bodies, _) -> forM_ bodies $ \(Body file defines _ value) -> do
+        enter file defines Map.empty TVoid
+        initialise v t value
+    _ -> pure ()
+  where
+    enter :: FilePath -> Map Text Define -> Map Text Type -> Type -> M ()
+    enter file defines locals ret = modify $ \s -> s
+        { stFile = file, stDefines = defines, stLocals = locals, stPaths = Map.empty
+        , stReturn = ret, stName = v, stCall = Nothing }
+
+-- | Checks one strongly connected component of globals, then generalises
+-- their types.
+component :: [(Key, Global)] -> M ()
+component gs = do
+    modify $ \s -> s { stInstances = [] }
+    ts <- forM gs $ \(k, g) -> (k,) <$> signature g
+    modify $ \s -> s { stMono = Map.fromList ts }
+    forM_ (zip gs ts) $ \((k, g), (_, t)) -> checkGlobal (snd k) g t
+    forM_ (zip gs ts) $ \((k, g), (_, t)) -> do
+        t' <- zonk t
+        modify $ \s -> s { stSchemes = Map.insert k (Forall (nub (vars t')) t') (stSchemes s) }
+        uses k g t
+    link
+    modify $ \s -> s { stMono = Map.empty }
+  where
+    -- The void pointer parameters whose type the function determined.
+    uses (_, v) (Function (Fix (FunctionPrototype _ _ ps)) _) (TFun pts _ _) = do
+        us <- fmap concat . forM (zip (fst (parameters ps)) pts) $ \case
+            (Fix (VarDecl ty (L _ _ p) []), TPtr (TVar a)) | isVoidPtr ty -> do
+                t' <- zonk (TPtr (TVar a))
+                o <- gets (IntMap.lookup a . stOrigins)
+                pure [ (p, t', origin) | Just origin <- [o], t' /= TPtr (TVar a) ]
+            _ -> pure []
+        unless (null us) $ modify (\s -> s { stUses = Map.insert v us (stUses s) })
+    uses _ _ _ = pure ()
+
+    isVoidPtr (Fix node) = case node of
+        TyPointer t  -> isVoid t
+        TyConst t    -> isVoidPtr t
+        TyOwner t    -> isVoidPtr t
+        TyNonnull t  -> isVoidPtr t
+        TyNullable t -> isVoidPtr t
+        _            -> False
+
+-- | Links two void pointers of a struct if they still share a type variable
+-- after the component is checked.
+link :: M ()
+link = do
+    found <- gets stInstances
+    forM_ found $ \(tag, args) -> do
+        args' <- mapM zonk args
+        let groups = Map.elems (Map.fromListWith (flip (++)) [ (a, [i]) | (i, TVar a) <- zip [0 ..] args' ])
+        forM_ groups $ \case
+            i : is@(_ : _) -> modify $ \s -> s { stLinks = Map.insertWith IntMap.union tag (IntMap.fromList (map (, i) is)) (stLinks s) }
+            _ -> pure ()
+
+-- | Program-wide facts: the linked void pointers of each struct, and the
+-- callback void pointers that accept any type.
+type Facts = (Map Text (IntMap Int), Set Hole)
+
+check :: Program -> Facts -> ([Diagnostic CimplePos], Facts)
+check prog (links, free) = (reverse (stDiags st) ++ misused, (Map.map canonical (stLinks st), free'))
+  where
+    -- Void pointers that shared a type variable form a class.
+    classes = map flattenSCC $ stronglyConnComp
+        [ (h, h, Set.toList hs) | (h, hs) <- Map.toList $ Map.fromListWith Set.union
+            [ (h, hs) | hs <- IntMap.elems (stHoles st), h <- Set.toList hs ] ]
+
+    -- Values stored in a void pointer that no code in its class uses as that type.
+    misused = Map.elems $ Map.fromList
+        [ ((pos, len), Diagnostic pos len ErrorLevel
+            (code node <+> "is" <+> ppType (TPtr t) <> ", but it is used as" <+> ppType (TPtr (fst (Map.findMin used))))
+            Nothing
+            [ DiagnosticSpan upos ulen ["used as" <+> ppType (TPtr u) <+> "here"]
+            | (u, (ufile, unode)) <- take 2 (Map.toList used), let (upos, ulen) = getDiagnosticInfo ufile unode ]
+            [])
+        | holes <- classes
+        , let used = Map.unions (mapMaybe (`Map.lookup` stUsed st) holes)
+        , not (Map.null used)
+        , (t, (file, node)) <- concatMap (maybe [] Map.toList . (`Map.lookup` stGiven st)) holes
+        , Map.notMember t used
+        , let (pos, len) = getDiagnosticInfo file node
+        , pos `notElem` map diagPos (stDiags st)
+        ]
+
+    free' = free `Set.union` Map.keysSet (Map.filter ((> 1) . Set.size) (stCalled st))
+    st = execState (mapM_ component components) St
+        { stProg = prog, stLinks = links, stFree = free, stCalled = Map.empty, stCallbacks = IntMap.empty, stHoles = IntMap.empty, stGiven = Map.empty, stUsed = Map.empty, stNext = 0, stSubst = IntMap.empty, stOrigins = IntMap.empty
+        , stSchemes = Map.empty, stMono = Map.empty, stUses = Map.empty, stInstances = [], stDiags = []
+        , stFile = "", stDefines = Map.empty, stLocals = Map.empty, stPaths = Map.empty
+        , stReturn = TVoid, stName = "", stCall = Nothing, stTrail = Nothing, stCallee = Nothing
         }
 
-    addFuncSig name retType params = do
-        ret_t <- cimpleToType retType
-        let (isVariadic, filteredParams) = case params of
-                [] -> (False, [])
-                ps -> let lastParam = last ps
-                      in case unFix lastParam of
-                          C.Ellipsis -> (True, init ps)
-                          _          -> (False, ps)
-        param_ts <- forM (filter (not . isVoidParam) filteredParams) $ \case
-            Fix (C.VarDecl ty _ _) -> cimpleToType ty
-            _                      -> fresh
-        let ftype = TFunc param_ts ret_t isVariadic
-        env <- gets typeEnv
-        scheme <- generalize env ftype
-        modify $ \s -> s { typeEnv = Map.insert (lexemeText name) scheme (typeEnv s) }
+    components = map flattenSCC $ stronglyConnComp
+        [ ((k, g), k, uses k g) | (k, g) <- Map.toList (pGlobals prog) ]
 
--- | Type check a file.
-typeCheckFile :: TranslationUnit -> LinterM ()
-typeCheckFile (file, nodes) = do
-    modify $ \s -> s { currentFile = file }
-    traverseAst collector (file, nodes)
+    uses (_, _) g = concat
+        [ [ k | k <- [(Just file, v), (Nothing, v)], Map.member k (pGlobals prog) ]
+        | Body file defines _ body <- bodies g
+        , v <- Set.toList (names (Map.union defines (pDefines prog)) body) ]
+
+    bodies (Function _ bs) = bs
+    bodies (Variable _ bs) = bs
+
+    -- Map each void pointer directly to the first one of its group.
+    canonical m = IntMap.map first' m
+      where first' i = maybe i first' (IntMap.lookup i m)
+
+analyse :: [(FilePath, [Ast])] -> [Diagnostic CimplePos]
+analyse tus = go (Map.empty, Set.empty)
   where
-    collector = astActions
-        { doNode = \_ node continuation -> do
-            case unFix node of
-                C.FunctionDefn _ proto body -> typeCheckFunc proto body
-                _                           -> return ()
-            continuation
-        }
+    prog = collect tus
+    go facts = case check prog facts of
+        (diags, facts') | facts' == facts -> map flag diags
+                        | otherwise       -> go facts'
+    flag d = d { diagFlag = Just "type-check" }
 
-isVoidParam :: Node (Lexeme Text) -> Bool
-isVoidParam (Fix (C.VarDecl ty _ _)) = isVoidType ty
-isVoidParam node                     = isVoidType node
-
-isVoidType :: Node (Lexeme Text) -> Bool
-isVoidType (Fix (C.TyStd (L _ _ "void"))) = True
-isVoidType (Fix (C.TyConst t))            = isVoidType t
-isVoidType (Fix (C.TyOwner t))            = isVoidType t
-isVoidType (Fix (C.TyNullable t))         = isVoidType t
-isVoidType (Fix (C.TyNonnull t))          = isVoidType t
-isVoidType _                              = False
-
--- | Type check a function.
-typeCheckFunc :: Node (Lexeme Text) -> Node (Lexeme Text) -> LinterM ()
-typeCheckFunc (Fix (C.FunctionPrototype retType (L _ _ _) params)) body = do
-    modify $ \s -> s { subst = Map.empty }
-    expectedRetType <- cimpleToType retType
-    paramSchemes <- forM (filter (not . isVoidParam) params) $ \case
-        Fix (C.VarDecl ty (L _ _ name) declSpecArrays) -> do
-            t <- cimpleToType ty
-            let finalT = foldr (\_ acc -> TPointer acc) t declSpecArrays
-            return (name, Forall [] finalT)
-        _ -> return ("", Forall [] TUnit)
-    let paramEnv = Map.fromList $ filter (not . Text.null . fst) paramSchemes
-    withEnv (Map.union paramEnv) $ checkStmt body expectedRetType
-typeCheckFunc _ _ = return ()
-
--- Linter Entry
-
--- | The main analysis function.
-analyse :: [TranslationUnit] -> [Diagnostic CimplePos]
-analyse tus =
-    let
-        initialState = LinterState Map.empty Map.empty Map.empty Map.empty Map.empty 0 ""
-        linterM = do
-            mapM_ collectGlobals tus
-            mapM_ typeCheckFile tus
-    in
-        reverse $ snd $ runState (evalStateT linterM initialState) []
-
-descr :: ([TranslationUnit] -> [Diagnostic CimplePos], (Text, Text))
+descr :: ([(FilePath, [Ast])] -> [Diagnostic CimplePos], (Text, Text))
 descr = (analyse, ("type-check", Text.unlines
-    [ "A Hindley-Milner based type checker for Cimple."
-    , "It checks for type consistency in expressions, assignments, and function calls."
+    [ "Checks that every value has the type its use needs. A `void *` counts as a"
+    , "pointer to one type, which all uses of it have to agree on:"
+    , ""
+    , "- a function that casts its `void *object` to `Foo *` has to be given a"
+    , "  `Foo *`;"
+    , "- a callback has to be passed or stored with an object of the type it casts"
+    , "  its `void *` to, whether the two are function parameters or struct fields;"
+    , "- an object stored in a struct's `void *` has to be of a type that some code"
+    , "  uses that `void *` as."
+    , ""
+    , "A callback type whose `void *` is called with two different types takes any"
+    , "type there, and a `uint8_t *` or `char *` can point at any object."
+    , ""
+    , "**Reason:** the compiler accepts any pointer as a `void *`, so it can't see a"
+    , "callback registered with the wrong object."
     ]))
